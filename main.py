@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from random import choice
+from random import choice, choices
 
 class AutoName(Enum):
   def _generate_next_value_(name, start, count, last_values):
@@ -48,6 +48,7 @@ class Var:
     return f'{self.name}'
 
 def generate_var():
+
   var_name = choice(['A', 'B'])
   return Var(var_name, 2)
 
@@ -67,6 +68,14 @@ def generate_assignment():
   return AssignStmt(lhs, rhs)
 
 def generate_access_pattern(ast_template):
+  assert(type(ast_template) == AssignStmt)
+  assert(type(ast_template.lhs == ArrayAccessExpr))
+  assert(type(ast_template.lhs.var == Var))
+  n_dimensions = ast_template.lhs.var.dimensions
+  relations = choices([Relation.EQUAL, Relation.LESS, Relation.GREATER],
+                      k = n_dimensions)
+  # force one of them to be equal
+  print(relations)
   return ast_template
 
 def emit_c(ast):
