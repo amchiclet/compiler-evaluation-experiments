@@ -3,6 +3,12 @@
 
 #include <stddef.h>
 
+int compare_3d(const float *expected, const float *actual,
+               size_t n1_begin, size_t n1_end, size_t n1_array_size,
+               size_t n2_begin, size_t n2_end, size_t n2_array_size,
+               size_t n3_begin, size_t n3_end, size_t n3_array_size,
+               float tolerance);
+
 int check_conv2d(
     const float *O,
     const float *I,

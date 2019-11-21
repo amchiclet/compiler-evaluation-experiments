@@ -3,7 +3,7 @@ import os.path
 # BUILD_DIR = 'build'
 
 def underscorify(s):
-    return s.replace('/', '_').replace('.', '_')
+    return s.replace('/', '_').replace('.', '_').replace('-', '_')
 
 class Compiler:
     def __init__(self, name, cpp, extra_args = ''):
@@ -35,7 +35,7 @@ report_order = [
     'icc_0', 'icc_s', 'icc_v',
 ]
 
-vtune_rounds = 5
+vtune_rounds = 1
 
 import benchmarks
 executables = benchmarks.executables

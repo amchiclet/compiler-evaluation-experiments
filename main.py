@@ -1,10 +1,11 @@
 from random import choice, choices, shuffle
 from ast import Relation, AccessRelation, ArrayAccessExpr, BinaryExpr, AssignStmt, Literal, ScalarVar, ArrayVar
-from format import format_array_decls, format_inits, format_kernel, format_loop
+from format import format_array_decls, format_inits, format_kernel, format_loop, format_program_ir_simple, format_typedef, format_copies, format_allocs, format_compares
 from util import get_file_contents, set_file_contents
 import argparse
 
 ARRAY_NAMES = ['A', 'B', 'C']
+TEST_ARRAY_NAMES = [name + 'test' for name in ARRAY_NAMES]
 
 def generate_index(i, relation):
   if relation == Relation.EQUAL:
@@ -65,10 +66,10 @@ def generate_access_pattern_rhs(assignment, rhs, loop_vars):
     dimension_order.append(n_dimensions-1)
     assignment.dep_matrix.append(relations)
   else:
-    relations.append(Relation.EQUAL)
-    dimension_order.append(n_dimensions-1)
     shuffle(relations)
     shuffle(dimension_order)
+    relations.append(Relation.EQUAL)
+    dimension_order.append(n_dimensions-1)
 
   for i in range(n_dimensions):
     loop_var = loop_vars[i]
@@ -107,12 +108,19 @@ def reorder_loop_vars(loop_vars, assignment):
       break
     else:
       print('ILLEGAL: ', [loop_vars[i].name for i in order])
+      pass
   return [loop_vars[i] for i in legal_ordering]
+
+def debug_str(program_ir):
+  s = []
+  for loop_ir in program_ir:
+    s.append('[' + ','.join([v.name for v in loop_ir.loop_vars]) + ']')
+  return ' '.join(s)
 
 class LoopIR:
   def __init__(self, loop_vars, assign_stmt):
     self.loop_vars = loop_vars
-    self.assign_stmt = assign_stmt
+    self.assign_stmt = assign_stmt    
 
 def generate_variant_program_ir(program, loop_vars):
   program_ir = []
@@ -126,46 +134,101 @@ def generate_variant_program_ir(program, loop_vars):
   return program_ir
 
 def generate_program(n_statements, n_dimensions, loop_vars):
+  print('*** Generating program ***')
   program = []
   for _ in range(n_statements):
     assign_stmt = generate_assignment(n_dimensions)
     generate_access_pattern_lhs(assign_stmt.lhs, loop_vars)
     for rhs_access_expr in assign_stmt.rhs.get_array_access_exprs():
       generate_access_pattern_rhs(assign_stmt, rhs_access_expr, loop_vars)
-    print('*** Generated assignment ***')
     print(assign_stmt)
     print(assign_stmt.dep_matrix)
     program.append(assign_stmt)
   return program
 
-def main(args):
+
+def write_program_to_file(array_names, test_array_names, n_dimensions, program_ir, test_ir, path):
+  type_name = f'Array{n_dimensions}D'
+
+  all_arrays = array_names + test_array_names
+
+  decls = format_typedef(0, type_name, n_dimensions) + '\n' + \
+          format_array_decls(0, type_name, all_arrays, n_dimensions)
+
+  inits = format_allocs(1, type_name, all_arrays) + '\n' + \
+          format_inits(1, array_names, n_dimensions) + '\n' + \
+          format_copies(1, array_names, test_array_names, n_dimensions)
+
+  kernel = format_program_ir_simple(program_ir)
+
+  test = format_program_ir_simple(test_ir) + '\n' + \
+         format_compares(1, array_names, test_array_names, n_dimensions)
+
+  template = get_file_contents('run.c.template')
+  code = template.replace('///DECLARE_ARRAY', decls) \
+                 .replace('///INITIALIZE', inits) \
+                 .replace('///KERNEL', kernel) \
+                 .replace('///TEST', test)
+  set_file_contents(path, code)
+
+def generate_meson_build_file(paths):
+  template = get_file_contents('meson.template')
+  formatted = ',\n'.join(["  '" + p + "'" for p in paths])
+  script = template.replace('###BENCHMARKS', formatted)
+  set_file_contents('meson.build', script)
+
+def generate_benchmark_file(paths):
+  formatted_paths = [f"    ('{p.replace('.', '_')}', 5)," for p in paths]
+  file_content =  'executables = [\n' + '\n'.join(formatted_paths) + '\n]\n'
+  set_file_contents('benchmarks.py', file_content)
+
+def generate_program_and_variants(filename_prefix, program_index, max_variants, benchmarks):
   # TODO: make these program arguments
   n_statements = 2
   n_dimensions = 3
+
   loop_vars = generate_loop_vars(n_dimensions)
   program = generate_program(n_statements, n_dimensions, loop_vars)
 
-  # Variant 0 is the original program with no loops interchanged
+  # Variant 0 is the original program with no loops interchanged  
   program_ir = [LoopIR(loop_vars, assign_stmt) for assign_stmt in program]
   variants = [program_ir]
 
-  for i in range(args.max_variants):
-    variants.append(generate_variant_program_ir(program, loop_vars))
+  for i in range(max_variants):
+    variant = generate_variant_program_ir(program, loop_vars)
+    print(debug_str(variant))
+    variants.append(variant)
 
-  for i in range(len(variants)):
-    program_ir = variants[i]
-    print('=======================')
-    print(f'VARIANT {i}')
-    formatted_kernel = []
-    for loop_ir in program_ir:
-      formatted_loop = format_loop(1, loop_ir.loop_vars, [loop_ir.assign_stmt])
-      formatted_kernel.append(formatted_loop)
-    print('\n'.join(formatted_kernel))
+  rename_map = {src:dst for src, dst in zip(ARRAY_NAMES, TEST_ARRAY_NAMES)}
+  test_program_ir = [LoopIR(loop_vars, assign_stmt.rename(rename_map))
+                     for assign_stmt in program]
+
+  print('looping after')
+  for variant_index in range(len(variants)):
+    path = f'{filename_prefix}.p{program_index:02d}.v{variant_index:02d}.c'
+    benchmarks.append(path)
+    program_ir = variants[variant_index]
+    print(debug_str(program_ir))
+    write_program_to_file(ARRAY_NAMES,
+                          TEST_ARRAY_NAMES,
+                          n_dimensions,
+                          program_ir,
+                          test_program_ir,
+                          path)
+    print(f'Wrote program to file {path}.')
+  
+def main(args):
+  benchmarks = []
+  for program_index in range(args.max_programs):
+    generate_program_and_variants(args.filename_prefix, program_index, args.max_variants, benchmarks)
+  generate_meson_build_file(benchmarks)
+  generate_benchmark_file(benchmarks)
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--prefix')
-  parser.add_argument('--max_variants', type=int, default=5)
+  parser.add_argument('--filename_prefix', required=True)
+  parser.add_argument('--max_programs', type=int, default=1)
+  parser.add_argument('--max_variants', type=int, default=1)
   args = parser.parse_args()
   main(args)
 

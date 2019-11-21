@@ -62,19 +62,20 @@ void run(int n_iterations, const char* runtime_log_path) {
 
 void check() {
   printf("Checking\n");
-  /* float largest_number = KH * KW * KC; */
-  /* float largest_ulp = ulp(largest_number); */
-  /* printf("largest number %f ulp %.30f\n", largest_number, largest_ulp); */
-  /* size_t n_muls = KH * KW * KC; */
-  /* size_t n_adds = KH * KW * KC - 1; */
-  /* size_t n_ops = n_muls + n_adds; */
-  /* float tolerance = largest_ulp * n_ops / 2; */
-  /* printf("tolerance is %.30f\n", tolerance); */
+  // Largest number is produced by 1.0 + 1.0 twice
+  float largest_number = 4.0;
+  float largest_ulp = ulp(largest_number);
+  printf("largest number %f ulp %.30f\n", largest_number, largest_ulp);
+  // Only one operation on the right handside
+  size_t n_ops = 1;
+  float tolerance = largest_ulp * n_ops / 2;
+  printf("tolerance is %.30f\n", tolerance);
   /* int pass = check_conv2d_nchw( */
   /*     (float*)Oin, (float*)I, (float*)K, (float*)O, */
   /*     H, W, C, KH, KW, KC, SH, SW, PT, PB, PL, PR, DH, DW, */
   /*     tolerance); */
-  int pass = 1;
+///TEST
+  /* int pass = dummy_3((float*)A, (float*)B, (float*)C); */
   printf(pass ? "PASS\n" : "FAIL\n");
 }
 

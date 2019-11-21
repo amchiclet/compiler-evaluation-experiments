@@ -90,6 +90,38 @@ int check_conv2d(
   return is_equal;
 }
 
+int compare_3d(const float *expected, const float *actual,
+               size_t n1_begin, size_t n1_end, size_t n1_array_size,
+               size_t n2_begin, size_t n2_end, size_t n2_array_size,
+               size_t n3_begin, size_t n3_end, size_t n3_array_size,
+               float tolerance) {
+  size_t stride3 = 1;
+  size_t stride2 = stride3 * n3_array_size;
+  size_t stride1 = stride2 * n2_array_size;
+
+  int max_discrepency = 10;
+  int n_discrepency = 0;
+  printf("Comparing\n");
+  for (size_t i = n1_begin; i < n1_end; ++i) {
+    for (size_t j = n2_begin; j < n2_end; ++j) {
+      for (size_t k = n3_begin; k < n3_end; ++k) {
+        size_t index = i*stride1 + j*stride2 + k*stride3;
+        float actual_v = actual[index];
+        float expected_v = expected[index];
+        float diff = actual_v - expected_v;
+        if (fabs(diff) > tolerance) {
+          printf("Actual(%.2f) Expected(%.2f)\n", actual_v, expected_v);
+          ++n_discrepency;
+          if (n_discrepency >= max_discrepency) {
+            return 0;
+          }
+        }
+      }
+    }
+  }
+  return 1;
+}
+
 int check_conv2d_nchw(
     const float *Oin,
     const float *I,

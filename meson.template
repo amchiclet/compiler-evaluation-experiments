@@ -1,12 +1,7 @@
 project('benchmarks', 'c')
 
 benchmarks = [
-  'debug.p00.v00.c',
-  'debug.p00.v01.c',
-  'debug.p00.v02.c',
-  'debug.p00.v03.c',
-  'debug.p00.v04.c',
-  'debug.p00.v05.c'
+###BENCHMARKS
 ]
 compile_opts = []
 link_opts = ['-lm']
@@ -26,7 +21,7 @@ no_vec = get_option('localstatedir') == 'no_vec'
 
 message('Detected compiler: ' + compiler_id)
 
-# TODO use more aggressive options to vectorize
+# TODO: generate optimization report
 if compiler_id == 'pgi'
   compile_opts += ['-Minfo']
   optimization = ['-fast']
@@ -40,10 +35,7 @@ elif compiler_id == 'intel'
   optimization = ['-Ofast', '-ipo', '-static']
 
   # -fast means -Ofast, -ipo, -static, -xHost
-  # compile_opts += ['-march=native']
-  # optimization = ['-fast']
 elif compiler_id == 'clang'
-  #compile_opts += ['-march=skylake-avx512']
   compile_opts += ['-march=native']
   # llvm requires loop interchange to be enabled
   # (http://lists.llvm.org/pipermail/llvm-dev/2017-November/119186.html)

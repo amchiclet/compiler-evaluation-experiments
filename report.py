@@ -45,9 +45,9 @@ class Metrics:
         return self.format_range(values)
         
     def format_range(self, values):
-        print(values)
+        # print(values)
         mean = statistics.mean(values)
-        stddev = statistics.stdev(values)
+        stddev = statistics.stdev(values) if len(values) > 1 else 0
         return f'{mean:.2f} ± {stddev:.2f}'
 
     def format_gflops(self):
@@ -178,11 +178,12 @@ def parse_metrics(args):
             metrics[compiler_name][executable_name] = metric
     return metrics
 
-def report_for_compiler_group(compiler_names, table):
+def report_for_compiler_group(compiler_names, table, runtime_only):
     print(','.join(['program'] + compiler_names))
     for executable_name, _ in executables:
         print(executable_name)
-        for attribute_name in Metrics.get_attribute_names():
+        attribute_names = ['runtime'] if runtime_only else Metrics.get_attribute_names()
+        for attribute_name in attribute_names:
             row = [attribute_name]
             for compiler_name in compiler_names:
                 value = 'N/A'
@@ -197,6 +198,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--report_root_dir', required=True)
     parser.add_argument('--build_root_dir', required=True)
+    parser.add_argument('--runtime_only', action='store_true', default=False)
     args = parser.parse_args()
     metrics = parse_metrics(args)
 
@@ -212,17 +214,18 @@ if __name__ == '__main__':
                 table[compiler_name][attribute_name][executable_name] = formatter()
 
     pgi_group = ['pgi_s', 'pgi_v']
-    report_for_compiler_group(pgi_group, table)
+    report_for_compiler_group(pgi_group, table, args.runtime_only)
 
     clang_group = ['clang_s', 'clang_v']
-    report_for_compiler_group(clang_group, table)
+    report_for_compiler_group(clang_group, table, args.runtime_only)
 
     gcc_group = ['gcc_s', 'gcc_v']
-    report_for_compiler_group(gcc_group, table)
+    report_for_compiler_group(gcc_group, table, args.runtime_only)
 
     icc_group = ['icc_s', 'icc_v']
-    report_for_compiler_group(icc_group, table)
+    report_for_compiler_group(icc_group, table, args.runtime_only)
 
+    print(args.runtime_only)
 
 
 
