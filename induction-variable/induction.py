@@ -20,6 +20,10 @@ class IvDecl:
   # don't rename iv declarations
   def rename(self, rename_map):
     return IvDecl(self.lhs, self.rhs)
+  def get_array_access_exprs(self):
+    return []
+  def substitute(self, substituter):
+    return IvDecl(self.lhs, self.rhs)
 
 class IvUpdateStmt:
   def __init__(self, lhs, rhs):
@@ -79,18 +83,18 @@ def generate_loop_ir(loop_vars, body, iv_map):
   strategy = randint(0, n_strategies - 1)
   iv_var = fresh_iv_var()
 
-
   # strategy 0 increment by 1, substitute with iv
   # strategy 1 offset by 3 increment by 1, substitute with iv - 3
   # strategy 2 increment by 2, substitute with iv / 2
   # otherwise update in sync with loop var
   strategy = randint(0, 2)
   if strategy == 0:
+    iv_decl = IvDecl(iv_var, Literal(1))
     iv_map.loop_var_map[loop_vars[0].name] = ScalarVar(iv_var.name)
-    iv_map.iv_decls.append(IvDecl(iv_var, Literal(1)))
+    iv_map.iv_decls.append(iv_decl)
     new_body = generate_loop_ir(loop_vars[1:], body, iv_map)
     iv_update = IvUpdateStmt(iv_var, BinaryExpr('+', iv_var, Literal(1)))
-    loop_ir = [LoopIR([loop_vars[0]], new_body + [iv_update])]
+    loop_ir = [iv_decl, LoopIR([loop_vars[0]], new_body + [iv_update])]
   elif strategy == 1:
     offset = randint(3, 33)
     increment = randint(5, 55)
@@ -101,18 +105,20 @@ def generate_loop_ir(loop_vars, body, iv_map):
     iv_map.loop_var_map[loop_vars[0].name] = sub
 
     initial_offset = BinaryExpr('+', Literal(offset), Literal(increment))
-    iv_map.iv_decls.append(IvDecl(iv_var, initial_offset))
+    iv_decl = IvDecl(iv_var, initial_offset)
+    iv_map.iv_decls.append(iv_decl)
     new_body = generate_loop_ir(loop_vars[1:], body, iv_map)
 
     increment_iv = BinaryExpr('+', iv_var, Literal(increment))
     iv_update = IvUpdateStmt(iv_var, increment_iv)
-    loop_ir = [LoopIR([loop_vars[0]], new_body + [iv_update])]
+    loop_ir = [iv_decl, LoopIR([loop_vars[0]], new_body + [iv_update])]
   else:
+    iv_decl = IvDecl(iv_var, loop_vars[0])
     iv_map.loop_var_map[loop_vars[0].name] = ScalarVar(iv_var.name)
-    iv_map.iv_decls.append(IvDecl(iv_var, Literal(0)))
+    iv_map.iv_decls.append(iv_decl)
     new_body = generate_loop_ir(loop_vars[1:], body, iv_map)
     iv_update = IvUpdateStmt(iv_var, loop_vars[0])
-    loop_ir = [LoopIR([loop_vars[0]], [iv_update] + new_body)]
+    loop_ir = [iv_decl, LoopIR([loop_vars[0]], [iv_update] + new_body)]
 
   return loop_ir
 
@@ -130,6 +136,9 @@ def generate_variant_program_ir(program, loop_vars, n_dimensions):
       # randomize how many to rename and which ones
       access_exprs = ir.get_array_access_exprs()
       n_exprs = len(access_exprs)
+      if n_exprs == 0:
+        program_ir.append(ir)
+        continue
       renamed_ir = ir
       for loop_var in iv_map.loop_var_map:
         # pick at least 1 place to rename
@@ -143,8 +152,8 @@ def generate_variant_program_ir(program, loop_vars, n_dimensions):
       program_ir.append(renamed_ir)
     iv_decls += iv_map.iv_decls
     # print('=====================')
-
-  return iv_decls + program_ir
+  return program_ir
+  # return iv_decls + program_ir
 
 def generate_program_and_variants(filename_prefix, program_index, max_variants, benchmarks):
   # TODO: make these program arguments
