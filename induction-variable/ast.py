@@ -116,6 +116,8 @@ class Literal:
     return f'{self.c}'
   def rename(self, rename_map):
     return Literal(self.c)
+  def substitute(self, substituter):
+    return Literal(self.c)
 
 class ScalarVar:
   def __init__(self, name):

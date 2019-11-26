@@ -39,13 +39,13 @@ class LoopVarSubstituter(Substituter):
     self.current_index = 0
     self.substitute_map = substitute_map
     self.indices_to_rename = indices
-  def rename(self, ast):
+  def substitute(self, ast):
     substituted = ast
     if self.current_index not in self.indices_to_rename:
       print('not renaming!')
     else:
       print('renamed')
-      substituted = ast.substitute(self.substitute_map)
+      substituted = ast.substitute(self)
     self.current_index += 1
     return substituted
 
@@ -75,21 +75,41 @@ def generate_loop_ir(loop_vars, body, iv_map):
   n_strategies = 2
   strategy = randint(0, n_strategies - 1)
   iv_var = fresh_iv_var()
-  iv_map.loop_var_map[loop_vars[0].name] = iv_var.name
 
-  # strategy 0 update in sync with loop var
-  # strategy 1 increment by 1
-  strategy = 1
+
+  # strategy 0 increment by 1, substitute with iv
+  # strategy 1 offset by 3 increment by 1, substitute with iv - 3
+  # strategy 2 increment by 2, substitute with iv / 2
+  # otherwise update in sync with loop var
+  strategy = randint(0, 2)
   if strategy == 0:
-    iv_map.iv_decls.append(IvDecl(iv_var, Literal(0)))
-    new_body = generate_loop_ir(loop_vars[1:], body, iv_map)
-    iv_update = IvUpdateStmt(iv_var, loop_vars[0])
-    loop_ir = [LoopIR([loop_vars[0]], [iv_update] + new_body)]
-  elif strategy == 1:
+    iv_map.loop_var_map[loop_vars[0].name] = ScalarVar(iv_var.name)
     iv_map.iv_decls.append(IvDecl(iv_var, Literal(1)))
     new_body = generate_loop_ir(loop_vars[1:], body, iv_map)
     iv_update = IvUpdateStmt(iv_var, BinaryExpr('+', iv_var, Literal(1)))
     loop_ir = [LoopIR([loop_vars[0]], new_body + [iv_update])]
+  elif strategy == 1:
+    offset = randint(3, 33)
+    increment = randint(5, 55)
+
+    print(f'offset {offset}, increment {increment}')
+    minus_offset = BinaryExpr('-', ScalarVar(iv_var.name), Literal(offset))
+    sub = BinaryExpr('/', minus_offset, Literal(increment))
+    iv_map.loop_var_map[loop_vars[0].name] = sub
+
+    initial_offset = BinaryExpr('+', Literal(offset), Literal(increment))
+    iv_map.iv_decls.append(IvDecl(iv_var, initial_offset))
+    new_body = generate_loop_ir(loop_vars[1:], body, iv_map)
+
+    increment_iv = BinaryExpr('+', iv_var, Literal(increment))
+    iv_update = IvUpdateStmt(iv_var, increment_iv)
+    loop_ir = [LoopIR([loop_vars[0]], new_body + [iv_update])]
+  else:
+    iv_map.loop_var_map[loop_vars[0].name] = ScalarVar(iv_var.name)
+    iv_map.iv_decls.append(IvDecl(iv_var, Literal(0)))
+    new_body = generate_loop_ir(loop_vars[1:], body, iv_map)
+    iv_update = IvUpdateStmt(iv_var, loop_vars[0])
+    loop_ir = [LoopIR([loop_vars[0]], [iv_update] + new_body)]
 
   return loop_ir
 
@@ -113,7 +133,7 @@ def generate_variant_program_ir(program, loop_vars, n_dimensions):
         n_renames = randint(1, n_exprs)
         all_indices = [x for x in range(n_exprs)]
         indices_to_rename = sample(all_indices, k=n_renames)
-        loop_var_map = {loop_var : ScalarVar(iv_map.loop_var_map[loop_var])}
+        loop_var_map = {loop_var : iv_map.loop_var_map[loop_var]}
         substituter = LoopVarSubstituter(loop_var_map, indices_to_rename)
         print(indices_to_rename)
         renamed_ir = renamed_ir.substitute(substituter)

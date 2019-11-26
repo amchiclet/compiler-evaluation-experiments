@@ -16,6 +16,8 @@ def format_loop(n_indent, loop_vars, body):
       if type(stmt) == LoopIR:
         formatted.append(format_loop(n_indent, stmt.loop_vars, stmt.body))
       else:
+        print('debugging')
+        print(stmt)
         formatted.append(f'{indentation}{stmt.format_c()}')
     return '\n'.join(formatted)
   indentation = n_indent * '  '
