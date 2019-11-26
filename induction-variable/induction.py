@@ -113,7 +113,7 @@ def generate_loop_ir(loop_vars, body, iv_map):
     iv_update = IvUpdateStmt(iv_var, increment_iv)
     loop_ir = [iv_decl, LoopIR([loop_vars[0]], new_body + [iv_update])]
   else:
-    iv_decl = IvDecl(iv_var, loop_vars[0])
+    iv_decl = IvDecl(iv_var, Literal(0))
     iv_map.loop_var_map[loop_vars[0].name] = ScalarVar(iv_var.name)
     iv_map.iv_decls.append(iv_decl)
     new_body = generate_loop_ir(loop_vars[1:], body, iv_map)
