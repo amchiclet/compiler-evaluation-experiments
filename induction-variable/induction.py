@@ -1,5 +1,5 @@
 from generate import generate_loop_vars, generate_program, ARRAY_NAMES, TEST_ARRAY_NAMES
-from ast import ScalarVar, AssignStmt, Literal, LoopIR, Renamer, BinaryExpr
+from ast import ScalarVar, AssignStmt, Literal, LoopIR, Substituter, BinaryExpr
 from codegen import write_program_to_file, generate_meson_build_file, generate_benchmark_file
 import argparse
 from random import randint, sample
@@ -29,31 +29,25 @@ class IvUpdateStmt:
     return f'{self.lhs.format_c()} = {self.rhs.format_c()};'
   def rename(self, rename_map):
     return IvUpdateStmt(self.lhs, self.rhs)
-  def maybe_rename(self, renamer):
+  def substitute(self, substituter):
     return IvUpdateStmt(self.lhs, self.rhs)
   def get_array_access_exprs(self):
     return []
 
-class IVStrategy:
-  def __init__(self, pre, substitute, post):
-    self.pre = pre
-    self.substitute = substitute
-    self.post = post
-
-class LoopVarRenamer(Renamer):
-  def __init__(self, rename_map, indices):
+class LoopVarSubstituter(Substituter):
+  def __init__(self, substitute_map, indices):
     self.current_index = 0
-    self.rename_map = rename_map
+    self.substitute_map = substitute_map
     self.indices_to_rename = indices
   def rename(self, ast):
-    maybe_renamed = ast
+    substituted = ast
     if self.current_index not in self.indices_to_rename:
       print('not renaming!')
     else:
       print('renamed')
-      maybe_renamed = ast.rename(self.rename_map)
+      substituted = ast.substitute(self.substitute_map)
     self.current_index += 1
-    return maybe_renamed
+    return substituted
 
 iv_count = 0
 def reset_iv_var():
@@ -119,10 +113,10 @@ def generate_variant_program_ir(program, loop_vars, n_dimensions):
         n_renames = randint(1, n_exprs)
         all_indices = [x for x in range(n_exprs)]
         indices_to_rename = sample(all_indices, k=n_renames)
-        loop_var_map = {loop_var : iv_map.loop_var_map[loop_var]}
-        renamer = LoopVarRenamer(loop_var_map, indices_to_rename)
+        loop_var_map = {loop_var : ScalarVar(iv_map.loop_var_map[loop_var])}
+        substituter = LoopVarSubstituter(loop_var_map, indices_to_rename)
         print(indices_to_rename)
-        renamed_ir = renamed_ir.maybe_rename(renamer)
+        renamed_ir = renamed_ir.substitute(substituter)
       program_ir.append(renamed_ir)
     iv_decls += iv_map.iv_decls
     print('=====================')

@@ -37,8 +37,12 @@ class ArrayAccessExpr:
                       if d is not None else None
                       for d in self.access]
     return ArrayAccessExpr(self.var.rename(rename_map), renamed_access)
+  
   def substitute(self, substituter):
-    return substituter.rename(self)
+    renamed_access = [substituter.substitute(d)
+                      if d is not None else None
+                      for d in self.access]
+    return ArrayAccessExpr(substituter.substitute(self.var), renamed_access)
 
 class BinaryExpr:
   def __init__(self, op, lhs, rhs):
@@ -134,6 +138,11 @@ class ScalarVar:
     else:
       print('not renaming')
       return ScalarVar(self.name)
+  def substitute(self, substituter):
+    if self.name in substituter.substitute_map:
+      return substituter.substitute_map[self.name]
+    else:
+      return ScalarVar(self.name)
 
 class ArrayVar:
   def __init__(self, name, n_dimensions):
@@ -150,6 +159,13 @@ class ArrayVar:
   def rename(self, rename_map):
     if self.name in rename_map:
       return ArrayVar(rename_map[self.name], self.n_dimensions)
+    else:
+      return ArrayVar(self.name, self.n_dimensions)
+  def substitute(self, substituter):
+    if self.name in substituter.substitute_map:
+      v = substituter.substitute_map[self.name]
+      print(f'substituting {self} for {v}')
+      return v
     else:
       return ArrayVar(self.name, self.n_dimensions)
 
