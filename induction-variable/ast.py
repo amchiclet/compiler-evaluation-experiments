@@ -37,12 +37,13 @@ class ArrayAccessExpr:
                       if d is not None else None
                       for d in self.access]
     return ArrayAccessExpr(self.var.rename(rename_map), renamed_access)
-  
   def substitute(self, substituter):
     renamed_access = [substituter.substitute(d)
                       if d is not None else None
                       for d in self.access]
-    return ArrayAccessExpr(substituter.substitute(self.var), renamed_access)
+    renamed_expr = ArrayAccessExpr(substituter.substitute(self.var), renamed_access)
+    substituter.increment_index()
+    return renamed_expr
 
 class BinaryExpr:
   def __init__(self, op, lhs, rhs):

@@ -39,14 +39,17 @@ class LoopVarSubstituter(Substituter):
     self.current_index = 0
     self.substitute_map = substitute_map
     self.indices_to_rename = indices
+  def increment_index(self):
+    self.current_index += 1
   def substitute(self, ast):
     substituted = ast
+    renamed = False
     if self.current_index not in self.indices_to_rename:
-      print('not renaming!')
+      renamed = False
     else:
-      print('renamed')
+      renamed = True
       substituted = ast.substitute(self)
-    self.current_index += 1
+    print(f'renamed index {self.current_index}')
     return substituted
 
 iv_count = 0
@@ -117,12 +120,12 @@ def generate_variant_program_ir(program, loop_vars, n_dimensions):
   program_ir = []
   iv_decls = []
   for assign_stmt in program:
-    print('*** Assignment ***')
-    print(assign_stmt.format_c())
+    # print('*** Assignment ***')
+    # print(assign_stmt.format_c())
     reset_iv_var()
     iv_map = IVMap()
     irs = generate_loop_ir(loop_vars, [assign_stmt], iv_map)
-    print(iv_map.loop_var_map)
+    # print(iv_map.loop_var_map)
     for ir in irs:
       # randomize how many to rename and which ones
       access_exprs = ir.get_array_access_exprs()
@@ -135,11 +138,11 @@ def generate_variant_program_ir(program, loop_vars, n_dimensions):
         indices_to_rename = sample(all_indices, k=n_renames)
         loop_var_map = {loop_var : iv_map.loop_var_map[loop_var]}
         substituter = LoopVarSubstituter(loop_var_map, indices_to_rename)
-        print(indices_to_rename)
+        print(f'indices to rename {indices_to_rename}')
         renamed_ir = renamed_ir.substitute(substituter)
       program_ir.append(renamed_ir)
     iv_decls += iv_map.iv_decls
-    print('=====================')
+    # print('=====================')
 
   return iv_decls + program_ir
 
