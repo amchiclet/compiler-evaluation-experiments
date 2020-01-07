@@ -61,6 +61,9 @@ def get_stability_index(runtimes, base, threshold):
     n_stable = sum(((r - base) / base) < threshold for r in runtimes)
     return float(n_stable) / len(runtimes)
 
+def get_speedup(runtimes, base):
+    return statistics.mean([r / base for r in runtimes])
+
 class Agg:
     def __init__(self, runtimes):
         self.mean = statistics.mean(runtimes)
@@ -70,14 +73,15 @@ def get_aggregate(runtimes):
 
 def format_for_latex(compiler_name, rows):
     print('\\hline')
-    print(f'\\multicolumn{{4}}{{| c |}}{{{compiler_name}}} \\\\')
+    print(f'\\multicolumn{{6}}{{| c |}}{{{compiler_name}}} \\\\')
     print('\\hline')
     for row in rows:
         print(' & '.join(row) + ' \\\\')
     
 def report_for_compiler(compiler_name, table):
-    modes = ['s', 'v']
-    full_compiler_names = [f'{compiler_name}_{mode}' for mode in modes]
+    scalar = compiler_name + '_s'
+    vector = compiler_name + '_v'
+    full_compiler_names = [scalar, vector]
     report = {}
     program_names = []
     for c in full_compiler_names:
@@ -91,36 +95,48 @@ def report_for_compiler(compiler_name, table):
                 report[c][p] = []
             report[c][p].append(get_runtime(c, executable_name, table))
 
-    speedup_report = {}
-    for p in program_names:
-        speedups = []
-        scalar = compiler_name + '_s'
-        vector = compiler_name + '_v'
-        for runtime_s, runtime_v in zip(report[scalar][p], report[vector][p]):
-            speedups.append(runtime_s / runtime_v)
-        speedup_report[p] = statistics.mean(speedups)
+    # speedup_report = {}
+    # for p in program_names:
+    #     speedups = []
+    #     scalar = compiler_name + '_s'
+    #     vector = compiler_name + '_v'
+    #     for runtime_s, runtime_v in zip(report[scalar][p], report[vector][p]):
+    #         speedups.append(runtime_s / runtime_v)
+    #     speedup_report[p] = statistics.mean(speedups)
 
     agg_report = {}
+    speedups = {}
     stability_report = {}
     threshold = 0.15
     for c in full_compiler_names:
         agg_report[c] = {}
+        speedups[c] = {}
         stability_report[c] = {}
         for p in program_names:
-            agg_report[c][p] = get_aggregate(report[c][p])
-            stability_report[c][p] = get_stability_index(report[c][p],
-                                                         agg_report[c][p].min,
+            runtimes = report[c][p]
+            agg_report[c][p] = get_aggregate(runtimes)
+            base = agg_report[c][p].min
+            speedups[c][p] = get_speedup(runtimes, base)
+            stability_report[c][p] = get_stability_index(runtimes,
+                                                         base,
                                                          threshold)
+
+    vector_opportunity = {}
+    for p in program_names:
+        vector_opportunity[p] = agg_report[scalar][p].min / agg_report[vector][p].min
+
     # rows = [['program'] + full_compiler_names]
     # header = ['program', 'avg speedup', 'scalar stability', 'vector stability']
     rows = []
     for p in program_names:
-        scalar = compiler_name + '_s'
-        vector = compiler_name + '_v'
-        row = [p,
-               f'{speedup_report[p]:.2f}',
-               f'{stability_report[scalar][p]:.2f}',
-               f'{stability_report[vector][p]:.2f}']
+        row = [
+            p,
+            f'{speedups[scalar][p]:.2f}',
+            f'{stability_report[scalar][p]:.2f}',
+            f'{speedups[vector][p]:.2f}',
+            f'{stability_report[vector][p]:.2f}',
+            f'{vector_opportunity[p]:.2f}'
+        ]
         rows.append(row)
         # runtime_row = ['avg runtime (sec)']
         # stability_row = ['stability_index']
