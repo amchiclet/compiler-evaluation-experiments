@@ -61,6 +61,9 @@ def find_min_and_index(runtimes):
             min_i = i
     return (min_r, min_i)
 
+top_top_speed = None
+top_speeds = {}
+vos = {}
 for c in base_compilers:
     scalar = c + '_s'
     vector = c + '_v'
@@ -69,12 +72,18 @@ for c in base_compilers:
 
     min_scalar_r, min_scalar_i = find_min_and_index(all_runtimes[scalar])
     min_vector_r, min_vector_i = find_min_and_index(all_runtimes[vector])
-    vector_opportunity = min_scalar_r / min_vector_r
+    vo = min_scalar_r / min_vector_r
+    vos[c] = vo
+    top_speed = min(min_scalar_r, min_vector_r)
+    top_speeds[c] = top_speed
+    if not top_top_speed or top_top_speed > top_speed:
+        top_top_speed = top_speed
 
+for c in base_compilers:
     print(f'\\hline')
     print(f'\\multicolumn{{6}}{{| c |}}{{{c}}} \\\\')
     print(f'\\hline')
-    print(f'convolution & {speedups[scalar]:.2f} & {stability[scalar]:.2f} & {speedups[vector]:.2f} & {stability[vector]:.2f} & {vector_opportunity:.2f} \\\\')
+    print(f'convolution & {speedups[scalar]:.2f} & {stability[scalar]:.2f} & {speedups[vector]:.2f} & {stability[vector]:.2f} & {vos[c]:.2f} & {(top_top_speed / top_speeds[c]):.2f} \\\\')
     print(f'\\hline')
     
     
