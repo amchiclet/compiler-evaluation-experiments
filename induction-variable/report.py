@@ -61,27 +61,17 @@ def get_stability_index(runtimes, base, threshold):
     n_stable = sum(((r - base) / base) < threshold for r in runtimes)
     return float(n_stable) / len(runtimes)
 
-def get_speedup(runtimes, base):
-    return statistics.mean([r / base for r in runtimes])
-
-class Agg:
-    def __init__(self, runtimes):
-        self.mean = statistics.mean(runtimes)
-        self.min = min(runtimes)
-
-def get_aggregate(runtimes):
-    return Agg(runtimes)
-
-def get_vector_opportunity(scalar_runtimes, vector_runtimes):
-    return statistics.geometric_mean([s/v for s, v in zip(scalar_runtimes, vector_runtimes)])
 
 def format_for_latex(compiler_name, rows):
+    if len(compiler_name) <= 3:
+        c = compiler_name.upper()
+    else:
+        c = compiler_name.title()
+
     print('\\hline')
-    # print(f'\\multicolumn{{6}}{{| c |}}{{{compiler_name}}} \\\\')
-    # print('\\hline')
-    print(f'\\multirow{{10}}{{*}}{{{compiler_name}}}')
+    print(f'\\multirow{{{len(rows)}}}{{*}}{{{c}}}')
     for row in rows:
-        print(' & '.join(row) + ' \\\\')
+        print('& ' + ' & '.join(row) + ' \\\\')
 
 def gather_program_names():
     program_names = []
@@ -146,7 +136,7 @@ def gather_slowdowns(compiler_name, program_names, runtimes, winners):
         slowdowns[c] = {}
         for p in program_names:
             w = winners[c][p]
-            slowdowns[c][p] = [r / w for r in runtimes[c][p]]
+            slowdowns[c][p] = [w / r for r in runtimes[c][p]]
     return slowdowns
 
 def gather_stabilities(compiler_name, program_names, runtimes, winners, threshold):
@@ -174,7 +164,7 @@ def gather_vector_opportunities(compiler_name, program_names, runtimes):
         runtimes_s = runtimes[scalar][p]
         runtimes_v = runtimes[vector][p]
         for s, v in zip(runtimes_s, runtimes_v):
-            vector_opportunities[p].append(s / v)
+            vector_opportunities[p].append(v / s)
 
     return vector_opportunities
 
@@ -184,7 +174,7 @@ def gather_stabilized_vector_opportunities(compiler_name, program_names, winners
 
     svos = {}
     for p in program_names:
-        svos[p] = winners[scalar][p] / winners[vector][p]
+        svos[p] = winners[vector][p] / winners[scalar][p]
     return svos
 
 def gather_top_speeds(compiler_name, program_names, winners):
@@ -212,6 +202,9 @@ def prod(l):
     for i in l:
         r *= i
     return r
+
+def geomean(l):
+    return prod(l) ** (1.0 / len(l))
 
 def gather_best_best_runtimes(program_names, all_best_runtimes):
     best_best_runtimes = {}
@@ -312,22 +305,55 @@ def gather_compiler_names():
     return names
 
 def report(compiler_names, program_names, intra_compilers, inter_compilers):
+    mean = geomean
+
+    # header
+    header_row = [
+        'Compiler',
+        'Loopset',
+        '$\\ident{S}_s$',
+        '$\\ident{SI}_s$',
+        '$\\ident{S}_v$',
+        '$\\ident{SI}_v$',
+        '$\\ident{VO}$',
+        '$\\ident{SVO}$',
+        '$\\ident{PH}$',
+        '$\\ident{SPH}$',
+    ]
+
+    header_row_begin = '\\begin{tabular}{| c || '
+    header_row_middle = ' | '.join(['c'] * (len(header_row) - 1))
+    header_row_end = ' |}'
+    print(header_row_begin + header_row_middle + header_row_end)
+    print('\\hline')
+    print(' & '.join(header_row) + ' \\\\')
+    print('\\hline')
+
+    # for each compiler
     for c in compiler_names:
-        print(f'Compiler {c}:')
         intra = intra_compilers[c]
         inter = inter_compilers[c]
         scalar = c + '_s'
         vector = c + '_v'
+        rows = []
         for p in program_names:
-            s_s = statistics.mean(intra.slowdowns[scalar][p])
+            s_s = mean(intra.slowdowns[scalar][p])
             si_s = intra.stabilities[scalar][p]
-            s_v = statistics.mean(intra.slowdowns[vector][p])
+            s_v = mean(intra.slowdowns[vector][p])
             si_v = intra.stabilities[vector][p]
-            vo = statistics.mean(intra.vos[p])
+            vo = mean(intra.vos[p])
             svo = intra.svos[p]
-            ph = statistics.mean(inter.phs[p])
+            ph = mean(inter.phs[p])
             sph = inter.sphs[p]
-            print(f'{p} {s_s:.2f} {si_s:.2f} {s_v:.2f} {si_v:.2f} {vo:.2f} {svo:.2f} {ph:.2f} {sph:.2f}')
+            row = [p] + [f'{f:.2f}' for f in [s_s, si_s, s_v, si_v, vo, svo, ph, sph]]
+
+            # Each row won't have the compiler name
+            assert(len(row) + 1 == len(header_row))
+            rows.append(row)
+        format_for_latex(c, rows)
+
+    print('\\hline')
+    print('\\end{tabular}')
 
 if __name__ == '__main__':
     raw_data = gather_raw_data()
@@ -344,127 +370,4 @@ if __name__ == '__main__':
                                              program_names)
 
     report(compiler_names, program_names, intra_compilers, inter_compilers)
-# def gather_for_compiler(compiler_name, table, program_names, runtime_map, speedups, stability_report, vector_opportunity, top_speed):
-#     scalar = compiler_name + '_s'
-#     vector = compiler_name + '_v'
-#     full_compiler_names = [scalar, vector]
-
-#     for c in full_compiler_names:
-#         runtime_map[c] = {}
-#         for executable_name, _ in executables:
-#             # The executable_name should look like 'some_prefix_here_p01_v02_c'
-#             p = executable_name.split('_')[-3]
-#             if p not in program_names:
-#                 program_names.append(p)
-#             if p not in runtime_map[c]:
-#                 runtime_map[c][p] = []
-#             runtime_map[c][p].append(get_runtime(c, executable_name, table))
-
-#     agg_report = {}
-#     threshold = 0.15
-#     for c in full_compiler_names:
-#         agg_report[c] = {}
-#         speedups[c] = {}
-#         stability_report[c] = {}
-#         for p in program_names:
-#             runtimes = runtime_map[c][p]
-#             agg_report[c][p] = get_aggregate(runtimes)
-#             base = agg_report[c][p].min
-#             speedups[c][p] = get_speedup(runtimes, base)
-#             stability_report[c][p] = get_stability_index(runtimes,
-#                                                          base,
-#                                                          threshold)
-
-#     for p in program_names:
-#         vector_opportunity[p] = agg_report[scalar][p].min / agg_report[vector][p].min
-#         top_speed[p] = min(agg_report[scalar][p].min, agg_report[vector][p].min)
-
-# def report_for_compiler(compiler_name, program_names, speedups, stability_report, vector_opportunity, peer_headroom):
-#     scalar = compiler_name + '_s'
-#     vector = compiler_name + '_v'
-
-#     rows = []
-#     for p in program_names:
-#         row = [
-#             f'&{p}',
-#             f'{speedups[scalar][p]:.2f}',
-#             f'{stability_report[scalar][p]:.2f}',
-#             f'{speedups[vector][p]:.2f}',
-#             f'{stability_report[vector][p]:.2f}',
-#             f'{vector_opportunity[p]:.2f}',
-#             f'{peer_headroom[p]:.2f}',
-#         ]
-#         rows.append(row)
-#     format_for_latex(compiler_name, rows)
-
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--build_root_dir', required=True)
-#     args = parser.parse_args()
-#     metrics = parse_metrics(args)
-
-#     table = {}
-#     compiler_names = [c.name for c in compilers]
-#     for compiler_name in compiler_names:
-#         table[compiler_name] = {}
-#         for attribute_name in Metrics.get_attribute_names():
-#             table[compiler_name][attribute_name] = {}
-#             for executable_name, _ in executables:
-#                 metric = metrics[compiler_name][executable_name]
-#                 formatter = getattr(metric, f'format_{attribute_name}')
-#                 table[compiler_name][attribute_name][executable_name] = formatter()
-#     compilers = ['pgi', 'clang', 'gcc', 'icc']
-#     # compilers = ['pgi_s', 'pgi_v', 'clang_s', 'clang_v', 'gcc_s', 'gcc_v', 'icc_s', 'icc_v']
-
-#     program_names = []
-#     speedups = {}
-#     stability_report = {}
-#     vector_opportunities = {}
-#     top_speeds = {}
-#     runtime_map = {}
-#     for c in compilers:
-#         top_speeds[c] = {}
-#         svos[c] = {} # stabilized vector opportunities
-#         gather_for_compiler(c, table, program_names, runtime_map, speedups, stability_report, vector_opporunities, svos[c], top_speeds[c])
-
-#     ##########################
-#     # peer headroom
-#     #########################
-#     runtime_prods = {}
-#     for c in compiler_names:
-#         scalar = c + '_s'
-#         vector = c + '_v'
-#         runtime_prods[c] = {}
-#         for p in program_names:
-#             runtimes_s = runtime_map[scalar][p]
-#             runtimes_v = runtime_map[vector][p]
-
-#             runtime_prods[c][p] = 1.0
-#             for s, v in zip(runtimes_s, runtimes_v):
-#                 runtime_prods[c][p] *= min(s, v)
-
-#     best_prod = {}
-#     for p in program_names:
-#         best_prod[p] = min([runtime_prods[c][p] for c in compiler_names])
-#     peer_headrooms = {}
-#     for c in compiler_names:
-#         peer_headrooms[p] = {}
-#         for p in program_names:
-#             peer_headrooms[c][p] = best_prod[p] / runtime_prods[c][p]
-
-
-#     top_top_speed = {}
-#     for p in program_names:
-#         top_top_speed[p] = min([top_speeds[c][p] for c in compilers])
-#     sphs = {} # stabilized peer headrooms
-#     for c in compilers:
-#         peer_headrooms[c] = {}
-#         sphs[c] = {}
-#         for p in program_names:
-
-#             sphs[c][p] = top_top_speed[p] / top_speeds[c][p]
-
-#     for c in compilers:
-#         report_for_compiler(c, program_names, speedups, stability_report, vector_opportunities, svos[c], peer_headroom[c])
-
     
