@@ -136,7 +136,7 @@ def gather_slowdowns(compiler_name, program_names, runtimes, winners):
         slowdowns[c] = {}
         for p in program_names:
             w = winners[c][p]
-            slowdowns[c][p] = [w / r for r in runtimes[c][p]]
+            slowdowns[c][p] = [r / w for r in runtimes[c][p]]
     return slowdowns
 
 def gather_stabilities(compiler_name, program_names, runtimes, winners, threshold):
@@ -164,7 +164,7 @@ def gather_vector_opportunities(compiler_name, program_names, runtimes):
         runtimes_s = runtimes[scalar][p]
         runtimes_v = runtimes[vector][p]
         for s, v in zip(runtimes_s, runtimes_v):
-            vector_opportunities[p].append(v / s)
+            vector_opportunities[p].append(s / v)
 
     return vector_opportunities
 
@@ -174,7 +174,7 @@ def gather_stabilized_vector_opportunities(compiler_name, program_names, winners
 
     svos = {}
     for p in program_names:
-        svos[p] = winners[vector][p] / winners[scalar][p]
+        svos[p] = winners[scalar][p] / winners[vector][p]
     return svos
 
 def gather_top_speeds(compiler_name, program_names, winners):
