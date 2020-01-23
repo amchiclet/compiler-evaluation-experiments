@@ -156,8 +156,8 @@ def main(args):
                                   program_index,
                                   args.max_variants,
                                   benchmarks)
-#   generate_meson_build_file(benchmarks)
-#   generate_benchmark_file(benchmarks)
+  generate_meson_build_file(benchmarks)
+  generate_benchmark_file(benchmarks)
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
