@@ -6,6 +6,8 @@ import argparse
 import xml.etree.ElementTree as ET
 import shutil
 import statistics
+from decimal import *
+import itertools
 
 class Metrics:
     # all of these are supposed to have a function with name format_*
@@ -54,13 +56,12 @@ def parse_metrics(args):
 
 def get_runtime(compiler, executable, table):
     runtime_range = table[compiler]['runtime'][executable]
-    runtime = float(runtime_range.split()[0])
+    runtime = Decimal(runtime_range.split()[0])
     return runtime
 
-def get_stability_index(runtimes, base, threshold):
+def get_n_stable(runtimes, base, threshold):
     n_stable = sum(((r - base) / base) < threshold for r in runtimes)
-    return float(n_stable) / len(runtimes)
-
+    return n_stable
 
 def format_for_latex(compiler_name, rows):
     if len(compiler_name) <= 3:
@@ -70,8 +71,10 @@ def format_for_latex(compiler_name, rows):
 
     print('\\hline')
     print(f'\\multirow{{{len(rows)}}}{{*}}{{{c}}}')
-    for row in rows:
+    for row in rows[:-1]:
         print('& ' + ' & '.join(row) + ' \\\\')
+    print(f'\\cline{{2-{len(row)+1}}}')
+    print('& ' + ' & '.join(rows[-1]) + ' \\\\')
 
 def gather_program_names():
     program_names = []
@@ -110,7 +113,6 @@ def gather_runtimes(raw_data, compiler_names, program_names):
             for p in program_names:
                 runtimes[c][p] = []
 
-
             for executable_name, _ in executables:
                 program_name = executable_name.split('_')[-3]
                 runtimes[c][program_name].append(get_runtime(c, executable_name, raw_data))
@@ -139,18 +141,30 @@ def gather_slowdowns(compiler_name, program_names, runtimes, winners):
             slowdowns[c][p] = [r / w for r in runtimes[c][p]]
     return slowdowns
 
-def gather_stabilities(compiler_name, program_names, runtimes, winners, threshold):
+def gather_n_stables(compiler_name, program_names, runtimes, winners, threshold):
     scalar = compiler_name + '_s'
     vector = compiler_name + '_v'
 
-    stabilities = {}
+    n_stables = {}
     for c in [scalar, vector]:
-        stabilities[c] = {}
+        n_stables[c] = {}
         for p in program_names:
-            stabilities[c][p] = get_stability_index(runtimes[c][p],
-                                                    winners[c][p],
-                                                    threshold)
-    return stabilities
+            n_stables[c][p] = get_n_stable(runtimes[c][p],
+                                           winners[c][p],
+                                           threshold)
+    return n_stables
+
+def gather_n_mutations(compiler_name, program_names, runtimes):
+    scalar = compiler_name + '_s'
+    vector = compiler_name + '_v'
+
+    n_mutations = {}
+    for c in [scalar, vector]:
+        n_mutations[c] = {}
+        for p in program_names:
+            n_mutations[c][p] = len(runtimes[c][p])
+
+    return n_mutations
 
 def gather_vector_opportunities(compiler_name, program_names, runtimes):
     scalar = compiler_name + '_s'
@@ -197,14 +211,27 @@ def gather_best_runtimes(compiler_name, program_names, runtimes):
         best_runtimes[p] = [min(s, v) for s, v in zip(runtimes_s, runtimes_v)]
     return best_runtimes
 
+def gather_global_best_runtimes(compiler_name, program_names, runtimes):
+    scalar = compiler_name + '_s'
+    vector = compiler_name + '_v'
+
+    global_best_runtimes = []
+    for p in program_names:
+        runtimes_s = runtimes[scalar][p]
+        runtimes_v = runtimes[vector][p]
+        global_best_runtimes += [min(s, v) for s, v in zip(runtimes_s, runtimes_v)]
+    return global_best_runtimes
+
 def prod(l):
-    r = 1.0
+    r = Decimal(1.0)
     for i in l:
         r *= i
     return r
 
 def geomean(l):
-    return prod(l) ** (1.0 / len(l))
+    if not type(l) is list:
+        l = list(l)
+    return prod(l) ** (Decimal(1.0) / len(l))
 
 def gather_best_best_runtimes(program_names, all_best_runtimes):
     best_best_runtimes = {}
@@ -216,12 +243,26 @@ def gather_best_best_runtimes(program_names, all_best_runtimes):
                 min_prod = new_prod
                 best_best_runtimes[p] = best_runtimes[p]
     return best_best_runtimes
-    
+
+def gather_global_best_best_runtimes(program_names, all_global_best_runtimes):
+    global_best_best_runtimes = None
+    min_prod = None
+    for best_runtimes in all_global_best_runtimes:
+        new_prod = prod(best_runtimes)
+        if not min_prod or new_prod < min_prod:
+            print(new_prod)
+            min_prod = new_prod
+            global_best_best_runtimes = best_runtimes
+    return global_best_best_runtimes
+
 def gather_peer_headrooms(program_names, best_best_runtimes, best_runtimes):
     peer_headrooms = {}
     for p in program_names:
         peer_headrooms[p] = [best / me for best, me in zip(best_best_runtimes[p], best_runtimes[p])]
     return peer_headrooms
+
+def gather_global_peer_headroom(program_names, global_best_best_runtimes, global_best_runtimes):
+    return [best / me for best, me in zip(global_best_best_runtimes, global_best_runtimes)]
 
 def gather_best_top_speeds(program_names, all_top_speeds):
     best_top_speeds = {}
@@ -247,11 +288,14 @@ class IntraCompiler:
                                           program_names,
                                           runtimes,
                                           self.winners)
-        self.stabilities = gather_stabilities(compiler_name,
+        self.n_stables = gather_n_stables(compiler_name,
+                                          program_names,
+                                          runtimes,
+                                          self.winners,
+                                          threshold)
+        self.n_mutations = gather_n_mutations(compiler_name,
                                               program_names,
-                                              runtimes,
-                                              self.winners,
-                                              threshold)
+                                              runtimes)
         self.vos = gather_vector_opportunities(compiler_name,
                                                program_names,
                                                runtimes)
@@ -261,6 +305,9 @@ class IntraCompiler:
         self.best_runtimes = gather_best_runtimes(compiler_name,
                                                   program_names,
                                                   runtimes)
+        self.global_best_runtimes = gather_global_best_runtimes(compiler_name,
+                                                                program_names,
+                                                                runtimes)
         self.top_speeds = gather_top_speeds(compiler_name,
                                             program_names,
                                             self.winners)
@@ -272,10 +319,13 @@ def gather_intra_compilers(compiler_names, program_names, runtimes, threshold):
     return intra_compilers
 
 class InterCompiler:
-    def __init__(self, intra_compiler, program_names, best_best_runtimes, best_top_speeds):
+    def __init__(self, intra_compiler, program_names, best_best_runtimes, global_best_best_runtimes, best_top_speeds):
         self.phs = gather_peer_headrooms(program_names,
                                          best_best_runtimes,
                                          intra_compiler.best_runtimes)
+        self.gph = gather_global_peer_headroom(program_names,
+                                               global_best_best_runtimes,
+                                               intra_compiler.global_best_runtimes)
         self.sphs =  gather_stabilized_peer_headrooms(program_names,
                                                       best_top_speeds,
                                                       intra_compiler.top_speeds)
@@ -283,6 +333,8 @@ class InterCompiler:
 def gather_inter_compilers(intra_compilers, program_names):
     all_best_runtimes = [c.best_runtimes for c in intra_compilers.values()]
     best_best_runtimes = gather_best_best_runtimes(program_names, all_best_runtimes)
+    all_global_best_runtimes = [c.global_best_runtimes for c in intra_compilers.values()]
+    global_best_best_runtimes = gather_global_best_best_runtimes(program_names, all_global_best_runtimes)
 
     all_top_speeds = [c.top_speeds for c in intra_compilers.values()]
     best_top_speeds = gather_best_top_speeds(program_names, all_top_speeds)
@@ -291,6 +343,7 @@ def gather_inter_compilers(intra_compilers, program_names):
         c:InterCompiler(intra_compiler,
                         program_names,
                         best_best_runtimes,
+                        global_best_best_runtimes,
                         best_top_speeds)
         for c, intra_compiler in intra_compilers.items()
     }
@@ -304,9 +357,13 @@ def gather_compiler_names():
             names.append(canonical_name)
     return names
 
-def report(compiler_names, program_names, intra_compilers, inter_compilers):
+def debug(compiler_names, program_names, intra_compilers, inter_compilers):
     mean = geomean
+    for c in compiler_names:
+        gph = mean(inter_compilers[c].gph)
+        print(f'for compiler {c}, global peer headroom is {gph:.2f}')
 
+def report(compiler_names, program_names, intra_compilers, inter_compilers):
     # header
     header_row = [
         'Compiler',
@@ -337,19 +394,37 @@ def report(compiler_names, program_names, intra_compilers, inter_compilers):
         vector = c + '_v'
         rows = []
         for p in program_names:
-            s_s = mean(intra.slowdowns[scalar][p])
-            si_s = intra.stabilities[scalar][p]
-            s_v = mean(intra.slowdowns[vector][p])
-            si_v = intra.stabilities[vector][p]
-            vo = mean(intra.vos[p])
+            s_s = geomean(intra.slowdowns[scalar][p])
+            si_s = intra.n_stables[scalar][p] / intra.n_mutations[scalar][p]
+            s_v = geomean(intra.slowdowns[vector][p])
+            si_v = intra.n_stables[vector][p] / intra.n_mutations[vector][p]
+            vo = geomean(intra.vos[p])
             svo = intra.svos[p]
-            ph = mean(inter.phs[p])
+            ph = geomean(inter.phs[p])
             sph = inter.sphs[p]
             row = [p] + [f'{f:.2f}' for f in [s_s, si_s, s_v, si_v, vo, svo, ph, sph]]
 
             # Each row won't have the compiler name
             assert(len(row) + 1 == len(header_row))
             rows.append(row)
+            
+        # compute global
+        flatten = itertools.chain.from_iterable
+        g_s_s = geomean(flatten([intra.slowdowns[scalar][p] for p in program_names]))
+        n_stables_scalar = [intra.n_stables[scalar][p] for p in program_names]
+        n_mutations_scalar = [intra.n_mutations[scalar][p] for p in program_names]
+        g_si_s = sum(n_stables_scalar) / sum(n_mutations_scalar)
+        g_s_v = geomean(flatten([intra.slowdowns[vector][p] for p in program_names]))
+        n_stables_vector = [intra.n_stables[vector][p] for p in program_names]
+        n_mutations_vector = [intra.n_mutations[vector][p] for p in program_names]
+        g_si_v = sum(n_stables_vector) / sum(n_mutations_vector)
+        g_vo = geomean(flatten([intra.vos[p] for p in program_names]))
+        g_ph = geomean(inter_compilers[c].gph)
+
+        row = ['*'] + \
+              [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo]] + \
+              ['N/A', f'{g_ph:.2f}', 'N/A']
+        rows.append(row)
         format_for_latex(c, rows)
 
     print('\\hline')
@@ -370,4 +445,5 @@ if __name__ == '__main__':
                                              program_names)
 
     report(compiler_names, program_names, intra_compilers, inter_compilers)
+    # debug(compiler_names, program_names, intra_compilers, inter_compilers)
     
