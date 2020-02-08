@@ -191,6 +191,9 @@ def gather_stabilized_vector_opportunities(compiler_name, program_names, winners
         svos[p] = winners[scalar][p] / winners[vector][p]
     return svos
 
+def gather_global_stabilized_vector_opportunities(program_names, svos):
+    return geomean(svos.values())
+
 def gather_top_speeds(compiler_name, program_names, winners):
     scalar = compiler_name + '_s'
     vector = compiler_name + '_v'
@@ -272,12 +275,30 @@ def gather_best_top_speeds(program_names, all_top_speeds):
             if not best_top_speeds[p] or top_speeds[p] < best_top_speeds[p]:
                 best_top_speeds[p] = top_speeds[p]
     return best_top_speeds
-            
+
+def gather_global_best_top_speeds(program_names, all_top_speeds):
+    global_best_top_speeds = None
+    min_prod = None
+    for top_speeds in all_top_speeds:
+        new_prod = prod(top_speeds.values())
+        if not min_prod or new_prod < min_prod:
+            min_prod = new_prod
+            global_best_top_speeds = top_speeds
+    return global_best_top_speeds
+
 def gather_stabilized_peer_headrooms(program_names, best_top_speeds, top_speeds):
     sphs = {}
     for p in program_names:
         sphs[p] = best_top_speeds[p] / top_speeds[p]
     return sphs
+
+def gather_global_stabilized_peer_headrooms(program_names, global_best_top_speeds, top_speeds):
+    result = []
+    for p in program_names:
+        me = top_speeds[p]
+        best = global_best_top_speeds[p]
+        result.append(best / me)
+    return result
 
 class IntraCompiler:
     def __init__(self, compiler_name, program_names, runtimes, threshold):
@@ -302,6 +323,8 @@ class IntraCompiler:
         self.svos = gather_stabilized_vector_opportunities(compiler_name,
                                                            program_names,
                                                            self.winners)
+        self.gsvos = gather_global_stabilized_vector_opportunities(program_names,
+                                                                   self.svos)
         self.best_runtimes = gather_best_runtimes(compiler_name,
                                                   program_names,
                                                   runtimes)
@@ -319,7 +342,7 @@ def gather_intra_compilers(compiler_names, program_names, runtimes, threshold):
     return intra_compilers
 
 class InterCompiler:
-    def __init__(self, intra_compiler, program_names, best_best_runtimes, global_best_best_runtimes, best_top_speeds):
+    def __init__(self, intra_compiler, program_names, best_best_runtimes, global_best_best_runtimes, best_top_speeds, global_best_top_speeds):
         self.phs = gather_peer_headrooms(program_names,
                                          best_best_runtimes,
                                          intra_compiler.best_runtimes)
@@ -329,6 +352,9 @@ class InterCompiler:
         self.sphs =  gather_stabilized_peer_headrooms(program_names,
                                                       best_top_speeds,
                                                       intra_compiler.top_speeds)
+        self.gsphs =  gather_global_stabilized_peer_headrooms(program_names,
+                                                              global_best_top_speeds,
+                                                              intra_compiler.top_speeds)
 
 def gather_inter_compilers(intra_compilers, program_names):
     all_best_runtimes = [c.best_runtimes for c in intra_compilers.values()]
@@ -338,13 +364,15 @@ def gather_inter_compilers(intra_compilers, program_names):
 
     all_top_speeds = [c.top_speeds for c in intra_compilers.values()]
     best_top_speeds = gather_best_top_speeds(program_names, all_top_speeds)
+    global_best_top_speeds = gather_global_best_top_speeds(program_names, all_top_speeds)
 
     inter_compilers = {
         c:InterCompiler(intra_compiler,
                         program_names,
                         best_best_runtimes,
                         global_best_best_runtimes,
-                        best_top_speeds)
+                        best_top_speeds,
+                        global_best_top_speeds)
         for c, intra_compiler in intra_compilers.items()
     }
     return inter_compilers
@@ -419,11 +447,12 @@ def report(compiler_names, program_names, intra_compilers, inter_compilers):
         n_mutations_vector = [intra.n_mutations[vector][p] for p in program_names]
         g_si_v = sum(n_stables_vector) / sum(n_mutations_vector)
         g_vo = geomean(flatten([intra.vos[p] for p in program_names]))
+        g_svo = geomean(intra.svos.values())
         g_ph = geomean(inter_compilers[c].gph)
+        g_sph = geomean(inter_compilers[c].gsphs)
 
         row = ['*'] + \
-              [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo]] + \
-              ['N/A', f'{g_ph:.2f}', 'N/A']
+              [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo, g_svo, g_ph, g_sph]]
         rows.append(row)
         format_for_latex(c, rows)
 
