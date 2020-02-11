@@ -53,9 +53,9 @@ def format_for_latex(compiler_name, rows):
         c = compiler_name.title()
 
     print('\\hline')
-    print(f'\\multirow{{{len(rows)}}}{{*}}{{{c}}}')
+    # print(f'\\multirow{{{len(rows)}}}{{*}}{{{c}}}')
     for row in rows:
-        print('& ' + ' & '.join(row) + ' \\\\')
+        print(c + ' & ' + ' & '.join(row) + ' \\\\')
 
 def gather_program_names():
     program_names = []
@@ -286,6 +286,7 @@ def report(compiler_names, program_names, intra_compilers, inter_compilers):
         scalar = c + '_s'
         vector = c + '_v'
         rows = []
+        assert(len(program_names) == 1)
         for p in program_names:
             s_s = mean(intra.slowdowns[scalar][p])
             si_s = intra.stabilities[scalar][p]
@@ -295,7 +296,13 @@ def report(compiler_names, program_names, intra_compilers, inter_compilers):
             svo = intra.svos[p]
             ph = mean(inter.phs[p])
             sph = inter.sphs[p]
-            row = [f'{f:.2f}' for f in [s_s, si_s, s_v, si_v, vo, svo, ph, sph]]
+            # row = [f'{f:.4f}' for f in [s_s, si_s, s_v, si_v, vo, svo, ph, sph]]
+            row = [
+                f'{s_s:.2f}', f'{int(si_s*100)}\\%',
+                f'{s_v:.2f}', f'{int(si_v*100)}\\%',
+                f'{vo:.2f}', f'{svo:.2f}',
+                f'{int(ph*100)}\\%', f'{int(sph*100)}\\%',
+            ]
 
             # Each row won't have the compiler name
             assert(len(row) + 1 == len(header_row))

@@ -76,6 +76,16 @@ def format_for_latex(compiler_name, rows):
     print(f'\\cline{{2-{len(row)+1}}}')
     print('& ' + ' & '.join(rows[-1]) + ' \\\\')
 
+def format_summary_for_latex(compiler_name, rows):
+    if len(compiler_name) <= 3:
+        c = compiler_name.upper()
+    else:
+        c = compiler_name.title()
+
+    print('\\hline')
+    for row in rows:
+        print(c + ' & ' + ' & '.join(row) + ' \\\\')
+
 def gather_program_names():
     program_names = []
     for executable_name, _ in executables:
@@ -391,6 +401,65 @@ def debug(compiler_names, program_names, intra_compilers, inter_compilers):
         gph = mean(inter_compilers[c].gph)
         print(f'for compiler {c}, global peer headroom is {gph:.2f}')
 
+def report_summary(compiler_names, program_names, intra_compilers, inter_compilers):
+    # header
+    header_row = [
+        'Compiler',
+        '$\\ident{S}_s$',
+        '$\\ident{SI}_s$',
+        '$\\ident{S}_v$',
+        '$\\ident{SI}_v$',
+        '$\\ident{VO}$',
+        '$\\ident{SVO}$',
+        '$\\ident{PH}$',
+        '$\\ident{SPH}$',
+    ]
+
+    header_row_begin = '\\begin{tabular}{| c || '
+    header_row_middle = ' | '.join(['c'] * (len(header_row) - 1))
+    header_row_end = ' |}'
+    print(header_row_begin + header_row_middle + header_row_end)
+    print('\\hline')
+    print(' & '.join(header_row) + ' \\\\')
+    print('\\hline')
+
+    # for each compiler
+    for c in compiler_names:
+        intra = intra_compilers[c]
+        inter = inter_compilers[c]
+        scalar = c + '_s'
+        vector = c + '_v'
+        rows = []
+
+        # compute global
+        flatten = itertools.chain.from_iterable
+        g_s_s = geomean(flatten([intra.slowdowns[scalar][p] for p in program_names]))
+        n_stables_scalar = [intra.n_stables[scalar][p] for p in program_names]
+        n_mutations_scalar = [intra.n_mutations[scalar][p] for p in program_names]
+        g_si_s = sum(n_stables_scalar) / sum(n_mutations_scalar)
+        g_s_v = geomean(flatten([intra.slowdowns[vector][p] for p in program_names]))
+        n_stables_vector = [intra.n_stables[vector][p] for p in program_names]
+        n_mutations_vector = [intra.n_mutations[vector][p] for p in program_names]
+        g_si_v = sum(n_stables_vector) / sum(n_mutations_vector)
+        g_vo = geomean(flatten([intra.vos[p] for p in program_names]))
+        g_svo = geomean(intra.svos.values())
+        g_ph = geomean(inter_compilers[c].gph)
+        g_sph = geomean(inter_compilers[c].gsphs)
+
+        row = [
+            f'{g_s_s:.2f}', f'{int(g_si_s*100)}\\%',
+            f'{g_s_v:.2f}', f'{int(g_si_v*100)}\\%',
+            f'{g_vo:.2f}', f'{g_svo:.2f}',
+            f'{int(g_ph*100)}\\%', f'{int(g_sph*100)}\\%',
+        ]
+        # + \
+        #       [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo, g_svo, g_ph, g_sph]]
+        rows.append(row)
+        format_summary_for_latex(c, rows)
+
+    print('\\hline')
+    print('\\end{tabular}')
+
 def report(compiler_names, program_names, intra_compilers, inter_compilers):
     # header
     header_row = [
@@ -430,7 +499,14 @@ def report(compiler_names, program_names, intra_compilers, inter_compilers):
             svo = intra.svos[p]
             ph = geomean(inter.phs[p])
             sph = inter.sphs[p]
-            row = [p] + [f'{f:.2f}' for f in [s_s, si_s, s_v, si_v, vo, svo, ph, sph]]
+            row = [p,
+                   f'{s_s:.2f}', f'{int(si_s*100)}\\%',
+                   f'{s_v:.2f}', f'{int(si_v*100)}\\%',
+                   f'{vo:.2f}', f'{svo:.2f}',
+                   f'{int(ph*100)}\\%', f'{int(sph*100)}\\%',
+            ]
+
+            # row = [p] + [f'{f:.2f}' for f in [s_s, si_s, s_v, si_v, vo, svo, ph, sph]]
 
             # Each row won't have the compiler name
             assert(len(row) + 1 == len(header_row))
@@ -451,8 +527,14 @@ def report(compiler_names, program_names, intra_compilers, inter_compilers):
         g_ph = geomean(inter_compilers[c].gph)
         g_sph = geomean(inter_compilers[c].gsphs)
 
-        row = ['*'] + \
-              [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo, g_svo, g_ph, g_sph]]
+        row = ['*',
+               f'{g_s_s:.2f}', f'{int(g_si_s*100)}\\%',
+               f'{g_s_v:.2f}', f'{int(g_si_v*100)}\\%',
+               f'{g_vo:.2f}', f'{g_svo:.2f}',
+               f'{int(g_ph*100)}\\%', f'{int(g_sph*100)}\\%',
+        ]
+        # + \
+        #       [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo, g_svo, g_ph, g_sph]]
         rows.append(row)
         format_for_latex(c, rows)
 
@@ -473,6 +555,6 @@ if __name__ == '__main__':
     inter_compilers = gather_inter_compilers(intra_compilers,
                                              program_names)
 
-    report(compiler_names, program_names, intra_compilers, inter_compilers)
+    report_summary(compiler_names, program_names, intra_compilers, inter_compilers)
     # debug(compiler_names, program_names, intra_compilers, inter_compilers)
     
