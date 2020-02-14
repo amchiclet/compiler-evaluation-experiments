@@ -224,6 +224,19 @@ def gather_best_runtimes(compiler_name, program_names, runtimes):
         best_runtimes[p] = [min(s, v) for s, v in zip(runtimes_s, runtimes_v)]
     return best_runtimes
 
+def gather_global_variance_across_mutations(best_runtimes):
+    g_vam = []
+    for program_name, mutations in best_runtimes.items():
+        fastest_mutation = min(mutations)
+        
+        for mutation in mutations:
+            print(mutation, fastest_mutation, mutation - fastest_mutation, (mutation - fastest_mutation) / mutation)
+        g_vam += [(mutation - fastest_mutation) / mutation * 100 for mutation in mutations]
+    return g_vam
+
+def gather_global_n_stables(variances, threshold):
+    return sum(1 for v in variances if v < threshold)
+
 def gather_global_best_runtimes(compiler_name, program_names, runtimes):
     scalar = compiler_name + '_s'
     vector = compiler_name + '_v'
@@ -277,6 +290,12 @@ def gather_peer_headrooms(program_names, best_best_runtimes, best_runtimes):
 def gather_global_peer_headroom(program_names, global_best_best_runtimes, global_best_runtimes):
     return [best / me for best, me in zip(global_best_best_runtimes, global_best_runtimes)]
 
+def gather_global_peer_headroom_v2(peer_headrooms_v2):
+    result = []
+    for headrooms in peer_headrooms_v2.values():
+        result += headrooms
+    return result
+
 def gather_best_top_speeds(program_names, all_top_speeds):
     best_top_speeds = {}
     for p in program_names:
@@ -295,6 +314,27 @@ def gather_global_best_top_speeds(program_names, all_top_speeds):
             min_prod = new_prod
             global_best_top_speeds = top_speeds
     return global_best_top_speeds
+
+def gather_best_across_compilers(program_names, all_best_runtimes):
+    boc = {}
+    for p in program_names:
+        assert(len(all_best_runtimes) > 0)
+        n_mutations = len(all_best_runtimes[0][p])
+
+        boc[p] = []
+        for i in range(n_mutations):
+            mutation_across_compilers = [best_runtimes[p][i] for best_runtimes in all_best_runtimes]
+            best_across_compilers = min(mutation_across_compilers)
+            boc[p].append(best_across_compilers)
+    return boc
+
+def gather_peer_headrooms_v2(program_names, best_across_compilers, best_runtimes):
+    peer_headrooms = {}
+    for program_name in program_names:
+        mines = best_runtimes[program_name]
+        bests = best_across_compilers[program_name]
+        peer_headrooms[program_name] = [best / mine for best, mine in zip(bests, mines)]
+    return peer_headrooms
 
 def gather_stabilized_peer_headrooms(program_names, best_top_speeds, top_speeds):
     sphs = {}
@@ -341,6 +381,9 @@ class IntraCompiler:
         self.global_best_runtimes = gather_global_best_runtimes(compiler_name,
                                                                 program_names,
                                                                 runtimes)
+        self.g_vams = gather_global_variance_across_mutations(self.best_runtimes)
+        self.g_n_stables = gather_global_n_stables(self.g_vams, threshold)
+
         self.top_speeds = gather_top_speeds(compiler_name,
                                             program_names,
                                             self.winners)
@@ -352,7 +395,7 @@ def gather_intra_compilers(compiler_names, program_names, runtimes, threshold):
     return intra_compilers
 
 class InterCompiler:
-    def __init__(self, intra_compiler, program_names, best_best_runtimes, global_best_best_runtimes, best_top_speeds, global_best_top_speeds):
+    def __init__(self, intra_compiler, program_names, best_best_runtimes, global_best_best_runtimes, best_top_speeds, global_best_top_speeds, all_best_runtimes):
         self.phs = gather_peer_headrooms(program_names,
                                          best_best_runtimes,
                                          intra_compiler.best_runtimes)
@@ -365,7 +408,12 @@ class InterCompiler:
         self.gsphs =  gather_global_stabilized_peer_headrooms(program_names,
                                                               global_best_top_speeds,
                                                               intra_compiler.top_speeds)
-
+        self.bacs = gather_best_across_compilers(program_names, all_best_runtimes)
+        self.phr_v2 = gather_peer_headrooms_v2(program_names,
+                                               self.bacs,
+                                               intra_compiler.best_runtimes)
+        self.gph_v2 = gather_global_peer_headroom_v2(self.phr_v2)
+        
 def gather_inter_compilers(intra_compilers, program_names):
     all_best_runtimes = [c.best_runtimes for c in intra_compilers.values()]
     best_best_runtimes = gather_best_best_runtimes(program_names, all_best_runtimes)
@@ -382,7 +430,8 @@ def gather_inter_compilers(intra_compilers, program_names):
                         best_best_runtimes,
                         global_best_best_runtimes,
                         best_top_speeds,
-                        global_best_top_speeds)
+                        global_best_top_speeds,
+                        all_best_runtimes)
         for c, intra_compiler in intra_compilers.items()
     }
     return inter_compilers
@@ -438,6 +487,12 @@ def report_summary(compiler_names, program_names, intra_compilers, inter_compile
         n_mutations_scalar = [intra.n_mutations[scalar][p] for p in program_names]
         g_si_s = sum(n_stables_scalar) / sum(n_mutations_scalar)
         g_s_v = geomean(flatten([intra.slowdowns[vector][p] for p in program_names]))
+
+        # variance across mutation
+        g_vam = geomean(intra.g_vams)
+        # distribution across mutations
+        g_dam = intra.g_n_stables / len(intra.g_vams)
+    
         n_stables_vector = [intra.n_stables[vector][p] for p in program_names]
         n_mutations_vector = [intra.n_mutations[vector][p] for p in program_names]
         g_si_v = sum(n_stables_vector) / sum(n_mutations_vector)
@@ -445,12 +500,14 @@ def report_summary(compiler_names, program_names, intra_compilers, inter_compile
         g_svo = geomean(intra.svos.values())
         g_ph = geomean(inter_compilers[c].gph)
         g_sph = geomean(inter_compilers[c].gsphs)
-
+        g_ph_v2 = geomean(inter_compilers[c].gph_v2)
         row = [
             f'{g_s_s:.2f}', f'{int(g_si_s*100)}\\%',
             f'{g_s_v:.2f}', f'{int(g_si_v*100)}\\%',
+            f'{g_vam:.10f}', f'{int(g_dam*100)}\\%',
             f'{g_vo:.2f}', f'{g_svo:.2f}',
             f'{int(g_ph*100)}\\%', f'{int(g_sph*100)}\\%',
+            f'{int(g_ph_v2*100)}\\%',
         ]
         # + \
         #       [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo, g_svo, g_ph, g_sph]]
