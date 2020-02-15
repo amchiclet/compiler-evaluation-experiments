@@ -10,7 +10,7 @@ program_name = 'unroll'
 program_names = [program_name]
 compiler_names = ['pgi', 'clang', 'gcc', 'icc']
 
-def gather_runtimes_conv_log():
+def gather_runtimes_unroll_log():
     def gather_parts(line, ty):
         parts = line.split(',')
         return [
@@ -153,8 +153,14 @@ def prod(l):
         r *= i
     return r
 
+def geomean_inner(l):
+    if not type(l) is list:
+        l = list(l)
+    return prod(l) ** (Decimal(1.0) / len(l))
+
 def geomean(l):
-    return prod(l) ** Decimal(1.0 / len(l))
+    skew = Decimal('1')
+    return geomean_inner([i + skew for i in l]) - skew
 
 def gather_best_best_runtimes(program_names, all_best_runtimes):
     best_best_runtimes = {}
@@ -167,12 +173,12 @@ def gather_best_best_runtimes(program_names, all_best_runtimes):
                 min_prod = new_prod
                 best_best_runtimes[p] = best_runtimes[p]
     return best_best_runtimes
-    
-def gather_peer_headrooms(program_names, best_best_runtimes, best_runtimes):
-    peer_headrooms = {}
-    for p in program_names:
-        peer_headrooms[p] = [best / me for best, me in zip(best_best_runtimes[p], best_runtimes[p])]
-    return peer_headrooms
+
+# def gather_peer_headrooms(program_names, best_best_runtimes, best_runtimes):
+#     peer_headrooms = {}
+#     for p in program_names:
+#         peer_headrooms[p] = [best / me for best, me in zip(best_best_runtimes[p], best_runtimes[p])]
+#     return peer_headrooms
 
 def gather_best_top_speeds(program_names, all_top_speeds):
     best_top_speeds = {}
@@ -188,6 +194,16 @@ def gather_stabilized_peer_headrooms(program_names, best_top_speeds, top_speeds)
     for p in program_names:
         sphs[p] = best_top_speeds[p] / top_speeds[p]
     return sphs
+
+def gather_global_variance_across_mutations(best_runtimes):
+    g_vam = []
+    for program_name, mutations in best_runtimes.items():
+        fastest_mutation = min(mutations)
+        g_vam += [(mutation - fastest_mutation) / mutation for mutation in mutations]
+    return g_vam
+
+def gather_global_n_stables(variances, threshold):
+    return sum(1 for v in variances if v < threshold)
 
 class IntraCompiler:
     def __init__(self, compiler_name, program_names, runtimes, threshold):
@@ -212,6 +228,8 @@ class IntraCompiler:
         self.best_runtimes = gather_best_runtimes(compiler_name,
                                                   program_names,
                                                   runtimes)
+        self.g_vams = gather_global_variance_across_mutations(self.best_runtimes)
+        self.g_n_stables = gather_global_n_stables(self.g_vams, threshold)
         self.top_speeds = gather_top_speeds(compiler_name,
                                             program_names,
                                             self.winners)
@@ -222,11 +240,43 @@ def gather_intra_compilers(compiler_names, program_names, runtimes, threshold):
         intra_compilers[c] = IntraCompiler(c, program_names, runtimes, threshold)
     return intra_compilers
 
+def gather_best_across_compilers(program_names, all_best_runtimes):
+    boc = {}
+    for p in program_names:
+        assert(len(all_best_runtimes) > 0)
+        n_mutations = len(all_best_runtimes[0][p])
+
+        boc[p] = []
+        for i in range(n_mutations):
+            mutation_across_compilers = [best_runtimes[p][i] for best_runtimes in all_best_runtimes]
+            best_across_compilers = min(mutation_across_compilers)
+            boc[p].append(best_across_compilers)
+    return boc
+
+def gather_peer_headrooms(program_names, best_across_compilers, best_runtimes):
+    peer_headrooms = {}
+    for program_name in program_names:
+        mines = best_runtimes[program_name]
+        bests = best_across_compilers[program_name]
+        peer_headrooms[program_name] = [best / mine for best, mine in zip(bests, mines)]
+    return peer_headrooms
+
+def gather_global_peer_headroom(peer_headrooms):
+    result = []
+    for headrooms in peer_headrooms.values():
+        result += headrooms
+    return result
+
 class InterCompiler:
-    def __init__(self, intra_compiler, program_names, best_best_runtimes, best_top_speeds):
+    def __init__(self, intra_compiler, program_names, best_best_runtimes, best_top_speeds, all_best_runtimes):
+        # self.phs = gather_peer_headrooms(program_names,
+        #                                  best_best_runtimes,
+        #                                  intra_compiler.best_runtimes)
+        self.bacs = gather_best_across_compilers(program_names, all_best_runtimes)
         self.phs = gather_peer_headrooms(program_names,
-                                         best_best_runtimes,
+                                         self.bacs,
                                          intra_compiler.best_runtimes)
+        self.gphs = gather_global_peer_headroom(self.phs)
         self.sphs =  gather_stabilized_peer_headrooms(program_names,
                                                       best_top_speeds,
                                                       intra_compiler.top_speeds)
@@ -242,7 +292,8 @@ def gather_inter_compilers(intra_compilers, program_names):
         c:InterCompiler(intra_compiler,
                         program_names,
                         best_best_runtimes,
-                        best_top_speeds)
+                        best_top_speeds,
+                        all_best_runtimes)
         for c, intra_compiler in intra_compilers.items()
     }
     return inter_compilers
@@ -254,6 +305,97 @@ def gather_compiler_names():
         if not canonical_name in names:
             names.append(canonical_name)
     return names
+
+def format_percent(d):
+    if d < Decimal('0.001'):
+        return f'{d * 100:.2f}\\%'
+    elif d < Decimal('0.01'):
+        return f'{d * 100:.1f}\\%'
+    else:
+        return f'{int(d * 100)}\\%'
+
+def report_perf(compiler_names, program_names, intra_compilers, inter_compilers):
+    # header
+    header_row = [
+        'Compiler',
+        'Variance',
+        'Distribution',
+        'Average peer headroom',
+        'Stabilized peer headroom',
+    ]
+
+    header_row_begin = '\\begin{tabular}{| c || '
+    header_row_middle = ' | '.join(['c'] * (len(header_row) - 1))
+    header_row_end = ' |}'
+    print(header_row_begin + header_row_middle + header_row_end)
+    print('\\hline')
+    print(' & '.join(header_row) + ' \\\\')
+    print('\\hline')
+
+    for c in compiler_names:
+        intra = intra_compilers[c]
+        inter = inter_compilers[c]
+        rows = []
+
+        # variance across mutation
+        g_vam = geomean(intra.g_vams)
+
+        # distribution across mutations
+        g_dam = intra.g_n_stables / len(intra.g_vams)
+    
+        g_ph = geomean(inter_compilers[c].gphs)
+        
+        g_sph = geomean(inter_compilers[c].sphs.values())
+
+        row = [format_percent(v) for v in [g_vam, g_dam, g_ph, g_sph]]
+        rows.append(row)
+        format_for_latex(c, rows)
+
+    print('\\hline')
+    print('\\end{tabular}')
+
+def report_vec(compiler_names, program_names, intra_compilers, inter_compilers):
+    # header
+    header_row = [
+        'Compiler',
+        'Average vectorization speedup',
+        'Stabilized vectorization speedup',
+    ]
+
+    header_row_begin = '\\begin{tabular}{| c || '
+    header_row_middle = ' | '.join(['c'] * (len(header_row) - 1))
+    header_row_end = ' |}'
+    print(header_row_begin + header_row_middle + header_row_end)
+    print('\\hline')
+    print(' & '.join(header_row) + ' \\\\')
+    print('\\hline')
+
+    # report non-vectorization stuff
+    for c in compiler_names:
+        intra = intra_compilers[c]
+        inter = inter_compilers[c]
+        rows = []
+
+        assert(len(program_names) == 1)
+
+        g_vo = geomean(intra.vos[program_names[0]])
+
+        g_svo = geomean(intra.svos.values())
+
+        row = [
+            f'{g_vo:.2f}', f'{g_svo:.2f}',
+        ]
+        rows.append(row)
+        format_for_latex(c, rows)
+
+    print('\\hline')
+    print('\\end{tabular}')
+
+def report_summary(compiler_names, program_names, intra_compilers, inter_compilers):
+    print('report perf')
+    report_perf(compiler_names, program_names, intra_compilers, inter_compilers)
+    print('report vec')
+    report_vec(compiler_names, program_names, intra_compilers, inter_compilers)
 
 def report(compiler_names, program_names, intra_compilers, inter_compilers):
     mean = geomean
@@ -314,7 +456,7 @@ if __name__ == '__main__':
     # raw_data = gather_raw_data()
     # compiler_names = gather_compiler_names()
     # program_names = gather_program_names()
-    runtimes = gather_runtimes_conv_log()
+    runtimes = gather_runtimes_unroll_log()
 
     threshold = 0.15  # hardcoded
     intra_compilers = gather_intra_compilers(compiler_names,
@@ -324,5 +466,6 @@ if __name__ == '__main__':
     inter_compilers = gather_inter_compilers(intra_compilers,
                                              program_names)
 
+    report_summary(compiler_names, program_names, intra_compilers, inter_compilers)
     report(compiler_names, program_names, intra_compilers, inter_compilers)
     

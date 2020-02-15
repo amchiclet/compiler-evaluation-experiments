@@ -227,11 +227,8 @@ def gather_best_runtimes(compiler_name, program_names, runtimes):
 def gather_global_variance_across_mutations(best_runtimes):
     g_vam = []
     for program_name, mutations in best_runtimes.items():
-        fastest_mutation = min(mutations)
-        
-        for mutation in mutations:
-            print(mutation, fastest_mutation, mutation - fastest_mutation, (mutation - fastest_mutation) / mutation)
-        g_vam += [(mutation - fastest_mutation) / mutation * 100 for mutation in mutations]
+        fastest_mutation = min(mutations)        
+        g_vam += [(mutation - fastest_mutation) / mutation for mutation in mutations]
     return g_vam
 
 def gather_global_n_stables(variances, threshold):
@@ -254,10 +251,14 @@ def prod(l):
         r *= i
     return r
 
-def geomean(l):
+def geomean_inner(l):
     if not type(l) is list:
         l = list(l)
     return prod(l) ** (Decimal(1.0) / len(l))
+
+def geomean(l):
+    skew = Decimal('1')
+    return geomean_inner([i + skew for i in l]) - skew
 
 def gather_best_best_runtimes(program_names, all_best_runtimes):
     best_best_runtimes = {}
@@ -276,7 +277,6 @@ def gather_global_best_best_runtimes(program_names, all_global_best_runtimes):
     for best_runtimes in all_global_best_runtimes:
         new_prod = prod(best_runtimes)
         if not min_prod or new_prod < min_prod:
-            print(new_prod)
             min_prod = new_prod
             global_best_best_runtimes = best_runtimes
     return global_best_best_runtimes
@@ -306,6 +306,16 @@ def gather_best_top_speeds(program_names, all_top_speeds):
     return best_top_speeds
 
 def gather_global_best_top_speeds(program_names, all_top_speeds):
+    global_best_top_speeds = None
+    min_prod = None
+    for top_speeds in all_top_speeds:
+        new_prod = prod(top_speeds.values())
+        if not min_prod or new_prod < min_prod:
+            min_prod = new_prod
+            global_best_top_speeds = top_speeds
+    return global_best_top_speeds
+
+def gather_global_best_top_speeds_v2(program_names, all_top_speeds):
     global_best_top_speeds = None
     min_prod = None
     for top_speeds in all_top_speeds:
@@ -413,7 +423,7 @@ class InterCompiler:
                                                self.bacs,
                                                intra_compiler.best_runtimes)
         self.gph_v2 = gather_global_peer_headroom_v2(self.phr_v2)
-        
+
 def gather_inter_compilers(intra_compilers, program_names):
     all_best_runtimes = [c.best_runtimes for c in intra_compilers.values()]
     best_best_runtimes = gather_best_best_runtimes(program_names, all_best_runtimes)
@@ -450,18 +460,22 @@ def debug(compiler_names, program_names, intra_compilers, inter_compilers):
         gph = mean(inter_compilers[c].gph)
         print(f'for compiler {c}, global peer headroom is {gph:.2f}')
 
-def report_summary(compiler_names, program_names, intra_compilers, inter_compilers):
+def format_percent(d):
+    if d < Decimal('0.001'):
+        return f'{d * 100:.2f}\\%'
+    elif d < Decimal('0.01'):
+        return f'{d * 100:.1f}\\%'
+    else:
+        return f'{int(d * 100)}\\%'
+
+def report_perf(compiler_names, program_names, intra_compilers, inter_compilers):
     # header
     header_row = [
         'Compiler',
-        '$\\ident{S}_s$',
-        '$\\ident{SI}_s$',
-        '$\\ident{S}_v$',
-        '$\\ident{SI}_v$',
-        '$\\ident{VO}$',
-        '$\\ident{SVO}$',
-        '$\\ident{PH}$',
-        '$\\ident{SPH}$',
+        'Variance',
+        'Distribution',
+        'Average peer headroom',
+        'Stabilized peer headroom',
     ]
 
     header_row_begin = '\\begin{tabular}{| c || '
@@ -472,51 +486,71 @@ def report_summary(compiler_names, program_names, intra_compilers, inter_compile
     print(' & '.join(header_row) + ' \\\\')
     print('\\hline')
 
-    # for each compiler
     for c in compiler_names:
         intra = intra_compilers[c]
         inter = inter_compilers[c]
-        scalar = c + '_s'
-        vector = c + '_v'
         rows = []
 
         # compute global
         flatten = itertools.chain.from_iterable
-        g_s_s = geomean(flatten([intra.slowdowns[scalar][p] for p in program_names]))
-        n_stables_scalar = [intra.n_stables[scalar][p] for p in program_names]
-        n_mutations_scalar = [intra.n_mutations[scalar][p] for p in program_names]
-        g_si_s = sum(n_stables_scalar) / sum(n_mutations_scalar)
-        g_s_v = geomean(flatten([intra.slowdowns[vector][p] for p in program_names]))
 
         # variance across mutation
         g_vam = geomean(intra.g_vams)
+
         # distribution across mutations
         g_dam = intra.g_n_stables / len(intra.g_vams)
     
-        n_stables_vector = [intra.n_stables[vector][p] for p in program_names]
-        n_mutations_vector = [intra.n_mutations[vector][p] for p in program_names]
-        g_si_v = sum(n_stables_vector) / sum(n_mutations_vector)
-        g_vo = geomean(flatten([intra.vos[p] for p in program_names]))
-        g_svo = geomean(intra.svos.values())
-        g_ph = geomean(inter_compilers[c].gph)
-        g_sph = geomean(inter_compilers[c].gsphs)
-        g_ph_v2 = geomean(inter_compilers[c].gph_v2)
-        row = [
-            f'{g_s_s:.2f}', f'{int(g_si_s*100)}\\%',
-            f'{g_s_v:.2f}', f'{int(g_si_v*100)}\\%',
-            f'{g_vam:.10f}', f'{int(g_dam*100)}\\%',
-            f'{g_vo:.2f}', f'{g_svo:.2f}',
-            f'{int(g_ph*100)}\\%', f'{int(g_sph*100)}\\%',
-            f'{int(g_ph_v2*100)}\\%',
-        ]
-        # + \
-        #       [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo, g_svo, g_ph, g_sph]]
+        g_ph = geomean(inter_compilers[c].gph_v2)
+        
+        g_sph = geomean(inter_compilers[c].sphs.values())
+        row = [format_percent(v) for v in [g_vam, g_dam, g_ph, g_sph]]
         rows.append(row)
         format_summary_for_latex(c, rows)
 
     print('\\hline')
     print('\\end{tabular}')
 
+def report_vec(compiler_names, program_names, intra_compilers, inter_compilers):
+    # header
+    header_row = [
+        'Compiler',
+        'Average vectorization speedup',
+        'Stabilized vectorization speedup',
+    ]
+
+    header_row_begin = '\\begin{tabular}{| c || '
+    header_row_middle = ' | '.join(['c'] * (len(header_row) - 1))
+    header_row_end = ' |}'
+    print(header_row_begin + header_row_middle + header_row_end)
+    print('\\hline')
+    print(' & '.join(header_row) + ' \\\\')
+    print('\\hline')
+
+    # report non-vectorization stuff
+    for c in compiler_names:
+        intra = intra_compilers[c]
+        inter = inter_compilers[c]
+        rows = []
+
+        # compute global
+        flatten = itertools.chain.from_iterable
+    
+        g_vo = geomean(flatten([intra.vos[p] for p in program_names]))
+        g_svo = geomean(intra.svos.values())
+
+        row = [
+            f'{g_vo:.2f}', f'{g_svo:.2f}',
+        ]
+        rows.append(row)
+        format_summary_for_latex(c, rows)
+
+    print('\\hline')
+    print('\\end{tabular}')
+
+def report_summary(compiler_names, program_names, intra_compilers, inter_compilers):
+    report_perf(compiler_names, program_names, intra_compilers, inter_compilers)
+    report_vec(compiler_names, program_names, intra_compilers, inter_compilers)
+    
 def report(compiler_names, program_names, intra_compilers, inter_compilers):
     # header
     header_row = [
@@ -563,8 +597,6 @@ def report(compiler_names, program_names, intra_compilers, inter_compilers):
                    f'{int(ph*100)}\\%', f'{int(sph*100)}\\%',
             ]
 
-            # row = [p] + [f'{f:.2f}' for f in [s_s, si_s, s_v, si_v, vo, svo, ph, sph]]
-
             # Each row won't have the compiler name
             assert(len(row) + 1 == len(header_row))
             rows.append(row)
@@ -590,8 +622,6 @@ def report(compiler_names, program_names, intra_compilers, inter_compilers):
                f'{g_vo:.2f}', f'{g_svo:.2f}',
                f'{int(g_ph*100)}\\%', f'{int(g_sph*100)}\\%',
         ]
-        # + \
-        #       [f'{f:.2f}' for f in [g_s_s, g_si_s, g_s_v, g_si_v, g_vo, g_svo, g_ph, g_sph]]
         rows.append(row)
         format_for_latex(c, rows)
 
@@ -612,6 +642,4 @@ if __name__ == '__main__':
     inter_compilers = gather_inter_compilers(intra_compilers,
                                              program_names)
 
-    report_summary(compiler_names, program_names, intra_compilers, inter_compilers)
-    # debug(compiler_names, program_names, intra_compilers, inter_compilers)
-    
+    report_summary(compiler_names, program_names, intra_compilers, inter_compilers)    
