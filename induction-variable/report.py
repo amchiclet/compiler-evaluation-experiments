@@ -281,11 +281,11 @@ def gather_global_best_best_runtimes(program_names, all_global_best_runtimes):
             global_best_best_runtimes = best_runtimes
     return global_best_best_runtimes
 
-def gather_peer_headrooms(program_names, best_best_runtimes, best_runtimes):
-    peer_headrooms = {}
-    for p in program_names:
-        peer_headrooms[p] = [best / me for best, me in zip(best_best_runtimes[p], best_runtimes[p])]
-    return peer_headrooms
+# def gather_peer_headrooms(program_names, best_best_runtimes, best_runtimes):
+#     peer_headrooms = {}
+#     for p in program_names:
+#         peer_headrooms[p] = [best / me for best, me in zip(best_best_runtimes[p], best_runtimes[p])]
+#     return peer_headrooms
 
 def gather_global_peer_headroom(program_names, global_best_best_runtimes, global_best_runtimes):
     return [best / me for best, me in zip(global_best_best_runtimes, global_best_runtimes)]
@@ -343,13 +343,13 @@ def gather_peer_headrooms_v2(program_names, best_across_compilers, best_runtimes
     for program_name in program_names:
         mines = best_runtimes[program_name]
         bests = best_across_compilers[program_name]
-        peer_headrooms[program_name] = [best / mine for best, mine in zip(bests, mines)]
+        peer_headrooms[program_name] = [(mine - best) / mine for best, mine in zip(bests, mines)]
     return peer_headrooms
 
 def gather_stabilized_peer_headrooms(program_names, best_top_speeds, top_speeds):
     sphs = {}
     for p in program_names:
-        sphs[p] = best_top_speeds[p] / top_speeds[p]
+        sphs[p] = (top_speeds[p] - best_top_speeds[p]) / top_speeds[p]
     return sphs
 
 def gather_global_stabilized_peer_headrooms(program_names, global_best_top_speeds, top_speeds):
@@ -406,9 +406,9 @@ def gather_intra_compilers(compiler_names, program_names, runtimes, threshold):
 
 class InterCompiler:
     def __init__(self, intra_compiler, program_names, best_best_runtimes, global_best_best_runtimes, best_top_speeds, global_best_top_speeds, all_best_runtimes):
-        self.phs = gather_peer_headrooms(program_names,
-                                         best_best_runtimes,
-                                         intra_compiler.best_runtimes)
+        # self.phs = gather_peer_headrooms(program_names,
+        #                                  best_best_runtimes,
+        #                                  intra_compiler.best_runtimes)
         self.gph = gather_global_peer_headroom(program_names,
                                                global_best_best_runtimes,
                                                intra_compiler.global_best_runtimes)

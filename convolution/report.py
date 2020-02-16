@@ -160,7 +160,7 @@ def geomean_inner(l):
     return prod(l) ** (Decimal(1.0) / len(l))
 
 def geomean(l):
-    skew = Decimal('0.000000001')
+    skew = Decimal('1')
     return geomean_inner([i + skew for i in l]) - skew
 
 def gather_best_best_runtimes(program_names, all_best_runtimes):
@@ -193,7 +193,7 @@ def gather_best_top_speeds(program_names, all_top_speeds):
 def gather_stabilized_peer_headrooms(program_names, best_top_speeds, top_speeds):
     sphs = {}
     for p in program_names:
-        sphs[p] = best_top_speeds[p] / top_speeds[p]
+        sphs[p] = (top_speeds[p] - best_top_speeds[p]) / top_speeds[p]
     return sphs
 
 def gather_global_variance_across_mutations(best_runtimes):
@@ -208,6 +208,7 @@ def gather_global_n_stables(variances, threshold):
 
 class IntraCompiler:
     def __init__(self, compiler_name, program_names, runtimes, threshold):
+        self.name = compiler_name
         self.winners = gather_winners(compiler_name,
                                       program_names,
                                       runtimes)
@@ -259,7 +260,7 @@ def gather_peer_headrooms(program_names, best_across_compilers, best_runtimes):
     for program_name in program_names:
         mines = best_runtimes[program_name]
         bests = best_across_compilers[program_name]
-        peer_headrooms[program_name] = [best / mine for best, mine in zip(bests, mines)]
+        peer_headrooms[program_name] = [(mine - best) / mine for best, mine in zip(bests, mines)]
     return peer_headrooms
 
 def gather_global_peer_headroom(peer_headrooms):
@@ -274,6 +275,8 @@ class InterCompiler:
         #                                  best_best_runtimes,
         #                                  intra_compiler.best_runtimes)
         self.bacs = gather_best_across_compilers(program_names, all_best_runtimes)
+        print(f'For {intra_compiler.name}')
+        print('peer_headrooms')
         self.phs = gather_peer_headrooms(program_names,
                                          self.bacs,
                                          intra_compiler.best_runtimes)

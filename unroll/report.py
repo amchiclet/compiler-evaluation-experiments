@@ -192,7 +192,7 @@ def gather_best_top_speeds(program_names, all_top_speeds):
 def gather_stabilized_peer_headrooms(program_names, best_top_speeds, top_speeds):
     sphs = {}
     for p in program_names:
-        sphs[p] = best_top_speeds[p] / top_speeds[p]
+        sphs[p] = (top_speeds[p] - best_top_speeds[p]) / top_speeds[p]
     return sphs
 
 def gather_global_variance_across_mutations(best_runtimes):
@@ -258,7 +258,7 @@ def gather_peer_headrooms(program_names, best_across_compilers, best_runtimes):
     for program_name in program_names:
         mines = best_runtimes[program_name]
         bests = best_across_compilers[program_name]
-        peer_headrooms[program_name] = [best / mine for best, mine in zip(bests, mines)]
+        peer_headrooms[program_name] = [(mine - best) / mine for best, mine in zip(bests, mines)]
     return peer_headrooms
 
 def gather_global_peer_headroom(peer_headrooms):
