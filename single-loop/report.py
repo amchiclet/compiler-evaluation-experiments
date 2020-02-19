@@ -224,6 +224,21 @@ def gather_best_runtimes(compiler_name, program_names, runtimes):
         best_runtimes[p] = [min(s, v) for s, v in zip(runtimes_s, runtimes_v)]
     return best_runtimes
 
+def gather_variance_across_mutations(best_runtimes):
+    vams = {}
+    for program_name, mutations in best_runtimes.items():
+        fastest_mutation = min(mutations)        
+        vams[program_name] = [(mutation - fastest_mutation) / mutation for mutation in mutations]
+    return vams
+
+def gather_distribution_across_mutations(variance_map, threshold):
+    dams = {}
+    for program_name, variances in variance_map.items():
+        n_stable = sum(1 for v in variances if v < threshold)
+        n_mutations = len(variances)
+        dams[program_name] = n_stable / n_mutations
+    return dams
+
 def gather_global_variance_across_mutations(best_runtimes):
     g_vam = []
     for program_name, mutations in best_runtimes.items():
@@ -391,6 +406,8 @@ class IntraCompiler:
         self.global_best_runtimes = gather_global_best_runtimes(compiler_name,
                                                                 program_names,
                                                                 runtimes)
+        self.vams = gather_variance_across_mutations(self.best_runtimes)
+        self.dams = gather_distribution_across_mutations(self.vams, threshold)
         self.g_vams = gather_global_variance_across_mutations(self.best_runtimes)
         self.g_n_stables = gather_global_n_stables(self.g_vams, threshold)
 
@@ -460,13 +477,83 @@ def debug(compiler_names, program_names, intra_compilers, inter_compilers):
         gph = mean(inter_compilers[c].gph)
         print(f'for compiler {c}, global peer headroom is {gph:.2f}')
 
-def format_percent(d):
+def format_percent_latex(d):
     if d < Decimal('0.001'):
         return f'{d * 100:.2f}\\%'
     elif d < Decimal('0.01'):
         return f'{d * 100:.1f}\\%'
     else:
         return f'{int(d * 100)}\\%'
+
+def format_percent(d):
+    if d < Decimal('0.001'):
+        return f'{d * 100:.2f}%'
+    elif d < Decimal('0.01'):
+        return f'{d * 100:.1f}%'
+    else:
+        return f'{int(d * 100)}%'
+
+def report_perf_breakdown(compiler_names, program_names, intra_compilers, inter_compilers):
+    # header
+    header_row = [
+        'Compiler',
+        'Test',
+        'Variance',
+        'Distribution',
+        'Peer headroom',
+        'Top speed peer headroom',
+    ]
+
+    print(' | '.join(header_row))
+    for c in compiler_names:
+        intra = intra_compilers[c]
+        inter = inter_compilers[c]
+        rows = []
+
+        # compute global
+        flatten = itertools.chain.from_iterable
+
+        for p in program_names:
+            vam = geomean(intra.vams[p])
+            dam = intra.dams[p]
+            ph = geomean(inter.phr_v2[p])
+            sph = inter.sphs[p]
+            row = [c, p] + [format_percent(v) for v in [vam, dam, ph, sph]]
+            print(' | '.join(row))
+
+        g_vam = geomean(intra.g_vams)
+        g_dam = intra.g_n_stables / len(intra.g_vams)    
+        g_ph = geomean(inter_compilers[c].gph_v2)
+        g_sph = geomean(inter_compilers[c].sphs.values())
+        row = [c, '*'] + [format_percent(v) for v in [g_vam, g_dam, g_ph, g_sph]]
+        print(' | '.join(row))
+        print('-----------------------------')
+
+def report_vec_breakdown(compiler_names, program_names, intra_compilers, inter_compilers):
+    # header
+    header_row = [
+        'Compiler',
+        'Test',
+        'Vectorization speedup',
+        'Top speed vectorization speedup',
+    ]
+
+    print(' | '.join(header_row))
+    for c in compiler_names:
+        intra = intra_compilers[c]
+        inter = inter_compilers[c]
+
+        for p in program_names:
+            vo = geomean(intra.vos[p])
+            svo = intra.svos[p]
+            row = [c, p, f'{vo:.2f}', f'{svo:.2f}']
+            print(' | '.join(row))
+        flatten = itertools.chain.from_iterable
+        g_vo = geomean(flatten([intra.vos[p] for p in program_names]))
+        g_svo = geomean(intra.svos.values())
+        row = [c, '*', f'{g_vo:.2f}', f'{g_svo:.2f}']
+        print(' | '.join(row))
+        print('-----------------------------')
 
 def report_perf(compiler_names, program_names, intra_compilers, inter_compilers):
     # header
@@ -503,7 +590,7 @@ def report_perf(compiler_names, program_names, intra_compilers, inter_compilers)
         g_ph = geomean(inter_compilers[c].gph_v2)
         
         g_sph = geomean(inter_compilers[c].sphs.values())
-        row = [format_percent(v) for v in [g_vam, g_dam, g_ph, g_sph]]
+        row = [format_percent_latex(v) for v in [g_vam, g_dam, g_ph, g_sph]]
         rows.append(row)
         format_summary_for_latex(c, rows)
 
@@ -550,7 +637,7 @@ def report_vec(compiler_names, program_names, intra_compilers, inter_compilers):
 def report_summary(compiler_names, program_names, intra_compilers, inter_compilers):
     report_perf(compiler_names, program_names, intra_compilers, inter_compilers)
     report_vec(compiler_names, program_names, intra_compilers, inter_compilers)
-    
+
 def report(compiler_names, program_names, intra_compilers, inter_compilers):
     # header
     header_row = [
@@ -642,4 +729,6 @@ if __name__ == '__main__':
     inter_compilers = gather_inter_compilers(intra_compilers,
                                              program_names)
 
-    report_summary(compiler_names, program_names, intra_compilers, inter_compilers)    
+    #report_summary(compiler_names, program_names, intra_compilers, inter_compilers)    
+    report_perf_breakdown(compiler_names, program_names, intra_compilers, inter_compilers)
+    report_vec_breakdown(compiler_names, program_names, intra_compilers, inter_compilers)
