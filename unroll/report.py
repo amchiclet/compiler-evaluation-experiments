@@ -306,13 +306,21 @@ def gather_compiler_names():
             names.append(canonical_name)
     return names
 
-def format_percent(d):
+def format_percent_latex(d):
     if d < Decimal('0.001'):
         return f'{d * 100:.2f}\\%'
     elif d < Decimal('0.01'):
         return f'{d * 100:.1f}\\%'
     else:
         return f'{int(d * 100)}\\%'
+
+def format_percent(d):
+    if d < Decimal('0.001'):
+        return f'{d * 100:.2f}%'
+    elif d < Decimal('0.01'):
+        return f'{d * 100:.1f}%'
+    else:
+        return f'{int(d * 100)}%'
 
 def report_perf(compiler_names, program_names, intra_compilers, inter_compilers):
     # header
@@ -347,7 +355,7 @@ def report_perf(compiler_names, program_names, intra_compilers, inter_compilers)
         
         g_sph = geomean(inter_compilers[c].sphs.values())
 
-        row = [format_percent(v) for v in [g_vam, g_dam, g_ph, g_sph]]
+        row = [format_percent_latex(v) for v in [g_vam, g_dam, g_ph, g_sph]]
         rows.append(row)
         format_for_latex(c, rows)
 
@@ -390,6 +398,61 @@ def report_vec(compiler_names, program_names, intra_compilers, inter_compilers):
 
     print('\\hline')
     print('\\end{tabular}')
+
+def report_perf_excel(compiler_names, program_names, intra_compilers, inter_compilers):
+    # header
+    header_row = [
+        'Compiler',
+        'Variance',
+        'Distribution',
+        'Peer headroom',
+        'Top speed peer headroom',
+    ]
+    print(' | '.join(header_row))
+    for c in compiler_names:
+        intra = intra_compilers[c]
+        inter = inter_compilers[c]
+
+        # variance across mutation
+        g_vam = geomean(intra.g_vams)
+
+        # distribution across mutations
+        g_dam = intra.g_n_stables / len(intra.g_vams)
+    
+        g_ph = geomean(inter_compilers[c].gphs)
+        
+        g_sph = geomean(inter_compilers[c].sphs.values())
+
+        row = [c] + [format_percent(v) for v in [g_vam, g_dam, g_ph, g_sph]]
+        print(' | '.join(row))
+    print('-----------------------------')
+
+def report_vec_excel(compiler_names, program_names, intra_compilers, inter_compilers):
+    # header
+    header_row = [
+        'Compiler',
+        'Vectorization speedup',
+        'Top speed vectorization speedup',
+    ]
+    print(' | '.join(header_row))
+
+    # report non-vectorization stuff
+    for c in compiler_names:
+        intra = intra_compilers[c]
+        inter = inter_compilers[c]
+        # compute global
+
+        assert(len(program_names) == 1)
+
+        g_vo = geomean(intra.vos[program_names[0]])
+
+        g_svo = geomean(intra.svos.values())
+
+        row = [
+            c, f'{g_vo:.2f}', f'{g_svo:.2f}',
+        ]
+        print(' | '.join(row))
+    print('-----------------------------')
 
 def report_summary(compiler_names, program_names, intra_compilers, inter_compilers):
     print('report perf')
@@ -466,6 +529,8 @@ if __name__ == '__main__':
     inter_compilers = gather_inter_compilers(intra_compilers,
                                              program_names)
 
-    report_summary(compiler_names, program_names, intra_compilers, inter_compilers)
-    report(compiler_names, program_names, intra_compilers, inter_compilers)
+    # report_summary(compiler_names, program_names, intra_compilers, inter_compilers)
+    # report(compiler_names, program_names, intra_compilers, inter_compilers)
+    report_perf_excel(compiler_names, program_names, intra_compilers, inter_compilers)
+    report_vec_excel(compiler_names, program_names, intra_compilers, inter_compilers)
     
