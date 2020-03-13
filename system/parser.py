@@ -26,6 +26,7 @@ grammar = '''
     %import common.LCASE_LETTER
     %import common.UCASE_LETTER
     %ignore WS
+
 '''
 
 from abstract_ast import Assignment, AbstractIndex, Access, AbstractLoop, BinOp, Program
@@ -68,7 +69,9 @@ class TreeSimplifier(Transformer):
     def loop_vars(self, args):
         return args
     def abstract_loop(self, args):
-        return AbstractLoop(args[0], args[1:], self.next_node_id())
+        loop_vars = args[0]
+        body = args[1:]
+        return AbstractLoop(loop_vars, body, self.next_node_id())        
     def start(self, args):
         return Program(args, self.next_node_id())
 
