@@ -63,7 +63,8 @@ class TreeSimplifier(Transformer):
     def expr(self, args):
         return args[0]
     def assignment(self, args):
-        return Assignment(args[0], args[1], self.next_node_id())
+        surrounding_loop = None
+        return Assignment(args[0], args[1], surrounding_loop, self.next_node_id())
     def statement(self, args):
         return args[0]
     def loop_vars(self, args):
@@ -71,7 +72,11 @@ class TreeSimplifier(Transformer):
     def abstract_loop(self, args):
         loop_vars = args[0]
         body = args[1:]
-        return AbstractLoop(loop_vars, body, self.next_node_id())        
+        loop = AbstractLoop(loop_vars, body, self.next_node_id())
+        for stmt in body:
+            assert(isinstance(stmt, Assignment))
+            stmt.surrounding_loop = loop
+        return loop
     def start(self, args):
         return Program(args, self.next_node_id())
 

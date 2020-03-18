@@ -1,7 +1,7 @@
 for [i, j, k]  {
-  A[>i][>j][>k] = B[i][j][k] * C[i][<j][<k];
-  A[i][j][k] = A[i][j][k] * C[i][j][k];
+  A[i][j][k] = A[<i][<j][<k] * B[i][j][k];
+  A[<i][<j][<k] = A[i][j][k] * C[i][j][k];
 }
 for [i, j, k]  {
-  B[i][>j][>k] = A[i][j][k] * C[i][<j][<k];
+  A[>i][>j][>k] = A[i][j][k] * D[i][j][k];
 }

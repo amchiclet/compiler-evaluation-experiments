@@ -9,10 +9,11 @@ class Node:
         raise NotImplementedError
 
 class Assignment(Node):
-    def __init__(self, lhs, rhs, node_id=0):
+    def __init__(self, lhs, rhs, surrounding_loop=None, node_id=0):
         self.node_id = node_id
         self.lhs = lhs
         self.rhs = rhs
+        self.surrounding_loop = surrounding_loop
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}{self.lhs.pprint()} = {self.rhs.pprint()};'
