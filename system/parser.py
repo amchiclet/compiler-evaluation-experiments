@@ -38,9 +38,9 @@ class TreeSimplifier(Transformer):
         self.current_node_id += 1
         return self.current_node_id
     def array(self, args):
-        return args[0]
+        return ''.join(args)
     def scalar(self, args):
-        return args[0]
+        return ''.join(args)
     def index(self, args):
         if isinstance(args[0], AbstractIndex):
             return args[0]
@@ -70,7 +70,6 @@ class TreeSimplifier(Transformer):
     def statement(self, args):
         stmt = args[0]
         for access in get_accesses(stmt):
-            print('setting parent statement')
             access.parent_stmt = stmt
         return stmt
     def loop_vars(self, args):
@@ -91,7 +90,6 @@ def parse_str(code):
     lark_ast = parser.parse(code)
     tree_simplifier = TreeSimplifier()
     abstract_ast = tree_simplifier.transform(lark_ast)
-    print(abstract_ast.pprint())
     return abstract_ast, tree_simplifier.next_node_id()
 
 def parse_file(path):

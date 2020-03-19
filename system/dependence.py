@@ -72,7 +72,6 @@ def get_statement_relations(program):
             statement_map[stmt.node_id] = stmt
             ordering.append(stmt.node_id)
             child_to_parent[stmt.node_id] = loop.node_id
-    print(ordering)
     return StatementRelations(statement_map, ordering, child_to_parent)
 
 # two accesses are compatible when they index the same
@@ -214,21 +213,25 @@ def analyze_dependence(program):
             loop_order = stmt1.surrounding_loop.loop_vars
             diff = subtract(loop_order, before, after)
             if is_zero(diff):
-                print(f'dep {before_str} -> {after_str}')
+                if debug:
+                    print(f'dep {before_str} -> {after_str}')
                 dep_graph.add(before, after)
             elif is_negative(diff):
-                print(f'dep {after_str} -> {before_str}')
+                if debug:
+                    print(f'dep {after_str} -> {before_str}')
                 dep_graph.add(after, before, diff)
             else:
-                print(f'dep {before_str} -> {after_str}')
+                if debug:
+                    print(f'dep {before_str} -> {after_str}')
                 dep_graph.add(before, after, inverse(diff))
         else:
             # if in different loop,
             # there's a dependency from stmt1 to stmt2
-            print(f'dep {before_str} -> {after_str}')
+            if debug:
+                print(f'dep {before_str} -> {after_str}')
             dep_graph(before, after)
-
-    dep_graph.pprint(relations.statement_map)
+    if debug:
+        dep_graph.pprint(relations.statement_map)
     return dep_graph
 
 def is_valid(dep_graph_before, dep_graph_after):
@@ -239,6 +242,6 @@ def is_valid(dep_graph_before, dep_graph_after):
     # 2) check for accesses across statements
     for (s1, s2) in dep_graph_before.dep_access_pairs:
         if (s2, s1) in dep_graph_after.dep_access_pairs:
-            print('This is not a valid transformation!')
-    print('This is a valid transformation!')
+            return False
+    return True
 

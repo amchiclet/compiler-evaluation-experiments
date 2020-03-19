@@ -1,5 +1,13 @@
 space_per_indent = 2
 
+def is_list_syntactically_equal(list1, list2):
+    if len(list1) != len(list2):
+        return False
+    for i1, i2 in zip(list1, list2):
+        if not i1.is_syntactically_equal(i2):
+            return False
+    return True
+
 class Node:
     def is_statement(self):
         raise NotImplementedError
@@ -9,6 +17,8 @@ class Node:
         raise NotImplementedError
     # clone the node including the node ids
     def clone(self):
+        raise NotImplementedError
+    def is_syntactically_equal(self, other):
         raise NotImplementedError
 
 class Assignment(Node):
@@ -25,7 +35,10 @@ class Assignment(Node):
         for access in get_accesses(cloned):
             access.parent_stmt = cloned
         return cloned
-        
+    def is_syntactically_equal(self, other):
+        return self.lhs.is_syntactically_equal(other.lhs) and \
+            self.rhs.is_syntactically_equal(other.rhs)
+
 class AbstractIndex(Node):
     def __init__(self, var, relationship=0, node_id=0):
         self.node_id = node_id
@@ -42,6 +55,8 @@ class AbstractIndex(Node):
         return s
     def clone(self):
         return AbstractIndex(self.var, self.relationship, self.node_id)
+    def is_syntactically_equal(self, other):
+        return self.var == other.var and self.relationship == other.relationship
 
 # TODO: create expr class
 
@@ -60,6 +75,9 @@ class Access(Node):
         cloned = Access(self.var, cloned_indices, self.node_id)
         cloned.is_write = self.is_write
         return cloned
+    def is_syntactically_equal(self, other):
+        return self.var == other.var and \
+            is_list_syntactically_equal(self.indices, other.indices)
 
 class AbstractLoop(Node):
     def __init__(self, loop_vars, body, node_id=0):
@@ -75,11 +93,16 @@ class AbstractLoop(Node):
         end = f'{ws}}}'
         return '\n'.join([header] + body + [end])
     def clone(self):
+        cloned_loop_vars = list(self.loop_vars)
         cloned_body = [stmt.clone() for stmt in self.body]
-        cloned_loop = AbstractLoop(self.loop_vars, cloned_body, self.node_id)
+        cloned_loop = AbstractLoop(cloned_loop_vars, cloned_body, self.node_id)
         for stmt in cloned_body:
             stmt.surrounding_loop = cloned_loop
         return cloned_loop
+    def is_syntactically_equal(self, other):
+        if self.loop_vars != other.loop_vars:
+            return False
+        return is_list_syntactically_equal(self.body, other.body)
 
 class BinOp(Node):
     def __init__(self, left, right, node_id=0):
@@ -90,6 +113,9 @@ class BinOp(Node):
         return f'{self.left.pprint()} * {self.right.pprint()}'
     def clone(self):
         return BinOp(self.left.clone(), self.right.clone(), self.node_id)
+    def is_syntactically_equal(self, other):
+        return self.left.is_syntactically_equal(other.left) and \
+            self.right.is_syntactically_equal(other.right)
 
 class Program:
     def __init__(self, loops, node_id=0):
@@ -101,6 +127,8 @@ class Program:
     def clone(self):
         cloned_loops = [loop.clone() for loop in self.loops]
         return Program(cloned_loops, self.node_id)
+    def is_syntactically_equal(self, other):
+        return is_list_syntactically_equal(self.loops, other.loops)
 
 def get_accesses(node):
     accesses = set()
