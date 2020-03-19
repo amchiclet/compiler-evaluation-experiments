@@ -29,7 +29,7 @@ grammar = '''
 
 '''
 
-from abstract_ast import Assignment, AbstractIndex, Access, AbstractLoop, BinOp, Program
+from abstract_ast import Assignment, AbstractIndex, Access, AbstractLoop, BinOp, Program, get_accesses
 
 class TreeSimplifier(Transformer):
     def __init__(self, start_node_id=0):
@@ -63,10 +63,16 @@ class TreeSimplifier(Transformer):
     def expr(self, args):
         return args[0]
     def assignment(self, args):
-        surrounding_loop = None
-        return Assignment(args[0], args[1], surrounding_loop, self.next_node_id())
+        lhs = args[0]
+        assert(isinstance(lhs, Access))
+        lhs.is_write = True
+        return Assignment(lhs, args[1], self.next_node_id())
     def statement(self, args):
-        return args[0]
+        stmt = args[0]
+        for access in get_accesses(stmt):
+            print('setting parent statement')
+            access.parent_stmt = stmt
+        return stmt
     def loop_vars(self, args):
         return args
     def abstract_loop(self, args):
