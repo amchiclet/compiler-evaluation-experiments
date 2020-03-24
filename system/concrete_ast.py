@@ -24,14 +24,18 @@ def get_accesses(node):
     else:
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
 
+def get_array_names(p):
+    array_names = set()
+    for access in get_accesses(p):
+        array_names.add(access.var)
+    return array_names
+
 class CNode(Node):
     pass
 
 class CAssignment(Assignment):
     def clone(self):
         cloned = CAssignment(self.lhs.clone(), self.rhs.clone(), self.node_id)
-        for access in get_accesses(cloned):
-            access.parent_stmt = cloned
         return cloned
     def rename(self, rename_map):
         return self.lhs.rename(rename_map) or self.rhs.rename(rename_map)
@@ -76,25 +80,40 @@ class CAccess(Access):
         for i in self.indices:
             if i.rename(rename_map):
                 raise RuntimeError('Array indices are not expected to be renamed')
+    def pprint(self, indent=0):
+        list_of_pprint = [f'[{index.pprint()}]' for index in self.indices]
+        return f'(*{self.var}){"".join(list_of_pprint)}'
 
-class CLoop(AbstractLoop):
+
+class CLoop(CNode):
+    def __init__(self, var, begin, end, body, node_id=0):
+        self.var = var
+        self.begin = begin
+        self.end = end
+        self.body = body
+        self.node_id = node_id
     def clone(self):
-        cloned_loop_vars = list(self.loop_vars)
         cloned_body = [stmt.clone() for stmt in self.body]
-        cloned_loop = CLoop(cloned_loop_vars, cloned_body, self.node_id)
-        for stmt in cloned_body:
-            stmt.surrounding_loop = cloned_loop
+        cloned_loop = CLoop(self.var, self.begin, self.end, cloned_body, self.node_id)
         return cloned_loop
     def rename(self, rename_map):
         # if loop variable name clashes just throw an error
-        for rename_var in rename_map:
-            if rename_var in self.loop_vars:
-                raise RuntimeError(f'Trying to rename {rename_var} which is a loop variable')
+        if self.var in rename_map:
+            raise RuntimeError(f'Trying to rename {self.var} which is a loop variable')
         renamed = False
         for stmt in self.body:
             if stmt.rename(rename_map):
                 renamed = True
         return renamed
+        header = f'{ws}for [{", ".join(self.loop_vars)}] {{'
+    def pprint(self, indent=0):
+        ws = '  ' * indent
+        lines = [f'{ws}for (int {self.var} = {self.begin}; {self.var} < {self.end}; ++{self.var}) {{']
+        for stmt in self.body:
+            print(stmt)
+            lines.append(stmt.pprint(indent + 1))
+        lines.append(f'{ws}}}')
+        return '\n'.join(lines)
 
 class CBinOp(BinOp):
     def __init__(self, op, left, right, node_id=0):
@@ -111,6 +130,8 @@ class CBinOp(BinOp):
 
 class CProgram(Program):
     def clone(self):
+        for loop in self.loops:
+            print('heres a loop', loop)
         cloned_loops = [loop.clone() for loop in self.loops]
         return CProgram(cloned_loops, self.node_id)
     def rename(self, rename_map):
@@ -119,3 +140,8 @@ class CProgram(Program):
             if loop.rename(rename_map):
                 renamed = True
         return renamed
+    def pprint(self, indent=0):
+        lines = []
+        for loop in self.loops:
+            lines.append(loop.pprint(indent))
+        return '\n'.join(lines)

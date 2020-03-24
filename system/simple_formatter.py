@@ -24,16 +24,39 @@ float frand(float min, float max) {
 }
 """
 
+from abstract_ast import get_program_info
+from concrete_ast import get_array_names
+MAX_SIZE_PER_ARRAY = 501 * 501 * 501
+
+
 def spaces(indent):
     return '  ' * indent
+
+
+MAX_SIZE_PER_ARRAY = 500 * 500 * 500
+
+# TODO: test program needs to be a different program
 class SimpleFormatter:
-    # TODO: implement dispatcher
-    def __init__(self, arrays, loop_vars, max_size_per_array, program, indent=0):
+    def __init__(self, program, test_program=None):
+        arrays, loop_vars = get_program_info(program)
         self.arrays = arrays
         self.loop_vars = loop_vars
-        self.dimension_size = determine_dimension_size(arrays, max_size_per_array)
-        self.indent = indent
+        self.dimension_size = determine_dimension_size(arrays, MAX_SIZE_PER_ARRAY)
+        self.indent = 0
         self.program = program
+
+        # concretize
+        concretizer = SimpleConcretizer(program)
+        self.cprogram = concretizer.concretize_program()
+
+        # make test program
+        self.test = self.cprogram.clone()
+        rename_map = {}
+        for array_name in get_array_names(self.test):
+            rename_map[array_name] = array_name + 'test'
+        self.test.rename(rename_map)
+
+        # TODO clone test program
         for var, (lower, upper) in loop_vars.items():
             assert(upper - lower < self.dimension_size)
     def declare(self):
@@ -74,7 +97,8 @@ class SimpleFormatter:
             lines.append('  ' * self.indent + '}')
 
         return '\n'.join(lines)
-        
+
+    # TODO: create initialization program
     def init(self):
         lines = []
 
@@ -96,9 +120,20 @@ class SimpleFormatter:
 
         return '\n'.join(lines)
 
+    # TODO: create run program
     def run(self):
-        return self.format_program(self.program)
+        lines = []
+        lines.append('void run() {')
+        lines.append(self.cprogram.pprint(self.indent + 1))
+        lines.append('}')
+        return '\n'.join(lines)
     def check(self):
+        lines = []
+        lines.append('void run() {')
+        lines.append(self.test.pprint(self.indent + 1))
+        lines.append('}')
+        return '\n'.join(lines)
+    def main(self):
         pass
     def array_decl(self, var, n_dimensions):
         return f'float (*{var})' + (''.join([f'[{self.dimension_size}]' * n_dimensions]) + ';')
@@ -106,6 +141,16 @@ class SimpleFormatter:
 from abstract_ast import Assignment, AbstractIndex, Access, BinOp, AbstractLoop, Program
 from concrete_ast import CAssignment, CAccess, CScalar, CLiteral, CLoop, CBinOp, CProgram
 class SimpleConcretizer:
+    def __init__(self, program):
+        arrays, loop_vars = get_program_info(program)
+        self.program = program
+        self.array = arrays
+        self.loop_vars = loop_vars
+        self.dimension_size = determine_dimension_size(arrays, MAX_SIZE_PER_ARRAY)
+        for var, (lower, upper) in loop_vars.items():
+            assert(upper - lower < self.dimension_size)
+    def concretize_program(self):
+        return self.concretize(self.program)
     def concretize(self, node):
         if isinstance(node, Assignment):
             return CAssignment(
@@ -126,8 +171,19 @@ class SimpleConcretizer:
                           self.concretize(node.left.clone()),
                           self.concretize(node.right.clone()))
         elif isinstance(node, AbstractLoop):
-            stmts = [self.concretize(stmt.clone()) for stmt in node.body]
-            return CLoop(list(node.loop_vars), stmts)
+            body = [self.concretize(stmt.clone()) for stmt in node.body]
+            reversed_loop_vars = list(node.loop_vars)
+            reversed_loop_vars.reverse()
+            inner_loop = None
+            for loop_var in reversed_loop_vars:
+                start = 0 - self.loop_vars[loop_var][0]
+                end = self.dimension_size - self.loop_vars[loop_var][1]
+                if inner_loop:
+                    inner_loop = CLoop(loop_var, start, end, [inner_loop])
+                else:
+                    inner_loop = CLoop(loop_var, start, end, body)
+
+            return inner_loop
         elif isinstance(node, Program):
             loops = [self.concretize(loop.clone()) for loop in node.loops]
             return CProgram(loops)

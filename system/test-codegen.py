@@ -8,30 +8,16 @@ from concrete_ast import get_accesses
 program, _ = parse_file('test.loop')
 print(f'Original program:\n{program.pprint(1)}')
 
-arrays, loop_vars = get_program_info(program)
+# arrays, loop_vars = get_program_info(program)
 
 from simple_formatter import SimpleFormatter, SimpleConcretizer
-concretizer = SimpleConcretizer()
-cprogram = concretizer.concretize(program)
-print(cprogram.pprint())
-cloned = cprogram.clone()
+# print(cloned.pprint())
 
-
-def get_array_names(p):
-    array_names = set()
-    for access in get_accesses(p):
-        array_names.add(access.var)
-    return array_names
-
-rename_map = {}
-for array_name in get_array_names(cloned):
-    rename_map[array_name] = array_name + 'test'
-cloned.rename(rename_map)
-print(cloned.pprint())
-
-formatter = SimpleFormatter(arrays, loop_vars, MAX_SIZE_PER_ARRAY, program)
+formatter = SimpleFormatter(program)
 print(formatter.declare())
-# print(formatter.init())
+print(formatter.init())
+print(formatter.run())
+print(formatter.check())
 # for var, mentioned_loop_vars in arrays.items():
 #     print(array_decl(var))
 
