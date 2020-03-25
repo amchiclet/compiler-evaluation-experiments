@@ -8,13 +8,12 @@ from concrete_ast import get_accesses
 program, _ = parse_file('test.loop')
 print(f'Original program:\n{program.pprint(1)}')
 
-# arrays, loop_vars = get_program_info(program)
 
 from simple_formatter import SimpleFormatter, SimpleConcretizer
 # print(cloned.pprint())
 
-formatter = SimpleFormatter(program)
-print(formatter.declare())
+formatter = SimpleFormatter(program, program)
+print(formatter.declare_globals())
 print(formatter.init())
 print(formatter.run())
 print(formatter.check())

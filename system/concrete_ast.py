@@ -110,7 +110,6 @@ class CLoop(CNode):
         ws = '  ' * indent
         lines = [f'{ws}for (int {self.var} = {self.begin}; {self.var} < {self.end}; ++{self.var}) {{']
         for stmt in self.body:
-            print(stmt)
             lines.append(stmt.pprint(indent + 1))
         lines.append(f'{ws}}}')
         return '\n'.join(lines)
@@ -130,8 +129,6 @@ class CBinOp(BinOp):
 
 class CProgram(Program):
     def clone(self):
-        for loop in self.loops:
-            print('heres a loop', loop)
         cloned_loops = [loop.clone() for loop in self.loops]
         return CProgram(cloned_loops, self.node_id)
     def rename(self, rename_map):
