@@ -46,10 +46,16 @@ class AffineIndex(Node):
         self.coeff = coeff
         self.offset = offset
     def pprint(self, indent=0):
-        if self.offset >= 0:
-            return f'{self.coeff}*{self.var}+{self.offset}'
+        if self.var:
+            linear = f'{self.var}' if self.coeff == 1 else f'{self.coeff}*{self.var}'
+            if self.offset > 0:
+                return f'{linear}+{self.offset}'
+            elif self.offset < 0:
+                return f'{linear}{self.offset}'
+            else:
+                return f'{linear}'
         else:
-            return f'{self.coeff}*{self.var}{self.offset}'
+            return f'{self.offset}'
     def clone(self):
         return AffineIndex(self.var, self.coeff, self.offset, self.node_id)
     def is_syntactically_equal(self, other):

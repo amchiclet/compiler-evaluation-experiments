@@ -16,11 +16,15 @@ grammar = '''
     scalar_access: scalar
     array_access: array ("[" index "]")+
     index: abstract_index | affine_index
-    abstract_index: scalar | greater_than | less_than
+    abstract_index: greater_than | less_than
     greater_than: ">" index
     less_than: "<" index
-    affine_index: simple_affine
+    affine_index: simple_affine | var | linear | constant | offset
     simple_affine: INT "*" scalar AFFINE_OP INT
+    linear: INT "*" scalar
+    constant: INT
+    var: scalar
+    offset: scalar AFFINE_OP INT
 
     scalar: LCASE_LETTER+
     array: UCASE_LETTER+
@@ -49,6 +53,18 @@ class TreeSimplifier(Transformer):
         return args[0]
     def affine_index(self, args):
         return args[0]
+    def constant(self, args):
+        return AffineIndex(None, 0, int(args[0]))
+    def offset(self, args):
+        var = args[0]
+        offset = int(args[2]) if args[1] == '+' else -int(args[2])
+        return AffineIndex(var, 1, offset)
+    def var(self, args):
+        return AffineIndex(args[0], 1, 0)
+    def linear(self, args):
+        var = args[1]
+        coeff = int(args[0])
+        return AffineIndex(var, coeff, 0)
     def simple_affine(self, args):
         coeff = int(args[0])
         var = args[1]

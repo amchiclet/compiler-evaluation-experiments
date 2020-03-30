@@ -1,44 +1,32 @@
 from parser import parse_file
+from loop_analyzer import analyze_loop
+
 program, node_id = parse_file('v2.loop')
 print(program.pprint())
 
-from abstract_ast import is_same_memory, is_comparable, get_all_access_pairs, get_accesses
+loop = program.loops[0]
+analyze_loop(loop)
+#     print(f'Calculating for loop var {loop_var}')
+#     min_val = 0
+#     max_val = 2 ** 16
 
-grouped_accesses = {}
-for access in get_accesses(program):
-    array = access.var
-    if array not in grouped_accesses:
-        grouped_accesses[array] = [None] * len(access.indices)
-    assert(len(access.indices) == len(grouped_accesses[array]))
-    for dimension, index in enumerate(access.indices):
-        if not grouped_accesses[array][dimension]:
-            grouped_accesses[array][dimension] = []
-        print(f'before {array}({dimension}): {[i.pprint() for i in grouped_accesses[array][dimension]]}')
-        grouped_accesses[array][dimension].append(index)
-        print(f'after {array}({dimension}): {[i.pprint() for i in grouped_accesses[array][dimension]]}')
-print(grouped_accesses)
-for array, all_indices in grouped_accesses.items():
-    print(f'For array {array}:')
-    for dimension, indices in enumerate(all_indices):
-        print(f'Dimension {dimension}: {[i.pprint() for i in indices]}')
-# for access1, access2 in get_all_access_pairs(program):
-#     if not is_same_memory(access1, access2):
-#         continue
-#     if not is_comparable(access1, access2):
-#         raise RuntimeError(f'Accesses are not comparable: {access1.pprint()} vs {access2.pprint()}')
-#     print(access1.pprint(), access2.pprint())
-#     for i1, i2 in zip(access1.indices, access2.indices):
-        # print(i1.pprint(), i2.pprint())
-    # get all the indices for each array
-    # for each dimension, sort
-    # sort each index
-    # find a possible sorting
-    # for each index, find out whether it's always greater than it's var or not
-    # case 1: i < i1 < i2 then i1 becomes >i
-    #                          i2 becomes >>i
-    # case 2: 
-    # case 1: i1 > i
-    #   case 1.1: i2 > i
-    #     case 1.1.1: i1 > i2
-    # 
-    
+#     for array, dimensions in grouped_accesses.items():
+#         for indices in dimensions:
+#             if not indices:
+#                 continue
+#             if indices[0].var != loop_var:
+#                 continue
+#             shuffle(indices)
+#             for lesser, greater in zip(indices[:-1], indices[1:]):
+#                 # if they're equal then the ranges don't change
+#                 if lesser.coeff == greater.coeff and lesser.offset == greater.offset:
+#                     print(f'{lesser.pprint()} < {greater.pprint()}: {new_range}')
+#                     continue
+#                 new_range = find_possible_range([min_val, max_val], lesser, greater)
+#                 print(f'{lesser.pprint()} < {greater.pprint()}: {new_range}')
+#                 if not new_range:
+#                     return false
+                        
+            
+
+# # now let's sort them and see if they're possible to happen or not
