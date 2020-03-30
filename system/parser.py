@@ -15,21 +15,25 @@ grammar = '''
     access: scalar_access | array_access
     scalar_access: scalar
     array_access: array ("[" index "]")+
-    index: scalar | greater_than | less_than
+    index: abstract_index | affine_index
+    abstract_index: scalar | greater_than | less_than
     greater_than: ">" index
     less_than: "<" index
+    affine_index: simple_affine
+    simple_affine: INT "*" scalar AFFINE_OP INT
 
     scalar: LCASE_LETTER+
     array: UCASE_LETTER+
-
+    AFFINE_OP: "+" | "-"
     %import common.WS
     %import common.LCASE_LETTER
     %import common.UCASE_LETTER
+    %import common.INT
     %ignore WS
 
 '''
 
-from abstract_ast import Assignment, AbstractIndex, Access, AbstractLoop, BinOp, Program, get_accesses
+from abstract_ast import Assignment, AbstractIndex, Access, AbstractLoop, BinOp, Program, get_accesses, AffineIndex
 
 class TreeSimplifier(Transformer):
     def __init__(self, start_node_id=0):
@@ -42,6 +46,15 @@ class TreeSimplifier(Transformer):
     def scalar(self, args):
         return ''.join(args)
     def index(self, args):
+        return args[0]
+    def affine_index(self, args):
+        return args[0]
+    def simple_affine(self, args):
+        coeff = int(args[0])
+        var = args[1]
+        offset = int(args[3]) if args[2] == '+' else -int(args[3])
+        return AffineIndex(var, coeff, offset)
+    def abstract_index(self, args):
         if isinstance(args[0], AbstractIndex):
             return args[0]
         else:

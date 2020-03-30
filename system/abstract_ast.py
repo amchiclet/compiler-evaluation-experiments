@@ -39,6 +39,24 @@ class Assignment(Node):
         return self.lhs.is_syntactically_equal(other.lhs) and \
             self.rhs.is_syntactically_equal(other.rhs)
 
+class AffineIndex(Node):
+    def __init__(self, var, coeff, offset, node_id=0):
+        self.node_id = node_id
+        self.var = var
+        self.coeff = coeff
+        self.offset = offset
+    def pprint(self, indent=0):
+        if self.offset >= 0:
+            return f'{self.coeff}*{self.var}+{self.offset}'
+        else:
+            return f'{self.coeff}*{self.var}{self.offset}'
+    def clone(self):
+        return AffineIndex(self.var, self.coeff, self.offset, self.node_id)
+    def is_syntactically_equal(self, other):
+        return self.var == other.var and \
+            self.coeff == other.coeff and \
+            self.offset == other.offset
+
 class AbstractIndex(Node):
     def __init__(self, var, relationship=0, node_id=0):
         self.node_id = node_id
@@ -184,4 +202,32 @@ def get_program_info(program):
             loop_vars[loop_var][1] = max(loop_vars[loop_var][1],
                                          abstract_index.relationship)
     return arrays, loop_vars
+
+# two accesses are compatible when they index the same
+# loop variables in the same order
+def is_comparable(access1, access2):
+    n_dimensions = len(access1.indices)
+    if  len(access2.indices) != n_dimensions:
+        return False
+    for index1, index2 in zip(access1.indices, access2.indices):
+        if type(index1) != type(index2):
+            return False
+        if index1.var != index2.var:
+            return False
+    return True
+
+def is_same_memory(access1, access2):
+    return access1.var == access2.var
+
+def is_in_same_loop(stmt1, stmt2):
+    return stmt1.surrounding_loop.node_id == stmt2.surrounding_loop.node_id
+
+def all_pairs(s):
+    l = list(s)
+    for index, e1 in enumerate(l[:-1]):
+        for e2 in l[index+1:]:
+            yield (e1, e2)
+
+def get_all_access_pairs(node):
+    return all_pairs(get_accesses(node))
 

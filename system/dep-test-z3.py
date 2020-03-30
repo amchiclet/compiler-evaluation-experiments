@@ -1,0 +1,105 @@
+from z3 import *
+import copy
+# x, y = Consts('x y', IntSort())
+i, j, x, y = Ints('i j x y')
+op = Optimize()
+
+def solve1():
+    s = Solver()
+    s.add(0 <= i, i < 100)
+    s.add(x == 2*i, y == i + 10)
+    print(s.check(x < y))
+    m = s.model()
+    print(m)
+
+def solve2():
+    s = Solver()
+    s.add(0 <= i, i < 100)
+    s.add(x == 2*i, y == i + 10)
+    print(s.check(x > y))
+    m = s.model()
+    print(m)
+
+def solve1_1():
+    op = Optimize()
+    op.assert_exprs(0 <= i, i < 100)
+    op.assert_exprs(x == 2*i, y == i + 10)
+    op.assert_exprs(x < y)
+    op.minimize(i)
+    print(op.check())
+    m = op.model()
+    print(m.eval(i))
+
+def solve1_2():
+    op = Optimize()
+    op.assert_exprs(0 <= i, i < 100)
+    op.assert_exprs(x == 2*i, y == i + 10)
+    op.assert_exprs(x < y)
+    op.maximize(i)
+    print(op.check())
+    m = op.model()
+    print(m.eval(i))
+
+def solve2_1():
+    op = Optimize()
+    op.assert_exprs(0 <= i, i < 100)
+    op.assert_exprs(x == 2*i, y == i + 10)
+    op.assert_exprs(x > y)
+    op.minimize(i)
+    print(op.check())
+    m = op.model()
+    print(m.eval(i))
+
+def solve2_2():
+    op = Optimize()
+    op.assert_exprs(0 <= i, i < 100)
+    op.assert_exprs(x == 2*i, y == i + 10)
+    op.assert_exprs(x > y)
+    op.maximize(i)
+    print(op.check())
+    m = op.model()
+    print(m.eval(i))
+
+print('solve1')
+solve1()
+print('solve1_1')
+solve1_1()
+print('solve1_2')
+solve1_2()
+print('solve2')
+solve2()
+print('solve2_1')
+solve2_1()
+print('solve2_2')
+solve2_2()
+
+
+print()
+# op.minimize(x + 0)
+# print(op.objectives())
+# op.assert_exprs(0 <= i, i < 100)
+# op.assert_exprs(0 <= j, j < 100)
+# op.assert_exprs(x == 2*i, y == i + 10)
+# op.assert_exprs(x < y)
+# op.minimize(y - x)
+# print(op.check())
+# model = op.model()
+# print('eval first')
+# print(model)
+# print(model.eval(y - x))
+
+# op2.maximize(y - x)
+# print(op2.check())
+# model = op2.model()
+# print('eval second')
+# print(model)
+# print(model.eval(y - x))
+
+# s.add(x*y < 30)
+# s.add(y < 4)
+# print(s.assertions())
+# print(s.check())
+# m = s.model()
+# print(m)
+# print(s.model().eval(x*y))
+

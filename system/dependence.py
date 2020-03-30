@@ -1,5 +1,7 @@
 # Anything related to dependence goes here
 
+from abstract_ast import Assignment, Access, AbstractIndex, AbstractLoop, BinOp, Program, get_accesses, is_same_memory, is_comparable, get_all_access_pairs
+
 # Each element of loop_carried holds one of the following values:
 # (1) <
 # (2) >
@@ -55,8 +57,6 @@ class DependenceGraph:
             for dep in deps:
                 print(f'\t{dep.pprint()}')
 
-from abstract_ast import Assignment, Access, AbstractIndex, AbstractLoop, BinOp, Program, get_accesses
-
 class StatementRelations:
     def __init__(self, statement_map, ordering, child_to_parent):
         self.statement_map = statement_map
@@ -73,17 +73,6 @@ def get_statement_relations(program):
             ordering.append(stmt.node_id)
             child_to_parent[stmt.node_id] = loop.node_id
     return StatementRelations(statement_map, ordering, child_to_parent)
-
-# two accesses are compatible when they index the same
-# loop variables in the same order
-def is_comparable(access1, access2):
-    n_dimensions = len(access1.indices)
-    if  len(access2.indices) != n_dimensions:
-        return False
-    for index1, index2 in zip(access1.indices, access2.indices):
-        if index1.var != index2.var:
-            return False
-    return True
 
 def is_negative(nums):
     for n in nums:
@@ -113,12 +102,6 @@ def subtract(loop_order, access1, access2):
                 result.append(i1.relationship - i2.relationship)
     return result
 
-def is_same_memory(access1, access2):
-    return access1.var == access2.var
-
-def is_in_same_loop(stmt1, stmt2):
-    return stmt1.surrounding_loop.node_id == stmt2.surrounding_loop.node_id
-
 class AccessPair:
     def __init__(self, stmt_ordering, access1, access2):
         assert(isinstance(access1, Access))
@@ -139,12 +122,6 @@ class AccessPair:
         else:
             self.before = access2
             self.after = access1
-
-def all_pairs(s):
-    l = list(s)
-    for index, e1 in enumerate(l[:-1]):
-        for e2 in l[index+1:]:
-            yield (e1, e2)
 
 def analyze_dependence(program):
     # L1:
@@ -181,7 +158,7 @@ def analyze_dependence(program):
 
     dep_graph = DependenceGraph()
 
-    for access1, access2 in all_pairs(get_accesses(program)):
+    for access1, access2 in get_all_access_pairs(program):
         if access1 == access2:
             continue
 
