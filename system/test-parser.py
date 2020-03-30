@@ -5,7 +5,9 @@ program, node_id = parse_file('v2.loop')
 print(program.pprint())
 
 loop = program.loops[0]
-analyze_loop(loop)
+loop_analysis = analyze_loop(loop)
+print(loop_analysis.debug())
+
 #     print(f'Calculating for loop var {loop_var}')
 #     min_val = 0
 #     max_val = 2 ** 16
