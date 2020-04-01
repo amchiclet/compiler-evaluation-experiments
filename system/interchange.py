@@ -1,23 +1,43 @@
 from random import Random
 from dependence import analyze_dependence, is_valid
-
+from loop_analyzer import analyze_loops
+from math import factorial
 ATTEMPTS_PER_MUTATION = 10
 DEBUG = False
 class Interchange:
     def __init__(self, seed=0):
         self.rand = Random(seed)
         self.hashes = set()
-    def mutate(self, program):
-        dep_graph_before = analyze_dependence(program)
-        for attempt in range(ATTEMPTS_PER_MUTATION):
+    def mutate(self, program, loop_analysis):
+        dep_graph_before = analyze_dependence(program, loop_analysis)
+        explored_space = set()
+        space_size = 0
+        for which_loop, loop in enumerate(program.loops):
+            depth = len(loop.loop_vars)
+            space_size += factorial(depth)
+            original_order = tuple(range(depth))
+            space_id = (which_loop, original_order)
+            explored_space.add(space_id)
+
+        unexplored_space_size = space_size - len(explored_space)
+
+        for attempt in range(unexplored_space_size):
             cloned_program = program.clone()
 
             # find a random loop
             n_loops = len(cloned_program.loops)
-            which_loop = self.rand.randint(0, n_loops-1)
 
-            # shuffle that loop
-            self.rand.shuffle(cloned_program.loops[which_loop].loop_vars)
+            space_id = next(iter(explored_space))
+            while space_id in explored_space:
+                which_loop = self.rand.randint(0, n_loops-1)
+
+                # shuffle that loop
+                loop_vars = cloned_program.loops[which_loop].loop_vars
+                new_order = list(range(0, len(loop_vars)))
+                self.rand.shuffle(new_order)
+                space_id = (which_loop, tuple(new_order))
+
+            loop_vars[:] = [loop_vars[i] for i in new_order]
 
             # make sure it's actually a mutation
             if program.is_syntactically_equal(cloned_program):
@@ -33,7 +53,7 @@ class Interchange:
                 continue
 
             # make sure it's a legal mutation
-            dep_graph_after = analyze_dependence(cloned_program)
+            dep_graph_after = analyze_dependence(cloned_program, loop_analysis)
             if not is_valid(dep_graph_before, dep_graph_after):
                 if DEBUG:
                     print(f'Attempt {attempt + 1}: This transformation is invalid!')

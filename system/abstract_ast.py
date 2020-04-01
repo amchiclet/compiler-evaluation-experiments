@@ -178,6 +178,18 @@ def get_accesses(node):
     else:
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
 
+# returns a map from array name to the number of dimensions for that array
+def get_arrays(program):
+    arrays = {}
+    for access in get_accesses(program):
+        array_name = access.var
+        n_dimensions = len(access.indices)
+        if not array_name in arrays:
+            arrays[array_name] = n_dimensions
+        else:
+            assert(arrays[array_name] == n_dimensions)
+    return arrays
+    
 # gather array dimensions and loop accesses
 def get_program_info(program):
     # maps array name to [loop var name]

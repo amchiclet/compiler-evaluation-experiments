@@ -1,6 +1,8 @@
 # Anything related to dependence goes here
 
-from abstract_ast import Assignment, Access, AbstractIndex, AbstractLoop, BinOp, Program, get_accesses, is_same_memory, is_comparable, get_all_access_pairs
+from abstract_ast import Assignment, Access, AbstractIndex, AffineIndex, AbstractLoop, BinOp, Program, get_accesses, is_same_memory, is_comparable, get_all_access_pairs, is_in_same_loop
+
+debug = False
 
 # Each element of loop_carried holds one of the following values:
 # (1) <
@@ -8,24 +10,21 @@ from abstract_ast import Assignment, Access, AbstractIndex, AbstractLoop, BinOp,
 # (3) =
 # (4) ?
 class Dependence:
-    def __init__(self, from_access, to_access):
+    def __init__(self, from_access, to_access, loop_carried=None):
         self.dep_id = (from_access.node_id, to_access.node_id)
         self.from_access = from_access
         self.to_access = to_access
+        self.loop_carried = loop_carried
     def is_loop_carried(self):
         return \
             self.from_access.parent_stmt.surrounding_loop == \
             self.to_access.parent_stmt.surrounding_loop
-    def loop_carried(self):
-        assert(self.is_loop_carried())
-        loop_order = self.from_access.parent_stmt.surrounding_loop.loop_vars
-        return subtract(loop_order, self.to_access, self.from_access)
     def pprint(self):
         from_type = 'W' if self.from_access.is_write else 'R'
         from_str = f'{self.from_access.pprint()}({from_type})'
         to_type = 'W' if self.to_access.is_write else 'R'
         to_str = f'{self.to_access.pprint()}({to_type})'
-        loop_carried_str = f'[{self.loop_carried()}]' if self.is_loop_carried() else ''
+        loop_carried_str = f'[{self.loop_carried}]' if self.is_loop_carried() else ''
         return f'dep {from_str} -> {to_str} {loop_carried_str}'
 
 # maps a pair of statements to a list of dependences
@@ -39,7 +38,7 @@ class DependenceGraph:
         stmt_pair = (s1, s2)
         if not stmt_pair in self.dep_map:
             self.dep_map[stmt_pair] = []
-        self.dep_map[stmt_pair].append(Dependence(from_access, to_access))
+        self.dep_map[stmt_pair].append(Dependence(from_access, to_access, loop_carried))
         self.dep_access_pairs.add((from_access.node_id, to_access.node_id))
     def has_dependence(self, s1, s2):
         return (s1, s2) in self.dep_map
@@ -91,15 +90,29 @@ def is_zero(nums):
 def inverse(nums):
     return [-n for n in nums]
 
-def subtract(loop_order, access1, access2):
+def subtract(loop_order, access1, access2, index_analysis):
     if not is_comparable(access1, access2):
         raise RuntimeError('Access are not comparable')
     result = []
     for v in loop_order:
-        for i1, i2 in zip(access1.indices, access2.indices):
-            if i1.var == v:
-                assert(i2.var == v)
-                result.append(i1.relationship - i2.relationship)
+        for dimension, (index1, index2) in enumerate(zip(access1.indices, access2.indices)):
+            assert(type(index1) == type(index2))
+            if index1.var != v:
+                continue
+            if isinstance(index1, AbstractIndex):
+                assert(index2.var == v)
+                result.append(index1.relationship - index2.relationship)
+            elif isinstance(index1, AffineIndex):
+                sorted_indices = index_analysis.get_sorted_indices(access1.var, dimension)
+                if sorted_indices.is_sorted(index1, index2):
+                    compare_result = -1
+                elif sorted_indices.is_sorted(index2, index1):
+                    compare_result = 1
+                else:
+                    compare_result = 0
+                result.append(compare_result)
+            else:
+                raise RuntimeError('Unsupported case')
     return result
 
 class AccessPair:
@@ -123,7 +136,7 @@ class AccessPair:
             self.before = access2
             self.after = access1
 
-def analyze_dependence(program):
+def analyze_dependence(program, loop_analysis):
     # L1:
     #   s1
     #   s2
@@ -148,7 +161,6 @@ def analyze_dependence(program):
     #           
     # s2 -> s1:
     relations = get_statement_relations(program)
-    debug = False
     if debug:
         print('Printing debug')
         print(relations.ordering)
@@ -187,8 +199,9 @@ def analyze_dependence(program):
 
         # if in the same loop, calculate loop carried dependency
         if is_in_same_loop(stmt1, stmt2):
-            loop_order = stmt1.surrounding_loop.loop_vars
-            diff = subtract(loop_order, before, after)
+            loop = stmt1.surrounding_loop
+            index_analysis = loop_analysis[loop.node_id].index_analysis
+            diff = subtract(loop.loop_vars, before, after, index_analysis)
             if is_zero(diff):
                 if debug:
                     print(f'dep {before_str} -> {after_str}')

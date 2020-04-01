@@ -187,13 +187,20 @@ class ArrayAnalysis:
             lines.append(f'  |{array}[{dimension}]| => [{min_val}..{max_val}]')
         return '\n'.join(lines)
 
+from math import factorial
 def analyze_loop(loop):
     loop_var_analysis = LoopVarAnalysis()
     index_analysis = IndexAnalysis()
     grouped_indices = group_indices(get_accesses(loop))
+
     for loop_var in loop.loop_vars:
         failed_outer = True
-        for attempt in range(1, 10):
+        # calculate max ways to shuffle the indices and order them
+        space_size = 1
+        for indices in grouped_indices[loop_var].values():
+            space_size *= factorial(len(indices))
+
+        for _ in range(space_size):
             min_val = 0
             max_val = 500
             failed_inner = False
@@ -211,7 +218,7 @@ def analyze_loop(loop):
             failed_outer = False
             break
         if failed_outer:
-            raise RuntimeError('Failed to analyze loop')
+            return None
     for loop_var, indices_map in grouped_indices.items():
         for (array, dimension), sorted_indices in indices_map.items():
             index_analysis.set_sorted_indices(array, dimension, SortedIndices(sorted_indices))
@@ -235,3 +242,14 @@ def analyze_loop(loop):
             array_analysis.set_range(array, dimension, min_index, max_index)
     loop_analysis = LoopAnalysis(loop_var_analysis, index_analysis, array_analysis)
     return loop_analysis
+
+max_tries = 5
+def analyze_loops(program):
+    all_analysis = {}
+    for loop in program.loops:
+        for _ in range(max_tries):
+            analysis = analyze_loop(loop)
+            if analysis:
+                all_analysis[loop.node_id] = analysis
+                break
+    return all_analysis
