@@ -197,30 +197,31 @@ class SimpleFormatter:
 
         for array in arrays:
             ws = spaces(self.indent)
-            n_dimensions = len(dimensions)
             # malloc
             total_size_str = ' * '.join([f'{size}' for size in dimensions])
             lines.append(f'{ws}{array} = malloc(sizeof({ty}) * {total_size_str});')
 
-            # loop headers
-            loop_vars = [f'i_{dimension}' for dimension in range(n_dimensions)]
-            for loop_var, size in zip(loop_vars, dimensions):
-                lines.append(loop_header(self.indent, loop_var, 0, size))
-                self.indent += 1
+        n_dimensions = len(dimensions)
 
-            # loop body
-            ws = spaces(self.indent)
-            init_var = 'v'
-            init_stmt = f'{ws}{ty} {init_var} = {init_value};'
-            lines.append(init_stmt)
-            indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
-            for array in arrays:
-                lines.append(f'{ws}(*{array}){indices_str} = {init_var};')
+        # loop headers
+        loop_vars = [f'i_{dimension}' for dimension in range(n_dimensions)]
+        for loop_var, size in zip(loop_vars, dimensions):
+            lines.append(loop_header(self.indent, loop_var, 0, size))
+            self.indent += 1
 
-            # close brackets
-            for _ in range(n_dimensions):
-                self.indent -= 1
-                lines.append('  ' * self.indent + '}')
+        # loop body
+        ws = spaces(self.indent)
+        init_var = 'v'
+        init_stmt = f'{ws}{ty} {init_var} = {init_value};'
+        lines.append(init_stmt)
+        indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
+        for array in arrays:
+            lines.append(f'{ws}(*{array}){indices_str} = {init_var};')
+
+        # close brackets
+        for _ in range(n_dimensions):
+            self.indent -= 1
+            lines.append('  ' * self.indent + '}')
         return '\n'.join(lines)
 
     # TODO: create initialization program
@@ -265,7 +266,7 @@ class SimpleFormatter:
         return '\n'.join(lines)
     def array_compare(self, test_array, ref_array, dimensions):
         lines = []
-        loop_vars = [f'i_{dimension}' for dimension in dimensions]
+        loop_vars = [f'i_{dimension}' for dimension in range(len(dimensions))]
         # loop headers
         for loop_var, size in zip(loop_vars, dimensions):
             lines.append(loop_header(self.indent, loop_var, 0, size))
