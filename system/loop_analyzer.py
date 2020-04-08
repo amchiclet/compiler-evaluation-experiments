@@ -1,105 +1,9 @@
 from abstract_ast import get_accesses
-from z3 import Solver, Ints, unsat, Optimize, sat
 from random import shuffle
+from z3_helper import find_possible_index, find_range, find_minimum_index
 
-def find_possible_index(min_val, max_val, index):
-    # give a current range of i
-    # give an index that uses i
-    # find the min and max int that covers all the index
-
-    i, s = Ints('i s')
-    solver = Solver()
-
-    i_min_constraint = min_val <= i
-    i_max_constraint = i <= max_val
-    s_constraint = s == i * index.coeff + index.offset
-
-    # find min
-    find_min = Optimize()
-    find_min.assert_exprs(i_min_constraint,
-                          i_max_constraint,
-                          s_constraint)
-    find_min.minimize(s)
-    assert(sat == find_min.check())
-    min_val = find_min.model().eval(s)
-
-    # find max
-    find_max = Optimize()
-    find_max.assert_exprs(i_min_constraint,
-                          i_max_constraint,
-                          s_constraint)
-    find_max.maximize(s)
-    assert(sat == find_max.check())
-    max_val = find_max.model().eval(s)
-    return [min_val.as_long(), max_val.as_long()]
-    
-def find_possible_range(min_val, max_val, lesser, greater):
-    # find if it's solvable, then find min and max of the new range
-    assert(lesser.var == greater.var)
-    # i is the index variable and s* are the subscripts
-    # expect s1 < s2
-    i, s1, s2 = Ints('i s1 s2')
-    solver = Solver()
-
-    i_min_constraint = min_val <= i
-    i_max_constraint = i <= max_val
-    s1_constraint = s1 == i * lesser.coeff + lesser.offset
-    s2_constraint = s2 == i * greater.coeff + greater.offset
-    s1_min_constraint = s1 >= 0
-    s2_min_constraint = s2 >= 0
-
-    solver.add(i_min_constraint,
-               i_max_constraint,
-               s1_constraint,
-               s2_constraint,
-               s1_min_constraint,
-               s2_min_constraint)
-
-    status = solver.check(s1 < s2)
-    if status == unsat:
-        return None
-
-    # find min and max for new range
-
-    # find min
-    find_min = Optimize()
-    find_min.assert_exprs(i_min_constraint,
-                          i_max_constraint,
-                          s1_constraint,
-                          s2_constraint,
-                          s1_min_constraint,
-                          s2_min_constraint,
-                          s1 < s2)
-    find_min.minimize(i)
-    assert(sat == find_min.check())
-    new_min = find_min.model().eval(i)
-
-    # find max
-    find_max = Optimize()
-    find_max.assert_exprs(i_min_constraint,
-                          i_max_constraint,
-                          s1_constraint,
-                          s2_constraint,
-                          s1_min_constraint,
-                          s2_min_constraint,
-                          s1 < s2)
-    find_max.maximize(i)
-    assert(sat == find_max.check())
-    new_max = find_max.model().eval(i)
-    return [new_min, new_max]
-
-def find_range(min_val, max_val, uses):
-    for lesser, greater in zip(uses[:-1], uses[1:]):
-        # if they're equal then the ranges don't change
-        if lesser.coeff == greater.coeff and lesser.offset == greater.offset:
-            continue
-        new_range = find_possible_range(min_val, max_val, lesser, greater)
-        if not new_range:
-            return None
-        min_val = new_range[0]
-        max_val = new_range[1]
-    return (min_val, max_val)
-
+# given A[i][j],
+# return loop_var -> (array, dimension) -> [index expression]
 def group_indices(accesses):
     outer_map = {}
     for access in accesses:
@@ -193,6 +97,7 @@ def analyze_loop(loop):
     index_analysis = IndexAnalysis()
     grouped_indices = group_indices(get_accesses(loop))
 
+    # find the range of possible loop var
     for loop_var in loop.loop_vars:
         failed_outer = True
         # calculate max ways to shuffle the indices and order them
@@ -200,8 +105,13 @@ def analyze_loop(loop):
         for indices in grouped_indices[loop_var].values():
             space_size *= factorial(len(indices))
 
+        min_array_index = 0
+        for indices in grouped_indices[loop_var].values():
+            for index in indices:
+                min_array_index = find_minimum_index(min_array_index, index)
+        
         for _ in range(space_size):
-            min_val = 0
+            min_val = min_array_index
             max_val = 500
             failed_inner = False
             for (array, dimension), indices in grouped_indices[loop_var].items():
@@ -219,10 +129,13 @@ def analyze_loop(loop):
             break
         if failed_outer:
             return None
+
+    # find the sorted indices
     for loop_var, indices_map in grouped_indices.items():
         for (array, dimension), sorted_indices in indices_map.items():
             index_analysis.set_sorted_indices(array, dimension, SortedIndices(sorted_indices))
 
+    # figure out array sizes
     array_analysis = ArrayAnalysis()
     for loop_var, indices_map in grouped_indices.items():
         for (array, dimension), indices in indices_map.items():
