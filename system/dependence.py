@@ -2,7 +2,7 @@
 
 from abstract_ast import Assignment, Access, AbstractIndex, AffineIndex, AbstractLoop, BinOp, Program, get_accesses, is_same_memory, is_comparable, get_all_access_pairs, is_in_same_loop
 
-debug = False
+debug = True
 
 # Each element of loop_carried holds one of the following values:
 # (1) <
@@ -90,11 +90,16 @@ def is_zero(nums):
 def inverse(nums):
     return [-n for n in nums]
 
-def subtract(loop_order, access1, access2, index_analysis):
+def subtract(loop_order, access1, access2, loop_analysis):
     if not is_comparable(access1, access2):
         raise RuntimeError('Access are not comparable')
+    if debug:
+        print(loop_analysis.debug())
     result = []
     for v in loop_order:
+        min_i = loop_analysis.loop_var_analysis.min_val(v)
+        max_i = loop_analysis.loop_var_analysis.max_val(v)
+        loop_var_range = [min_i, max_i]
         for dimension, (index1, index2) in enumerate(zip(access1.indices, access2.indices)):
             assert(type(index1) == type(index2))
             if index1.var != v:
@@ -103,38 +108,31 @@ def subtract(loop_order, access1, access2, index_analysis):
                 assert(index2.var == v)
                 result.append(index1.relationship - index2.relationship)
             elif isinstance(index1, AffineIndex):
-                sorted_indices = index_analysis.get_sorted_indices(access1.var, dimension)
-                if sorted_indices.is_sorted(index1, index2):
-                    compare_result = -1
-                elif sorted_indices.is_sorted(index2, index1):
-                    compare_result = 1
-                else:
+                dep_range_map = loop_analysis.dep_map[(v, access1.var, dimension)]
+                if dep_range_map.is_loop_independent(loop_var_range, index1, index2):
                     compare_result = 0
+                elif dep_range_map.is_loop_carried(loop_var_range, index1, index2):
+                    compare_result = 1
+                elif dep_range_map.is_loop_carried(loop_var_range, index2, index1):
+                    compare_result = -1
+                else:
+                    # it's independent. no need to subtract further
+                    return None
                 result.append(compare_result)
             else:
                 raise RuntimeError('Unsupported case')
     return result
 
-class AccessPair:
-    def __init__(self, stmt_ordering, access1, access2):
-        assert(isinstance(access1, Access))
-        assert(isinstance(access2, Access))
-        stmt1_index = stmt_ordering.index(access1.parent_stmt.node_id)
-        stmt2_index = stmt_ordering.index(access2.parent_stmt.node_id)
-        # if in the same statement, read comes before write
-        if stmt1_index == stmt2_index:
-            if access1.is_write:
-                self.before = access2
-                self.after = access1
-            else:
-                self.before = access1
-                self.after = access2
-        elif stmt1_index < stmt2_index:
-            self.before = access1
-            self.after = access2
-        else:
-            self.before = access2
-            self.after = access1
+def to_direction(num):
+    if num > 0:
+        return '>'
+    elif num < 0:
+        return '<'
+    else:
+        return '='
+
+def to_direction_vector(nums):
+    return [to_direction(num) for num in nums]
 
 def analyze_dependence(program, loop_analysis):
     # L1:
@@ -160,17 +158,19 @@ def analyze_dependence(program, loop_analysis):
     #           if i < j: s2 -> s1
     #           
     # s2 -> s1:
+
     relations = get_statement_relations(program)
     if debug:
-        print('Printing debug')
-        print(relations.ordering)
-        print(relations.child_to_parent)
+        print(f'Statement relations')
+        print(f'\t{relations.ordering}')
+        print(f'\t{relations.child_to_parent}')
         for i, s in relations.statement_map.items():
-            print(i, s.pprint())
+            print('\t', i, s.pprint())
 
     dep_graph = DependenceGraph()
 
     for access1, access2 in get_all_access_pairs(program):
+        print(access1.pprint(), access2.pprint())
         if access1 == access2:
             continue
 
@@ -185,23 +185,25 @@ def analyze_dependence(program, loop_analysis):
         if not (access1.is_write or access2.is_write):
             continue
 
-        access_pair = AccessPair(relations.ordering, access1, access2)
-
-        before = access_pair.before
+        before = access1
         before_type = 'W' if before.is_write else 'R'
         before_str = f'{before.pprint()}({before_type})'
         stmt1 = before.parent_stmt
 
-        after = access_pair.after
+        after = access2
         after_type = 'W' if after.is_write else 'R'
         after_str = f'{after.pprint()}({after_type})'
         stmt2 = after.parent_stmt
-
+        
         # if in the same loop, calculate loop carried dependency
         if is_in_same_loop(stmt1, stmt2):
+            # print(f'Analyzing {before_str} -> {after_str}')
             loop = stmt1.surrounding_loop
-            index_analysis = loop_analysis[loop.node_id].index_analysis
-            diff = subtract(loop.loop_vars, before, after, index_analysis)
+            diff = subtract(loop.loop_vars, before, after, loop_analysis[loop.node_id])
+            if not diff:
+                print('No dependency')
+                # there's no dependence between these statements
+                continue
             if is_zero(diff):
                 if debug:
                     print(f'dep {before_str} -> {after_str}')
@@ -209,11 +211,11 @@ def analyze_dependence(program, loop_analysis):
             elif is_negative(diff):
                 if debug:
                     print(f'dep {after_str} -> {before_str}')
-                dep_graph.add(after, before, diff)
+                dep_graph.add(after, before, to_direction_vector(diff))
             else:
                 if debug:
                     print(f'dep {before_str} -> {after_str}')
-                dep_graph.add(before, after, inverse(diff))
+                dep_graph.add(before, after, to_direction_vector(inverse(diff)))
         else:
             # if in different loop,
             # there's a dependency from stmt1 to stmt2

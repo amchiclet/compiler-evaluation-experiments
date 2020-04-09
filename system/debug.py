@@ -4,7 +4,7 @@ from dependence import analyze_dependence, is_valid
 from interchange import Interchange
 from simple_formatter_v2 import SimpleFormatter
 
-program, node_id = parse_file('v2.loop')
+program, node_id = parse_file('v3.loop')
 print(program.pprint())
 
 # loop = program.loops[0]
@@ -13,8 +13,7 @@ mutations = []
 found_mutation = False
 for _ in range(n_max_loop_analysis):
     loop_analysis = analyze_loops(program)
-    for analysis in loop_analysis.values():
-        print(analysis.debug())
+    dep = analyze_dependence(program, loop_analysis)
     # interchange = Interchange()
     # n_max_mutations = 10
     # for m in range(n_max_mutations):
