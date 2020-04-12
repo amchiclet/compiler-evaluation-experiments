@@ -133,7 +133,7 @@ def analyze_loop(loop):
             for index1 in indices:
                 for index2 in indices:
                     print(index1.pprint(), index2.pprint())
-                    if index1.is_syntactically_equal(index2):
+                    if index1 == index2:
                         continue
                     dep_range = DepRange(min_val, max_val, index1, index2)
                     print(dep_range.pprint())
