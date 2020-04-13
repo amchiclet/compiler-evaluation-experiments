@@ -86,13 +86,6 @@ class DepRange:
             new_constraints = constraints + [i1 < i2]
             min_max_i1 = find_min_max(new_constraints, i1)
             min_max_i2 = find_min_max(new_constraints, i2)
-            # print(min_max_i1)
-            # print(min_max_i2)
-            # print(solver.check(i1 == min_max_i1[0]))
-            # print(solver.model().eval(i1),
-            #       solver.model().eval(i2),
-            #       solver.model().eval(s1),
-            #       solver.model().eval(s2))
             self.loop_carried = [min(min_max_i1[0], min_max_i1[0]),
                                  max(min_max_i2[1], min_max_i2[1])]
             # print(self.loop_carried)

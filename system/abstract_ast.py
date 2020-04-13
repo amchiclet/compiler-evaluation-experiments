@@ -45,6 +45,8 @@ class AffineIndex(Node):
         self.var = var
         self.coeff = coeff
         self.offset = offset
+        self.array = None
+        self.dimension = None
     def pprint(self, indent=0):
         if self.var:
             linear = f'{self.var}' if self.coeff == 1 else f'{self.coeff}*{self.var}'
@@ -57,7 +59,10 @@ class AffineIndex(Node):
         else:
             return f'{self.offset}'
     def clone(self):
-        return AffineIndex(self.var, self.coeff, self.offset, self.node_id)
+        cloned = AffineIndex(self.var, self.coeff, self.offset, self.node_id)
+        cloned.array = self.array
+        cloned.dimension = self.dimension
+        return cloned
     def is_syntactically_equal(self, other):
         return self.var == other.var and \
             self.coeff == other.coeff and \
@@ -89,6 +94,9 @@ class Access(Node):
         self.node_id = node_id
         self.var = var
         self.indices = indices if indices else []
+        for dimension, index in enumerate(indices):
+            index.array = var
+            index.dimension = dimension
         self.is_write = False
         self.parent_stmt = None
     def pprint(self, indent=0):
@@ -97,6 +105,9 @@ class Access(Node):
     def clone(self):
         cloned_indices = [i.clone() for i in self.indices]
         cloned = Access(self.var, cloned_indices, self.node_id)
+        for dimension, index in enumerate(cloned_indices):
+            index.array = self.var
+            index.dimension = dimension
         cloned.is_write = self.is_write
         return cloned
     def is_syntactically_equal(self, other):
