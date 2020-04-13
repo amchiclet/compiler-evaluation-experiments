@@ -48,7 +48,7 @@ class AffineIndex(Node):
         self.array = None
         self.dimension = None
     def pprint(self, indent=0):
-        if self.var:
+        if self.var != 'dummy':
             linear = f'{self.var}' if self.coeff == 1 else f'{self.coeff}*{self.var}'
             if self.offset > 0:
                 return f'{linear}+{self.offset}'
@@ -123,7 +123,7 @@ class AbstractLoop(Node):
         self.partial_loop_order = []
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        header = f'{ws}for [{", ".join(self.loop_vars)}] {{'
+        header = f'{ws}for [{", ".join(self.loop_vars[:-1])}] {{'
         body = [f'{stmt.pprint(indent+1)}' for stmt in self.body]
         end = f'{ws}}}'
         return '\n'.join([header] + body + [end])
@@ -232,18 +232,18 @@ def get_program_info(program):
                                          abstract_index.relationship)
     return arrays, loop_vars
 
-# two accesses are compatible when they index the same
-# loop variables in the same order
-def is_comparable(access1, access2):
-    n_dimensions = len(access1.indices)
-    if  len(access2.indices) != n_dimensions:
-        return False
-    for index1, index2 in zip(access1.indices, access2.indices):
-        if type(index1) != type(index2):
-            return False
-        if index1.var != index2.var:
-            return False
-    return True
+# # two accesses are compatible when they index the same
+# # loop variables in the same order
+# def is_comparable(access1, access2):
+#     n_dimensions = len(access1.indices)
+#     if  len(access2.indices) != n_dimensions:
+#         return False
+#     for index1, index2 in zip(access1.indices, access2.indices):
+#         if type(index1) != type(index2):
+#             return False
+#         if index1.var != index2.var:
+#             return False
+#     return True
 
 def is_same_memory(access1, access2):
     return access1.var == access2.var

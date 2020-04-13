@@ -9,9 +9,9 @@ from z3_helper import DepRange, find_minimum_valid_index, find_min_max_range
 # dimension -> index mappin
 class CoupledGroup:
     def __init__(self, array, loop_vars, indices):
-        assert(len(loop_vars) == 1)
+        assert(len(loop_vars) <= 1)
         assert(len(indices) > 0)
-        expected_dimension = indices[0].dimension
+        expected_dimension = next(iter(indices)).dimension
         for index in indices:
             assert(expected_dimension == index.dimension)
 
@@ -68,9 +68,12 @@ class CoupledGroup:
         self.dep_ranges = dep_ranges
 
     def pprint(self):
-        return (f'Array: {self.array}\n'
-                f'Loop vars: {self.loop_vars}\n'
-                f'Indices: {[i.pprint() for i in self.indices]}')
+        lines = []
+        lines.append(f'Array: {self.array}')
+        lines.append(f'Loop vars: {self.loop_vars}')
+        lines.append(f'Indices: {[i.pprint() for i in self.indices]}')
+        lines.append(self.dep_ranges.pprint())
+        return '\n'.join(lines)
 
 def merge_coupled_groups(group1, group2):
     loop_vars = set()
@@ -95,7 +98,7 @@ def partition(accesses):
                 loop_vars.add(index1.var)
             if index2.var:
                 loop_vars.add(index2.var)
-            group = CoupledGroup(array, loop_vars, [index1, index2])
+            group = CoupledGroup(array, loop_vars, set([index1, index2]))
             groups.append(group)
     if len(groups) < 2:
         return groups
@@ -104,20 +107,20 @@ def partition(accesses):
         changed = False
         new_group = []
         for group1, group2 in all_pairs(groups):
-            if group1.has_common_loop_vars(group2):
+            if group1.has_common_loop_vars(group2.loop_vars):
                 new_group.append(merged_coupled_groups(group1, group2))
                 changed = True
         if changed:
             group = new_group
     return groups
 
-def analyze_arrays(accesses, loop_var_analysis):
+def analyze_arrays(groups, loop_var_analysis):
     array_analysis = ArrayAnalysis()
-    for access in accesses:
-        for index in access.indices:
-            loop_var = index.var
-            min_loop_var_val = loop_var_analysis.min_val(loop_var)
-            max_loop_var_val = loop_var_analysis.max_val(loop_var)
+    for group in groups:
+        loop_var = next(iter(group.loop_vars))
+        min_loop_var_val = loop_var_analysis.min_val(loop_var)
+        max_loop_var_val = loop_var_analysis.max_val(loop_var)
+        for index in group.indices:
             range_min, range_max = find_min_max_range(
                 min_loop_var_val,
                 max_loop_var_val,
@@ -143,10 +146,11 @@ def group_indices(accesses):
     return outer_map
 
 class LoopAnalysis:
-    def __init__(self, loop_var_analysis, array_analysis, dep_map):
+    def __init__(self, loop_var_analysis, array_analysis, dep_map, groups):
         self.loop_var_analysis = loop_var_analysis
         self.array_analysis = array_analysis
         self.dep_map = dep_map
+        self.groups = groups
     def debug(self):
         lines = [
             self.loop_var_analysis.debug(),
@@ -156,6 +160,9 @@ class LoopAnalysis:
         for (loop_var, array, dimension), dep_range_map in self.dep_map.items():
             lines.append(f'{array}[{dimension}] (loop var {loop_var})')
             lines.append(dep_range_map.pprint())
+        for i, group in enumerate(self.groups):
+            lines.append(f'Group {i+1}:')
+            lines.append(group.pprint())
         return '\n'.join(lines)
 
 def hashed(index1, index2):
@@ -201,10 +208,16 @@ class LoopVarAnalysis:
         self.analysis = {}
     def set_range(self, loop_var, min_val, max_val):
         self.analysis[loop_var] = (min_val, max_val)
-    def min_val(self, loop_var):
-        return self.analysis[loop_var][0]
-    def max_val(self, loop_var):
-        return self.analysis[loop_var][1]
+    def min_val(self, loop_var, default=0):
+        if loop_var in self.analysis:
+            return self.analysis[loop_var][0]
+        else:
+            return default
+    def max_val(self, loop_var, default=500):
+        if loop_var in self.analysis:
+            return self.analysis[loop_var][1]
+        else:
+            return default
     def debug(self):
         lines = []
         lines.append('Loop var ranges:')
@@ -236,56 +249,71 @@ class ArrayAnalysis:
             lines.append(f'  |{array}[{dimension}]| => [{min_val}..{max_val}]')
         return '\n'.join(lines)
 
+def analyze_loop_vars(groups, loop):
+    loop_var_analysis = LoopVarAnalysis()
+    for loop_var in loop.loop_vars:
+        cuts = None
+        for group in groups:
+            print(group.pprint())
+            if group.has_common_loop_vars([loop_var]):
+                cuts = group.cuts
+                break
+        # if there are no groups that handle this variable,
+        # it means that its not used
+        # set the range to default
+        if not cuts:
+            loop_var_analysis.set_range(loop_var, 0, 500)
+        else:
+            print(f'loop var {loop_var} has cuts {cuts}')
+            non_trivial_ranges = []
+            for i in range(len(group.cuts) - 1):
+                if group.cuts[i+1] - group.cuts[i] > 1:
+                    non_trivial_ranges.append(tuple(group.cuts[i:i+2]))
+            loop_var_range = choice(non_trivial_ranges)
+            print(loop_var_range)
+            loop_var_analysis.set_range(loop_var, *loop_var_range)
+    return loop_var_analysis
+
 from math import factorial
 def analyze_loop(loop):
-    loop_var_analysis = LoopVarAnalysis()
     accesses = get_accesses(loop)
-    grouped_indices = group_indices(accesses)
-
     groups = partition(accesses)
 
-    # maps (array, dimension) to another map which
-    # maps (index1, index2) to a DepRange
+    # grouped_indices = group_indices(accesses)
+
+    # # maps (array, dimension) to another map which
+    # # maps (index1, index2) to a DepRange
+    # dep_map = {}
+
+    # # find the range of possible loop var
+    # for loop_var in loop.loop_vars:
+    #     failed_outer = True
+
+    #     min_array_index = 0
+    #     for indices in grouped_indices[loop_var].values():
+    #         for index in indices:
+    #             min_array_index = find_minimum_valid_index(min_array_index, index)
+
+    #     min_val = min_array_index
+    #     max_val = 500
+    #     failed_inner = False
+    #     for (array, dimension), indices in grouped_indices[loop_var].items():
+    #         print(f'Analyzing array {array}[{dimension}]')
+    #         dep_ranges = DepRangeMap()
+    #         for index1 in indices:
+    #             for index2 in indices:
+    #                 print(index1.pprint(), index2.pprint())
+    #                 if index1 == index2:
+    #                     continue
+    #                 dep_range = DepRange(min_val, max_val, index1, index2)
+    #                 print(dep_range.pprint())
+    #                 dep_ranges.set_dep_range(index1, index2, dep_range)
+    #         dep_map[(loop_var, array, dimension)] = dep_ranges
+
+    loop_var_analysis = analyze_loop_vars(groups, loop)
+    array_analysis = analyze_arrays(groups, loop_var_analysis)
     dep_map = {}
-
-    # find the range of possible loop var
-    for loop_var in loop.loop_vars:
-        failed_outer = True
-
-        min_array_index = 0
-        for indices in grouped_indices[loop_var].values():
-            for index in indices:
-                min_array_index = find_minimum_valid_index(min_array_index, index)
-
-        min_val = min_array_index
-        max_val = 500
-        failed_inner = False
-        for (array, dimension), indices in grouped_indices[loop_var].items():
-            print(f'Analyzing array {array}[{dimension}]')
-            dep_ranges = DepRangeMap()
-            for index1 in indices:
-                for index2 in indices:
-                    print(index1.pprint(), index2.pprint())
-                    if index1 == index2:
-                        continue
-                    dep_range = DepRange(min_val, max_val, index1, index2)
-                    print(dep_range.pprint())
-                    dep_ranges.set_dep_range(index1, index2, dep_range)
-            dep_map[(loop_var, array, dimension)] = dep_ranges
-
-    for group in groups:
-        loop_var = next(iter(group.loop_vars))
-        print(f'loop var {loop_var} has cuts {group.cuts}')
-        non_trivial_ranges = []
-        for i in range(len(group.cuts) - 1):
-            if group.cuts[i+1] - group.cuts[i] > 1:
-                non_trivial_ranges.append(tuple(group.cuts[i:i+2]))
-        loop_var_range = choice(non_trivial_ranges)
-        print(loop_var_range)
-        loop_var_analysis.set_range(loop_var, *loop_var_range)
-        
-    array_analysis = analyze_arrays(accesses, loop_var_analysis)
-    loop_analysis = LoopAnalysis(loop_var_analysis, array_analysis, dep_map)
+    loop_analysis = LoopAnalysis(loop_var_analysis, array_analysis, dep_map, groups)
     return loop_analysis
 
 max_tries = 1

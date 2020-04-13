@@ -3,7 +3,7 @@ from dependence import analyze_dependence, is_valid
 from loop_analyzer import analyze_loops
 from math import factorial
 ATTEMPTS_PER_MUTATION = 10
-DEBUG = False
+DEBUG = True
 class Interchange:
     def __init__(self, seed=0):
         self.rand = Random(seed)
@@ -20,8 +20,9 @@ class Interchange:
             explored_space.add(space_id)
 
         unexplored_space_size = space_size - len(explored_space)
-
+        print(f'Unexplored space size is {unexplored_space_size}')
         for attempt in range(unexplored_space_size):
+            print('attempt')
             cloned_program = program.clone()
 
             # find a random loop
@@ -32,13 +33,15 @@ class Interchange:
                 which_loop = self.rand.randint(0, n_loops-1)
 
                 # shuffle that loop
+                # exclude the dummy loop_var
                 loop_vars = cloned_program.loops[which_loop].loop_vars
-                new_order = list(range(0, len(loop_vars)))
+                new_order = list(range(0, len(loop_vars)-1))
                 self.rand.shuffle(new_order)
+                new_order.append(len(loop_vars)-1)
                 space_id = (which_loop, tuple(new_order))
-
+            print(f'found a new order {new_order}')
             loop_vars[:] = [loop_vars[i] for i in new_order]
-
+            print(loop_vars)
             # make sure it's actually a mutation
             if program.is_syntactically_equal(cloned_program):
                 if DEBUG:

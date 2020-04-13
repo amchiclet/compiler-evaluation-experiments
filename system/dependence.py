@@ -1,6 +1,6 @@
 # Anything related to dependence goes here
 
-from abstract_ast import Assignment, Access, AbstractIndex, AffineIndex, AbstractLoop, BinOp, Program, get_accesses, is_same_memory, is_comparable, get_all_access_pairs, is_in_same_loop
+from abstract_ast import Assignment, Access, AbstractIndex, AffineIndex, AbstractLoop, BinOp, Program, get_accesses, is_same_memory, get_all_access_pairs, is_in_same_loop
 
 debug = True
 
@@ -91,33 +91,48 @@ def inverse(nums):
     return [-n for n in nums]
 
 def subtract(loop_order, access1, access2, loop_analysis):
-    if not is_comparable(access1, access2):
-        raise RuntimeError('Access are not comparable')
+    # if not is_comparable(access1, access2):
+    #     raise RuntimeError('Access are not comparable')
     if debug:
         print(loop_analysis.debug())
     result = []
     for v in loop_order:
+        # if loop var is not used in any of the groups,
+        # it means that either that loop var is not used at all
+        # or it means that the group contains constant indices
+        dep_ranges = None
+        for group in loop_analysis.groups:
+            if group.has_common_loop_vars([v]):
+                dep_ranges = group.dep_ranges
+                break
+        if not dep_ranges:
+            continue
+
+        # special case when there is no loop var in expression
+        # if they're different, then they is no dependence
+        # find the group needed to calculate this dependency
         min_i = loop_analysis.loop_var_analysis.min_val(v)
         max_i = loop_analysis.loop_var_analysis.max_val(v)
         loop_var_range = [min_i, max_i]
+
         for dimension, (index1, index2) in enumerate(zip(access1.indices, access2.indices)):
             assert(type(index1) == type(index2))
             if index1.var != v:
                 continue
             if isinstance(index1, AbstractIndex):
+                raise RuntimeError('Abstract indices are not supported any more')
                 assert(index2.var == v)
                 result.append(index1.relationship - index2.relationship)
             elif isinstance(index1, AffineIndex):
-                dep_range_map = loop_analysis.dep_map[(v, access1.var, dimension)]
-                if dep_range_map.is_loop_independent(loop_var_range, index1, index2):
+                if dep_ranges.is_loop_independent(loop_var_range, index1, index2):
                     compare_result = 0
-                elif dep_range_map.is_loop_carried(loop_var_range, index1, index2):
+                elif dep_ranges.is_loop_carried(loop_var_range, index1, index2):
                     compare_result = 1
-                elif dep_range_map.is_loop_carried(loop_var_range, index2, index1):
+                elif dep_ranges.is_loop_carried(loop_var_range, index2, index1):
                     compare_result = -1
                 else:
                     # it's independent. no need to subtract further
-                    return None
+                    return []
                 result.append(compare_result)
             else:
                 raise RuntimeError('Unsupported case')
@@ -177,10 +192,10 @@ def analyze_dependence(program, loop_analysis):
         if not is_same_memory(access1, access2):
             continue
 
-        if not is_comparable(access1, access2):
-            raise RuntimeError(f'Accesses are not comparable: '
-                               f'{access1.pprint()}, '
-                               f'{access2.pprint()}')
+        # if not is_comparable(access1, access2):
+        #     raise RuntimeError(f'Accesses are not comparable: '
+        #                        f'{access1.pprint()}, '
+        #                        f'{access2.pprint()}')
 
         if not (access1.is_write or access2.is_write):
             continue
