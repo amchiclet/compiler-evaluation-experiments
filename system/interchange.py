@@ -2,6 +2,7 @@ from random import Random
 from dependence import analyze_dependence, is_valid
 from loop_analyzer import analyze_loops
 from math import factorial
+from loguru import logger
 ATTEMPTS_PER_MUTATION = 10
 DEBUG = True
 class Interchange:
@@ -20,9 +21,9 @@ class Interchange:
             explored_space.add(space_id)
 
         unexplored_space_size = space_size - len(explored_space)
-        print(f'Unexplored space size is {unexplored_space_size}')
+        logger.debug(f'Unexplored space size is {unexplored_space_size}')
         for attempt in range(unexplored_space_size):
-            print('attempt')
+            logger.debug('attempt')
             cloned_program = program.clone()
 
             # find a random loop
@@ -39,27 +40,27 @@ class Interchange:
                 self.rand.shuffle(new_order)
                 new_order.append(len(loop_vars)-1)
                 space_id = (which_loop, tuple(new_order))
-            print(f'found a new order {new_order}')
+            logger.debug(f'found a new order {new_order}')
             loop_vars[:] = [loop_vars[i] for i in new_order]
-            print(loop_vars)
+            logger.debug(loop_vars)
             # make sure it's actually a mutation
             if program.is_syntactically_equal(cloned_program):
                 if DEBUG:
-                    print(f'Attempt {attempt + 1}: Mutated loop did not change.')
+                    logger.debug(f'Attempt {attempt + 1}: Mutated loop did not change.')
                 continue
 
             # make sure this mutation doesn't exist
             program_hash = hash(cloned_program.pprint())
             if program_hash in self.hashes:
                 if DEBUG:
-                    print(f'Attempt {attempt + 1}: This mutation has already been created!')
+                    logger.debug(f'Attempt {attempt + 1}: This mutation has already been created!')
                 continue
 
             # make sure it's a legal mutation
             dep_graph_after = analyze_dependence(cloned_program, loop_analysis)
             if not is_valid(dep_graph_before, dep_graph_after):
                 if DEBUG:
-                    print(f'Attempt {attempt + 1}: This transformation is invalid!')
+                    logger.debug(f'Attempt {attempt + 1}: This transformation is invalid!')
                 continue
 
             self.hashes.add(program_hash)

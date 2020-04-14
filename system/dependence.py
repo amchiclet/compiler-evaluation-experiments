@@ -1,6 +1,7 @@
 # Anything related to dependence goes here
 
 from abstract_ast import Assignment, Access, AbstractIndex, AffineIndex, AbstractLoop, BinOp, Program, get_accesses, is_same_memory, get_all_access_pairs, is_in_same_loop
+from loguru import logger
 
 debug = True
 
@@ -16,7 +17,7 @@ class Dependence:
         self.to_access = to_access
         self.loop_carried = loop_carried
     def is_loop_carried(self):
-        return \
+        return self.loop_carried and \
             self.from_access.parent_stmt.surrounding_loop == \
             self.to_access.parent_stmt.surrounding_loop
     def pprint(self):
@@ -24,7 +25,7 @@ class Dependence:
         from_str = f'{self.from_access.pprint()}({from_type})'
         to_type = 'W' if self.to_access.is_write else 'R'
         to_str = f'{self.to_access.pprint()}({to_type})'
-        loop_carried_str = f'[{self.loop_carried}]' if self.is_loop_carried() else ''
+        loop_carried_str = f'{self.loop_carried}' if self.is_loop_carried() else '[Loop-independent]'
         return f'dep {from_str} -> {to_str} {loop_carried_str}'
 
 # maps a pair of statements to a list of dependences
@@ -45,16 +46,22 @@ class DependenceGraph:
     def get_dependence(self, s1, s2):
         return self.dep_map[(s1, s2)]
     def pprint(self, statement_map):
+        lines = []
         for (s1, s2), deps in self.dep_map.items():
             if s1 == s2:
-                print(f'Same statement dep:\n'
-                      f'\t{statement_map[s1].pprint()}')
+                lines.append(f'Same statement dep:\n'
+                             f'\t{statement_map[s1].pprint()}')
             else:
-                print(f'Dep across statements:\n'
-                      f'\tFrom: {statement_map[s1].pprint()}\n'
-                      f'\tTo: {statement_map[s2].pprint()}')
+                lines.append(f'Dep across statements:\n'
+                             f'\tFrom: {statement_map[s1].pprint()}\n'
+                             f'\tTo: {statement_map[s2].pprint()}')
             for dep in deps:
-                print(f'\t{dep.pprint()}')
+                lines.append(f'\t{dep.pprint()}')
+        
+        if len(lines) > 0:
+            return '\n'.join(lines)
+        else:
+            return 'No dependence'
 
 class StatementRelations:
     def __init__(self, statement_map, ordering, child_to_parent):
@@ -91,18 +98,20 @@ def inverse(nums):
     return [-n for n in nums]
 
 def subtract(loop_order, access1, access2, loop_analysis):
+    assert(is_same_memory(access1, access2))
+    array = access1.var
     # if not is_comparable(access1, access2):
     #     raise RuntimeError('Access are not comparable')
-    if debug:
-        print(loop_analysis.debug())
+    logger.debug(loop_analysis.debug())
     result = []
+
     for v in loop_order:
         # if loop var is not used in any of the groups,
         # it means that either that loop var is not used at all
         # or it means that the group contains constant indices
         dep_ranges = None
         for group in loop_analysis.groups:
-            if group.has_common_loop_vars([v]):
+            if group.array == array and group.has_common_loop_vars([v]):
                 dep_ranges = group.dep_ranges
                 break
         if not dep_ranges:
@@ -114,10 +123,12 @@ def subtract(loop_order, access1, access2, loop_analysis):
         min_i = loop_analysis.loop_var_analysis.min_val(v)
         max_i = loop_analysis.loop_var_analysis.max_val(v)
         loop_var_range = [min_i, max_i]
-
+        logger.debug(f'Checking dependence for loop var {v} {loop_var_range}')
         for dimension, (index1, index2) in enumerate(zip(access1.indices, access2.indices)):
             assert(type(index1) == type(index2))
-            if index1.var != v:
+            if index1.var != v and index1.var != 'dummy':
+                continue
+            if index2.var != v and index2.var != 'dummy':
                 continue
             if isinstance(index1, AbstractIndex):
                 raise RuntimeError('Abstract indices are not supported any more')
@@ -132,6 +143,7 @@ def subtract(loop_order, access1, access2, loop_analysis):
                     compare_result = -1
                 else:
                     # it's independent. no need to subtract further
+                    logger.debug(f'Found an independent range')
                     return []
                 result.append(compare_result)
             else:
@@ -176,16 +188,16 @@ def analyze_dependence(program, loop_analysis):
 
     relations = get_statement_relations(program)
     if debug:
-        print(f'Statement relations')
-        print(f'\t{relations.ordering}')
-        print(f'\t{relations.child_to_parent}')
+        logger.debug(f'Statement relations')
+        logger.debug(f'\t{relations.ordering}')
+        logger.debug(f'\t{relations.child_to_parent}')
         for i, s in relations.statement_map.items():
-            print('\t', i, s.pprint())
+            logger.debug('\t', i, s.pprint())
 
     dep_graph = DependenceGraph()
 
     for access1, access2 in get_all_access_pairs(program):
-        print(access1.pprint(), access2.pprint())
+        # logger.debug(f'Analyzing dependence for {access1.pprint()} vs {access2.pprint()}')
         if access1 == access2:
             continue
 
@@ -212,30 +224,26 @@ def analyze_dependence(program, loop_analysis):
         
         # if in the same loop, calculate loop carried dependency
         if is_in_same_loop(stmt1, stmt2):
-            # print(f'Analyzing {before_str} -> {after_str}')
+            logger.debug(f'Analyzing {before_str} -> {after_str}')
             loop = stmt1.surrounding_loop
             diff = subtract(loop.loop_vars, before, after, loop_analysis[loop.node_id])
             if not diff:
-                print('No dependency')
+                logger.debug('No dependency')
                 # there's no dependence between these statements
                 continue
             if is_zero(diff):
-                if debug:
-                    print(f'dep {before_str} -> {after_str}')
+                logger.debug(f'dep {before_str} -> {after_str}')
                 dep_graph.add(before, after)
             elif is_negative(diff):
-                if debug:
-                    print(f'dep {after_str} -> {before_str}')
+                logger.debug(f'dep {after_str} -> {before_str}')
                 dep_graph.add(after, before, to_direction_vector(diff))
             else:
-                if debug:
-                    print(f'dep {before_str} -> {after_str}')
+                logger.debug(f'dep {before_str} -> {after_str}')
                 dep_graph.add(before, after, to_direction_vector(inverse(diff)))
         else:
             # if in different loop,
             # there's a dependency from stmt1 to stmt2
-            if debug:
-                print(f'dep {before_str} -> {after_str}')
+            logger.debug(f'dep {before_str} -> {after_str}')
             dep_graph(before, after)
     if debug:
         dep_graph.pprint(relations.statement_map)
