@@ -30,10 +30,14 @@ class Assignment(Node):
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}{self.lhs.pprint()} = {self.rhs.pprint()};'
+    def dep_print(self, refs):
+        return f'{self.lhs.dep_print(refs)} = {self.rhs.dep_print(refs)};'
     def clone(self):
         cloned = Assignment(self.lhs.clone(), self.rhs.clone(), self.node_id)
         for access in get_accesses(cloned):
             access.parent_stmt = cloned
+            for index in access.indices:
+                index.parent_stmt = cloned
         return cloned
     def is_syntactically_equal(self, other):
         return self.lhs.is_syntactically_equal(other.lhs) and \
@@ -47,8 +51,9 @@ class AffineIndex(Node):
         self.offset = offset
         self.array = None
         self.dimension = None
+        self.parent_stmt = None
     def pprint(self, indent=0):
-        if self.var != 'dummy':
+        if self.var:
             linear = f'{self.var}' if self.coeff == 1 else f'{self.coeff}*{self.var}'
             if self.offset > 0:
                 return f'{linear}+{self.offset}'
@@ -88,6 +93,7 @@ class AbstractIndex(Node):
         return self.var == other.var and self.relationship == other.relationship
 
 # TODO: create expr class
+from termcolor import colored
 
 class Access(Node):
     def __init__(self, var, indices=None, node_id=0):
@@ -102,6 +108,11 @@ class Access(Node):
     def pprint(self, indent=0):
         list_of_pprint = [f'[{index.pprint()}]' for index in self.indices]
         return f'{self.var}{"".join(list_of_pprint)}'
+    def dep_print(self, refs):
+        if self in refs:
+            return colored(f'{self.pprint()}', 'green')
+        else:
+            return self.pprint()
     def clone(self):
         cloned_indices = [i.clone() for i in self.indices]
         cloned = Access(self.var, cloned_indices, self.node_id)
@@ -123,7 +134,7 @@ class AbstractLoop(Node):
         self.partial_loop_order = []
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        header = f'{ws}for [{", ".join(self.loop_vars[:-1])}] {{'
+        header = f'{ws}for [{", ".join(self.loop_vars)}] {{'
         body = [f'{stmt.pprint(indent+1)}' for stmt in self.body]
         end = f'{ws}}}'
         return '\n'.join([header] + body + [end])
@@ -146,6 +157,8 @@ class BinOp(Node):
         self.right = right
     def pprint(self, indent=0):
         return f'{self.left.pprint()} * {self.right.pprint()}'
+    def dep_print(self, refs):
+        return f'{self.left.dep_print(refs)} * {self.right.dep_print(refs)}'
     def clone(self):
         return BinOp(self.left.clone(), self.right.clone(), self.node_id)
     def is_syntactically_equal(self, other):

@@ -17,6 +17,7 @@ class CoupledGroup:
             assert(expected_dimension == index.dimension)
 
         self.array = array
+        print(f'type of loop_vars ({type(loop_vars)})')
         self.loop_vars = loop_vars
         self.indices = indices
 
@@ -28,7 +29,14 @@ class CoupledGroup:
         self.calculate_cuts()
 
     def has_common_loop_vars(self, loop_vars):
-        return self.loop_vars.intersection(loop_vars)
+        # dummy variable should not be used to check
+        # otherwise for A[i][j] = A[1][2], then i and j will
+        # be in the same coupled group, but it shouldn't
+        me = self.loop_vars.copy()
+        me.discard('dummy')
+        them = loop_vars.copy()
+        them.discard('dummy')
+        return len(me.intersection(them)) > 0
 
     def calculate_cuts(self):
         cuts = set()

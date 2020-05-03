@@ -86,7 +86,7 @@ def analyze_loop_vars(groups, loop):
     for loop_var in loop.loop_vars:
         cuts = set([0, 500])
         for group in groups:
-            if group.has_common_loop_vars([loop_var]):
+            if group.has_common_loop_vars(set([loop_var])):
                 cuts.update(group.cuts)
         cuts = sorted(list(cuts))
         # # if there are no groups that handle this variable,

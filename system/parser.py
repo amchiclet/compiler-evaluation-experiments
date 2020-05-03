@@ -54,7 +54,7 @@ class TreeSimplifier(Transformer):
     def affine_index(self, args):
         return args[0]
     def constant(self, args):
-        return AffineIndex('dummy', 0, int(args[0]))
+        return AffineIndex(None, 0, int(args[0]))
     def offset(self, args):
         var = args[0]
         offset = int(args[2]) if args[1] == '+' else -int(args[2])
@@ -100,12 +100,13 @@ class TreeSimplifier(Transformer):
         stmt = args[0]
         for access in get_accesses(stmt):
             access.parent_stmt = stmt
+            for index in access.indices:
+                index.parent_stmt = stmt
         return stmt
     def loop_vars(self, args):
         return args
     def abstract_loop(self, args):
         loop_vars = args[0]
-        loop_vars.append('dummy')
         body = args[1:]
         loop = AbstractLoop(loop_vars, body, self.next_node_id())
         for stmt in body:

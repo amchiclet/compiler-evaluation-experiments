@@ -111,7 +111,7 @@ def subtract(loop_order, access1, access2, loop_analysis):
         # or it means that the group contains constant indices
         dep_ranges = None
         for group in loop_analysis.groups:
-            if group.array == array and group.has_common_loop_vars([v]):
+            if group.array == array and group.has_common_loop_vars(set([v])):
                 dep_ranges = group.dep_ranges
                 break
         if not dep_ranges:

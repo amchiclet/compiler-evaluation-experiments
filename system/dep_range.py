@@ -86,23 +86,24 @@ class DepRange:
         solver.add(constraints)
 
         # check for loop independent dependence
-        status = solver.check(i1 == i2)
-        if status == sat:
-            # range where i1 == i2
-            new_constraints = constraints + [i1 == i2]
-            min_max_i1 = find_min_max(new_constraints, i1)
-            self.loop_independent = min_max_i1
-        else:
-            assert(status == unsat)
-            self.loop_independent = None
+        self.loop_independent = None
+        if index1.parent_stmt != index2.parent_stmt:
+            status = solver.check(i1 == i2)
+            if status == sat:
+                # range where i1 == i2
+                new_constraints = constraints + [i1 == i2]
+                min_max_i1 = find_min_max(new_constraints, i1)
+                self.loop_independent = min_max_i1
+            else:
+                assert(status == unsat)
 
         # check for loop carried from index1 to index2
         # it's only loop carried when it's not loop independent
-        if self.loop_independent:
-            solver.add(Or(i1 < self.loop_independent[0],
-                          i1 >= self.loop_independent[1]))
-            solver.add(Or(i2 < self.loop_independent[0],
-                          i2 >= self.loop_independent[1]))
+        # if self.loop_independent:
+        #     solver.add(Or(i1 < self.loop_independent[0],
+        #                   i1 >= self.loop_independent[1]))
+        #     solver.add(Or(i2 < self.loop_independent[0],
+        #                   i2 >= self.loop_independent[1]))
 
         status = solver.check(i1 < i2)
 

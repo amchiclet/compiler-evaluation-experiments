@@ -9,9 +9,66 @@ def is_statically_ordered(loop, stmt1, stmt2):
 def dep_print(ref1, ref2):
     stmt1 = ref1.parent_stmt
     stmt2 = ref2.parent_stmt
-    return f'From: {stmt1.dep_print([ref1])}\nTo:   {stmt2.dep_print([ref2])}'
+    return (f'From: {stmt1.dep_print([ref1])}\n'
+            f'To:   {stmt2.dep_print([ref2])}')
 
+# how will it be used?
+# loop interchange
+# returns all dependences related to these 
+# dependences_from(s1)
+# dependences_to(s2)
+# dependences_among([s1, s2, s3])
+# dep = get_dependence(s1, s2)
+# dep.direction_vector
+# statement re-ordering
+# has_dependence(s1, s2)
+
+class Dependence:
+    def __init__(self, source_ref, sink_ref, direction_vector):
+        self.source_ref = source_ref
+        self.sink_ref = sink_ref
+        self.direction_vector = direction_vector
+    def pprint(self):
+        stmt1 = self.source_ref.parent_stmt
+        stmt2 = self.sink_ref.parent_stmt
+        return (f'From: {stmt1.dep_print([self.source_ref])}\n'
+                f'To:   {stmt2.dep_print([self.sink_ref])}\n'
+                f'DV:   {self.direction_vector}')
+
+class DependenceGraph:
+    def __init__(self):
+        self.graph = {}
+        self.nodes = {}
+    def iterate_dependences_from(self, source):
+        for (source_id, _), deps in self.graph.items():
+            if source.node_id == source_id:
+                yield deps
+    def iterate_dependences_to(self, sink):
+        for (_, sink_id), deps in self.graph.items():
+            if sink.node_id == sink_id:
+                yield deps
+    def iterate_dependences_among(self, stmts):
+        wanted = set([stmt.node_id for stmt in stmts])
+        for (source_id, sink_id), deps in self.graph.items():
+            if source_id in wanted and sink_id in wanted:
+                yield deps
+
+    def add(self, source_ref, sink_ref, direction_vector):
+        source_id = source_ref.parent_stmt.node_id
+        sink_id = sink_ref.parent_stmt.node_id
+        key = (source_id, sink_id)
+        if not key in self.graph:
+            self.graph[key] = []
+        dep = Dependence(source_ref, sink_ref, direction_vector)
+        self.graph[key].append(dep)
+
+    def debug(self):
+        for dep_list in self.graph.values():
+            for dep in dep_list:
+                print(dep.pprint())
+            
 def test_dependence(loop):
+    graph = DependenceGraph()
     for (ref1, ref2) in iterate_unique_reference_pairs(loop):
         ref1_then_ref2_dv = calculate_execution_order_direction_vector(loop, ref1, ref2)
         ref2_then_ref1_dv = calculate_execution_order_direction_vector(loop, ref2, ref1)
@@ -19,12 +76,13 @@ def test_dependence(loop):
             dv1 = calculate_valid_direction_vector(dependence_dv,
                                                    ref1_then_ref2_dv)
             if dv1:
-                print(dep_print(ref1, ref2))
+                graph.add(ref1, ref2, dv1)
 
             dv2 = calculate_valid_direction_vector(negate_direction_vector(dependence_dv),
                                                    ref2_then_ref1_dv)
             if dv2:
-                print(dep_print(ref2, ref1))
+                graph.add(ref2, ref1, dv2)
+    # graph.debug()
 
 def iterate_unique_reference_pairs(loop):
     refs = list(get_accesses(loop))
