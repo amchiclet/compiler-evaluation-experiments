@@ -1,3 +1,4 @@
-for [i, j] {
-  A[i][j] = A[<i][<j] * B[i][j];
+declare A[X][Y][Z];
+for [h, w, c, hh, ww, cc] {
+  O[h][w][c] = O[h][w][c] * I[h][w][c][hh][ww][cc] * K[hh][ww][cc];
 }

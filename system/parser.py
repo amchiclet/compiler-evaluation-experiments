@@ -1,8 +1,10 @@
 from lark import Lark, Transformer
 
 grammar = '''
-    start: abstract_loop+
+    start: declaration+ abstract_loop+
 
+    declaration: "declare" array ("[" size "]")* ";"
+    size: scalar | array
     abstract_loop: "for" "[" loop_vars "]" "{" statement+ "}"
     loop_vars: scalar ("," scalar)*
 
@@ -10,7 +12,7 @@ grammar = '''
     assignment: access "=" expr ";"
 
     expr: binop | access
-    binop: expr "*" expr
+    binop: expr BIN_OP expr
 
     access: scalar_access | array_access
     scalar_access: scalar
@@ -29,6 +31,7 @@ grammar = '''
     scalar: LCASE_LETTER+
     array: UCASE_LETTER+
     AFFINE_OP: "+" | "-"
+    BIN_OP: "*" | "+" | "-"
     %import common.WS
     %import common.LCASE_LETTER
     %import common.UCASE_LETTER
@@ -37,7 +40,7 @@ grammar = '''
 
 '''
 
-from abstract_ast import Assignment, AbstractIndex, Access, AbstractLoop, BinOp, Program, get_accesses, AffineIndex
+from abstract_ast import Assignment, AbstractIndex, Access, AbstractLoop, BinOp, Program, get_accesses, AffineIndex, Declaration
 
 class TreeSimplifier(Transformer):
     def __init__(self, start_node_id=0):
@@ -45,6 +48,10 @@ class TreeSimplifier(Transformer):
     def next_node_id(self):
         self.current_node_id += 1
         return self.current_node_id
+    def declaration(self, args):
+        return Declaration(args[0], args[1:])
+    def size(self, args):
+        return ''.join(args)
     def array(self, args):
         return ''.join(args)
     def scalar(self, args):
@@ -88,7 +95,7 @@ class TreeSimplifier(Transformer):
     def access(self, args):
         return args[0]
     def binop(self, args):
-        return BinOp(args[0], args[1], self.next_node_id())
+        return BinOp(args[1], args[0], args[2], self.next_node_id())
     def expr(self, args):
         return args[0]
     def assignment(self, args):
@@ -114,7 +121,18 @@ class TreeSimplifier(Transformer):
             stmt.surrounding_loop = loop
         return loop
     def start(self, args):
-        return Program(args, self.next_node_id())
+        decls = []
+        loops = []
+        for arg in args:
+            if type(arg) == Declaration:
+                decls.append(arg)
+            elif type(arg) == AbstractLoop:
+                loops.append(arg)
+            else:
+                raise RuntimeError('Unsupported syntax in main program')
+        if len(loops) > 1:
+            raise RuntimeError('Only single loops are supported now.')
+        return Program(decls, loops, self.next_node_id())
 
 def parse_str(code):
     parser = Lark(grammar)

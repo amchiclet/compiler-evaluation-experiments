@@ -1,3 +1,5 @@
+from loguru import logger
+
 space_per_indent = 2
 
 def is_list_syntactically_equal(list1, list2):
@@ -20,6 +22,24 @@ class Node:
         raise NotImplementedError
     def is_syntactically_equal(self, other):
         raise NotImplementedError
+
+class Declaration(Node):
+    def __init__(self, name, sizes=None, node_id=0):
+        self.name = name
+        self.sizes = sizes if sizes else []
+        self.node_id = node_id
+    def pprint(self, indent=0):
+        ws = space_per_indent * indent * ' '
+        list_of_pprint = [f'[{size}]' for size in self.sizes]
+        return f'{ws}Array: {self.name}{"".join(list_of_pprint)}'
+    def clone(self):
+        cloned_sizes = list(self.sizes)
+        return Declaration(self.name, cloned_sizes, self.node_id)
+    def is_syntactically_equal(self, other):
+        for my_size, other_size in zip(self.sizes, other.sizes):
+            if my_size != other_size:
+                return False
+        return self.name == other.name
 
 class Assignment(Node):
     def __init__(self, lhs, rhs, node_id=0):
@@ -130,6 +150,7 @@ class AbstractLoop(Node):
         self.node_id = node_id
         self.loop_vars = loop_vars
         self.body = body
+
         # To be used for strip mining
         self.partial_loop_order = []
     def pprint(self, indent=0):
@@ -151,32 +172,39 @@ class AbstractLoop(Node):
         return is_list_syntactically_equal(self.body, other.body)
 
 class BinOp(Node):
-    def __init__(self, left, right, node_id=0):
+    def __init__(self, op, left, right, node_id=0):
         self.node_id = node_id
+        self.op = op
         self.left = left
         self.right = right
     def pprint(self, indent=0):
-        return f'{self.left.pprint()} * {self.right.pprint()}'
+        return f'{self.left.pprint()} {self.op} {self.right.pprint()}'
     def dep_print(self, refs):
-        return f'{self.left.dep_print(refs)} * {self.right.dep_print(refs)}'
+        return f'{self.left.dep_print(refs)} {self.op} {self.right.dep_print(refs)}'
     def clone(self):
-        return BinOp(self.left.clone(), self.right.clone(), self.node_id)
+        return BinOp(self.op, self.left.clone(), self.right.clone(), self.node_id)
     def is_syntactically_equal(self, other):
-        return self.left.is_syntactically_equal(other.left) and \
+        return self.left.op == self.right.op and \
+            self.left.is_syntactically_equal(other.left) and \
             self.right.is_syntactically_equal(other.right)
 
 class Program:
-    def __init__(self, loops, node_id=0):
+    def __init__(self, decls, loops, node_id=0):
         self.node_id = node_id
+        self.decls = decls
         self.loops = loops
     def pprint(self, indent=0):
-        body = [f'{loop.pprint(indent)}' for loop in self.loops]
+        body = []
+        body += [f'{decl.pprint(indent)}' for decl in self.decls]
+        body += [f'{loop.pprint(indent)}' for loop in self.loops]
         return '\n'.join(body)
     def clone(self):
+        cloned_decls = [decl.clone() for decl in self.decls]
         cloned_loops = [loop.clone() for loop in self.loops]
-        return Program(cloned_loops, self.node_id)
+        return Program(cloned_decls, cloned_loops, self.node_id)
     def is_syntactically_equal(self, other):
-        return is_list_syntactically_equal(self.loops, other.loops)
+        return is_list_syntactically_equal(self.decls, other.decls) and \
+            is_list_syntactically_equal(self.loops, other.loops)
 
 def get_accesses(node):
     accesses = set()
@@ -200,6 +228,7 @@ def get_accesses(node):
             accesses.update(get_accesses(loop))
         return accesses
     else:
+        print(node)
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
 
 # returns a map from array name to the number of dimensions for that array
