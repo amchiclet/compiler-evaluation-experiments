@@ -4,7 +4,7 @@ grammar = '''
     start: declaration+ abstract_loop+
 
     declaration: "declare" array ("[" size "]")* ";"
-    size: scalar | array
+    size: affine_index
     abstract_loop: "for" "[" loop_vars "]" "{" statement+ "}"
     loop_vars: scalar ("," scalar)*
 
@@ -28,13 +28,14 @@ grammar = '''
     var: scalar
     offset: scalar AFFINE_OP INT
 
-    scalar: LCASE_LETTER+
+    scalar: CNAME
     array: UCASE_LETTER+
     AFFINE_OP: "+" | "-"
     BIN_OP: "*" | "+" | "-"
     %import common.WS
     %import common.LCASE_LETTER
     %import common.UCASE_LETTER
+    %import common.CNAME
     %import common.INT
     %ignore WS
 
@@ -51,7 +52,7 @@ class TreeSimplifier(Transformer):
     def declaration(self, args):
         return Declaration(args[0], args[1:])
     def size(self, args):
-        return ''.join(args)
+        return args[0]
     def array(self, args):
         return ''.join(args)
     def scalar(self, args):

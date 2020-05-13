@@ -30,7 +30,7 @@ class Declaration(Node):
         self.node_id = node_id
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        list_of_pprint = [f'[{size}]' for size in self.sizes]
+        list_of_pprint = [f'[{size.pprint()}]' for size in self.sizes]
         return f'{ws}Array: {self.name}{"".join(list_of_pprint)}'
     def clone(self):
         cloned_sizes = list(self.sizes)
