@@ -3,5 +3,5 @@ declare I[2*x][2*y][2*z][2][2][2];
 declare K[2][2][2];
 
 for [h, w, c, hh, ww, cc] {
-  O[h][w][c] = O[h][w][c] * I[h][w][c][hh][ww][cc] * K[hh][ww][cc];
+  O[100][w][c] = O[h][w][c] * I[h][w][c][hh][ww][cc] * K[hh][ww][cc];
 }

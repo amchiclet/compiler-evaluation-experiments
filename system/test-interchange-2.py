@@ -15,6 +15,7 @@ var_map.set_min('w', 3)
 var_map.set_max('w', 33)
 var_map.set_min('c', 2)
 var_map.set_max('c', 22)
+var_map.set_max('x', 200)
 
 restrict_var_map(program, var_map)
 

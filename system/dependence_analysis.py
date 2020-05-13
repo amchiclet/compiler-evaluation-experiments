@@ -7,13 +7,13 @@ from dependence_graph import Dependence, DependenceGraph
 def is_statically_ordered(loop, stmt1, stmt2):
     return loop.body.index(stmt1) < loop.body.index(stmt2)
 
-def analyze_dependence(loop):
+def analyze_dependence(loop, var_map):
     graph = DependenceGraph()
     for (ref1, ref2) in iterate_unique_reference_pairs(loop):
         print(f'{ref1.pprint()} vs {ref2.pprint()}')
         ref1_then_ref2_dv = calculate_execution_order_direction_vector(loop, ref1, ref2)
         ref2_then_ref1_dv = calculate_execution_order_direction_vector(loop, ref2, ref1)
-        for dependence_dv in iterate_dependence_direction_vectors(loop, ref1, ref2):
+        for dependence_dv in iterate_dependence_direction_vectors(loop, ref1, ref2, var_map):
             dv1 = calculate_valid_direction_vector(dependence_dv,
                                                    ref1_then_ref2_dv)
             if dv1:
@@ -47,12 +47,12 @@ def calculate_execution_order_direction_vector(surrounding_loop, source_ref, sin
     the_rest_directions = ['<=>'] * n_inner_dimensions
     return first_direction + the_rest_directions
 
-def iterate_dependence_direction_vectors(loop, source_ref, sink_ref):
+def iterate_dependence_direction_vectors(loop, source_ref, sink_ref, var_map):
     source_cvars, sink_cvars = generate_constraint_vars(loop.loop_vars)
-  
+
     constraints = []
-    constraints += generate_loop_bound_constraints(loop, source_cvars)
-    constraints += generate_loop_bound_constraints(loop, sink_cvars)
+    constraints += generate_loop_bound_constraints(loop, source_cvars, var_map)
+    constraints += generate_loop_bound_constraints(loop, sink_cvars, var_map)
     constraints += generate_subscript_equality_constraints(source_ref, source_cvars,
                                                            sink_ref, sink_cvars)
 
@@ -89,11 +89,13 @@ def generate_constraint_vars(loop_vars):
         sink_cvars[v] = Int(f'{v}_sink')
     return (source_cvars, sink_cvars)
 
-def generate_loop_bound_constraints(loop, constraint_vars):
+def generate_loop_bound_constraints(loop, constraint_vars, var_map):
     constraints = []
     for v in loop.loop_vars:
+        min_val = var_map.get_min(v)
+        max_val = var_map.get_max(v)
         cvar = constraint_vars[v]
-        constraints += [0 <= cvar, cvar < 500]
+        constraints += [min_val <= cvar, cvar < max_val]
     return constraints
 
 def affine_to_cexpr(affine, cvars):
