@@ -1,5 +1,5 @@
 from math import floor
-from abstract_ast import Assignment, AbstractIndex, Access, BinOp, AbstractLoop, Program, get_program_info
+from abstract_ast import Assignment, AbstractIndex, AffineIndex, Access, BinOp, AbstractLoop, Declaration, Program, get_program_info
 from concrete_ast import CAssignment, CAccess, CScalar, CLiteral, CLoop, CBinOp, CProgram, get_array_names
 
 def determine_dimension_size(arrays, max_size_per_array):
@@ -115,31 +115,29 @@ MAX_SIZE_PER_ARRAY = 500 * 500 * 500
 
 # TODO: test program needs to be a different program
 class SimpleFormatter:
-    def __init__(self, test_program, ref_program=None):
-        arrays, loop_vars = get_program_info(test_program)
-        # TODO: check whether test program and ref program have the same array names, dimensions
-        self.arrays = arrays
-        self.loop_vars = loop_vars
-        self.dimension_size = determine_dimension_size(arrays, MAX_SIZE_PER_ARRAY)
+    def __init__(self, test_program, ref_program, var_map, array_sizes):
+        self.array_sizes = array_sizes
+        self.var_map = var_map
         self.indent = 0
         self.test_program = test_program
 
         # concretize
-        self.c_test_program = SimpleConcretizer(test_program).concretize_program()
-        self.c_ref_program = SimpleConcretizer(ref_program).concretize_program()
+        self.c_test_program = SimpleConcretizer(test_program,
+                                                var_map,
+                                                array_sizes).concretize_program()
+        self.c_ref_program = SimpleConcretizer(ref_program,
+                                               var_map,
+                                               array_sizes).concretize_program()
 
-    def array_decl(self, ty, var, n_dimensions):
+    def array_decl(self, ty, name, sizes):
         ws = spaces(self.indent)
-        return f'{ws}{ty} (*{var})' + (''.join([f'[{self.dimension_size}]' * n_dimensions]) + ';')
-    def declare(self, ty, arrays):
-        lines = []
-        for array in sorted(arrays.keys()):
-            lines.append(self.array_decl(ty, array, len(arrays[array])))
-        return '\n'.join(lines)
+        return f'{ws}{ty} (*{name})' + (''.join([f'[{size}]' for size in sizes]) + ';')
+
     def declare_globals(self):
         lines = []
         lines.append(include())
-        lines.append(self.declare('float', self.arrays))
+        for array in sorted(self.array_sizes.keys()):
+            lines.append(self.array_decl('float', array, self.array_sizes[array]))
         lines.append(frand())
         lines.append(irand())
         return '\n'.join(lines)
@@ -181,19 +179,20 @@ class SimpleFormatter:
         lines.append(f'{ws}}}')
         return '\n'.join(lines)
 
-    def array_init(self, ty, arrays, mentioned_loop_vars, init_value):
+    def array_init(self, ty, arrays, sizes, init_value):
         lines = []
         ws = spaces(self.indent)
-        n_dimensions = len(mentioned_loop_vars)
+        loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
+        n_dimensions = len(loop_vars)
 
         # malloc
-        total_size_str = ' * '.join([f'{self.dimension_size}'] * n_dimensions)
+        total_size_str = ' * '.join([f'{size}' for size in sizes])
         for array in arrays:
             lines.append(f'{ws}{array} = malloc(sizeof({ty}) * {total_size_str});')
 
         # loop headers
-        for loop_var in mentioned_loop_vars:
-            lines.append(loop_header(self.indent, loop_var, 0, self.dimension_size))
+        for dimension, loop_var in enumerate(loop_vars):
+            lines.append(loop_header(self.indent, loop_var, 0, sizes[dimension]))
             self.indent += 1
 
         # loop body
@@ -201,13 +200,12 @@ class SimpleFormatter:
         init_var = 'v'
         init_stmt = f'{ws}{ty} {init_var} = {init_value};'
         lines.append(init_stmt)
-        indices_str = ''.join([f'[{loop_var}]' for loop_var in mentioned_loop_vars])
+        indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
         for array in arrays:
             lines.append(f'{ws}(*{array}){indices_str} = {init_var};')
-        # lines.append(f'{ws}(*{test_array}){indices_str} = {init_var};')
 
         # close brackets
-        for _ in range(len(mentioned_loop_vars)):
+        for _ in range(n_dimensions):
             self.indent -= 1
             lines.append('  ' * self.indent + '}')
 
@@ -224,8 +222,8 @@ class SimpleFormatter:
         # Seed the randomizer
         ws = spaces(self.indent)
         init_value = 'frand(0.0, 1.0)'
-        for array in sorted(self.arrays.keys()):
-            lines.append(self.array_init('float', [array], self.arrays[array], init_value))
+        for array in sorted(self.array_sizes.keys()):
+            lines.append(self.array_init('float', [array], self.array_sizes[array], init_value))
 
         # close function
         self.indent -= 1
@@ -246,28 +244,30 @@ class SimpleFormatter:
         self.indent += 1
         ws = spaces(self.indent)
         lines.append(f'{ws}clock_t before = clock();')
-        lines.append(self.c_test_program.pprint(self.indent + 1))
+        lines.append(self.c_test_program.pprint(self.indent))
         lines.append(f'{ws}clock_t after = clock();')
         lines.append(f'{ws}return after - before;')
         self.indent -= 1
         ws = spaces(self.indent)
         lines.append(f'{ws}}}')
         return '\n'.join(lines)
-    def array_compare(self, test_array, ref_array, mentioned_loop_vars):
+    def array_compare(self, test_array, ref_array, sizes):
         lines = []
+        n_dimensions = len(sizes)
+        loop_vars = [f'i{dimension}' for dimension in range(n_dimensions)]
         # loop headers
-        for loop_var in mentioned_loop_vars:
-            lines.append(loop_header(self.indent, loop_var, 0, self.dimension_size))
+        for dimension, loop_var in enumerate(loop_vars):
+            lines.append(loop_header(self.indent, loop_var, 0, sizes[dimension]))
             self.indent += 1
 
         # loop body
         ws = spaces(self.indent)
 
-        indices_str = ''.join([f'[{loop_var}]' for loop_var in mentioned_loop_vars])
+        indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
         lines.append(f'{ws}if ((*{test_array}){indices_str} != (*{ref_array}){indices_str}) return 0;')
 
         # close brackets
-        for _ in range(len(mentioned_loop_vars)):
+        for _ in range(n_dimensions):
             self.indent -= 1
             lines.append('  ' * self.indent + '}')
 
@@ -282,20 +282,21 @@ class SimpleFormatter:
 
         test_program_rename_map = {}
         ref_program_rename_map = {}
-        for array in sorted(self.arrays.keys()):
+        for array in sorted(self.array_sizes.keys()):
             ref = array + '_ref'
             ref_program_rename_map[array] = ref
             test = array + '_test'
             test_program_rename_map[array] = test
-            n_dimensions = len(self.arrays[array])
-            lines.append(self.array_decl('int', ref, n_dimensions))
-            lines.append(self.array_decl('int', test, n_dimensions))
+            n_dimensions = len(self.array_sizes[array])
+            sizes = self.array_sizes[array]
+            lines.append(self.array_decl('int', ref, sizes))
+            lines.append(self.array_decl('int', test, sizes))
 
         lines.append(f'{ws}// Initialization')
-        for array in sorted(self.arrays.keys()):
+        for array in sorted(self.array_sizes.keys()):
             ref = array + '_ref'
             test = array + '_test'
-            lines.append(self.array_init('int', [ref, test], self.arrays[array], 'irand(1, 10)'))
+            lines.append(self.array_init('int', [ref, test], self.array_sizes[array], 'irand(1, 10)'))
 
         # make test program
         c_test_program = self.c_test_program.clone()
@@ -311,10 +312,10 @@ class SimpleFormatter:
 
         # compare the results
         lines.append(f'{ws}// Compare the results')
-        for array in sorted(self.arrays.keys()):
+        for array in sorted(self.array_sizes.keys()):
             ref = array + '_ref'
             test = array + '_test'
-            lines.append(self.array_compare(test, ref, self.arrays[array]))
+            lines.append(self.array_compare(test, ref, self.array_sizes[array]))
 
         # if it reaches here, everything is good
         lines.append(f'{ws}return 1;')
@@ -324,14 +325,10 @@ class SimpleFormatter:
         return '\n'.join(lines)
 
 class SimpleConcretizer:
-    def __init__(self, program):
-        arrays, loop_vars = get_program_info(program)
+    def __init__(self, program, var_map, array_sizes):
         self.program = program
-        self.array = arrays
-        self.loop_vars = loop_vars
-        self.dimension_size = determine_dimension_size(arrays, MAX_SIZE_PER_ARRAY)
-        for var, (lower, upper) in loop_vars.items():
-            assert(upper - lower < self.dimension_size)
+        self.var_map = var_map
+        self.array_sizes = array_sizes
     def concretize_program(self):
         return self.concretize(self.program)
     def concretize(self, node):
@@ -339,6 +336,11 @@ class SimpleConcretizer:
             return CAssignment(
                 self.concretize(node.lhs.clone()),
                 self.concretize(node.rhs.clone()))
+        elif isinstance(node, Declaration):
+            # Nothing to do for declarations
+            pass
+            # return CDeclaration(node.name,
+            #                     self.array_sizes[node.name])
         elif isinstance(node, AbstractIndex):
             if node.relationship == 0:
                 return CScalar(node.var)
@@ -346,6 +348,20 @@ class SimpleConcretizer:
                 return CBinOp('+', CScalar(node.var), CLiteral(node.relationship))
             else:
                 return CBinOp('-', CScalar(node.var), CLiteral(-node.relationship))
+        elif isinstance(node, AffineIndex):
+            if not node.var or node.coeff == 0:
+                return CLiteral(node.offset)
+            if node.coeff == 1:
+                left = CScalar(node.var)
+            else:
+                left = CBinOp('*', CLiteral(node.coeff), CScalar(node.var))
+            if node.offset == 0:
+                return left
+            else:
+                if node.offset > 0:
+                    return CBinOp('+', left, CLiteral(node.offset))
+                else:
+                    return CBinOp('-', left, CLiteral(-node.offset))
         elif isinstance(node, Access):
             indices = [self.concretize(index) for index in node.indices]
             return CAccess(node.var, indices)
@@ -359,8 +375,8 @@ class SimpleConcretizer:
             reversed_loop_vars.reverse()
             inner_loop = None
             for loop_var in reversed_loop_vars:
-                start = 0 - self.loop_vars[loop_var][0]
-                end = self.dimension_size - self.loop_vars[loop_var][1]
+                start = self.var_map.get_min(loop_var)
+                end = self.var_map.get_max(loop_var)
                 if inner_loop:
                     inner_loop = CLoop(loop_var, start, end, [inner_loop])
                 else:

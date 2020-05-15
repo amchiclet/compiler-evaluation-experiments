@@ -3,6 +3,8 @@ class Limit:
     def __init__(self, min_val=None, max_val=None):
         self.min_val = min_val
         self.max_val = max_val
+    def clone(self):
+        return Limit(self.min_val, self.max_val)
 
 class VariableMap:
     def __init__(self, default_min=0, default_max=999):
@@ -27,6 +29,18 @@ class VariableMap:
             return self.default_max
         max_val = self.limits[var].max_val
         return max_val if max_val else self.default_max
+    def clone(self):
+        cloned = VariableMap(self.default_min, self.default_max)
+        for var, limit in self.limits.items():
+            cloned.limits[var] = limit.clone()
+        return cloned
+
+    def pprint(self):
+        lines = []
+        for var in sorted(self.limits.keys()):
+            limit = self.limits[var]
+            lines.append(f'Variable {var} range [{limit.min_val}, {limit.max_val}]')
+        return '\n'.join(lines)
 
 from z3 import Solver, Int, unsat, Optimize, sat, Or
 
@@ -47,8 +61,37 @@ def find_min_max(constraints, i):
     assert(sat == max_optimize.check())
     return [
         min_optimize.model().eval(i).as_long(),
-        max_optimize.model().eval(i).as_long() + 1,
+        max_optimize.model().eval(i).as_long(),
     ]
+
+def calculate_array_sizes(decls, var_map):
+    # maps name to [size]
+    array_sizes = {}
+    decl_vars = set()
+    for decl in decls:
+        array_sizes[decl.name] = []
+        for affine in decl.sizes:
+            if affine.var:
+                decl_vars.add(affine.var)
+    constraints = []
+    cvars = {}
+    for var in decl_vars:
+        cvar = Int(var)
+        cvars[var] = cvar
+        constraints += [
+            var_map.get_min(var) <= cvar,
+            cvar <= var_map.get_max(var)
+        ]
+
+    for decl in decls:
+        for dimension, size in enumerate(decl.sizes):
+            index = Int(f'{decl.name}[{dimension}]')
+            new_constraints = constraints + [index == affine_to_cexpr(size, cvars)]
+            min_val, max_val = find_min_max(new_constraints, index)
+            array_sizes[decl.name].append(max_val)
+    for array, size in array_sizes.items():
+        print(array, size)
+    return array_sizes
 
 def restrict_var_map(program, var_map):
     # constraints relating array indices
@@ -93,10 +136,11 @@ def restrict_var_map(program, var_map):
     constraints = []
     for decl in program.decls:
         for dimension, size in enumerate(decl.sizes):
-            decls[(decl.name, dimension)] = size
+            key = (decl.name, dimension)
+            decls[key] = size
+            uses[key] = []
+
     for access in accesses:
-        for dimension in range(len(access.indices)):
-            uses[(access.var, dimension)] = []
         for dimension, index in enumerate(access.indices):
             uses[(access.var, dimension)].append(index)
     for (array, dimension), indices in uses.items():
@@ -104,21 +148,39 @@ def restrict_var_map(program, var_map):
             raise RuntimeError(
                 f'Could not find declaration for array[dimension] {array}[{dimension}]')
         size = decls[(array, dimension)]
+
         csize = affine_to_cexpr(size, cvars)
+
         for index in indices:
-            print(f'{array}[{dimension}] {index.pprint()}')
             cexpr = affine_to_cexpr(index, cvars)
             # constraints induced by array size
             constraints.append(0 <= cexpr)
             constraints.append(cexpr < csize)
+            print('cexpr vs size', cexpr, csize)
 
-    # constraints induced by configuration
+    # new_var_map = var_map.clone()
+
+    # additional_constraints = []
     for var in all_vars:
-        n = var_map.get_min(var)
-        print(n, type(n))
         constraints.append(cvars[var] >= var_map.get_min(var))
-        constraints.append(cvars[var] < var_map.get_max(var))
+        constraints.append(cvars[var] <= var_map.get_max(var))
+    print(constraints)
+    # all_constraints = constraints + additional_constraints
+    # for var in decl_vars:
+    #     min_val, max_val = find_min_max(all_constraints, cvars[var])
+    #     config_max_val = new_var_map.get_max(var)
+    #     if config_min_val and config_min_val < min_val:
+    #         new_var_map.set_min(var, min_val)
+    #         additional_constraints.append(cvars[var] < max_val)
+    #     if config_max_val and max_val < config_max_val:
+    #         new_var_map.set_max(var, max_val)
+    #         additional_constraints.append(cvars[var] < max_val)
+    
     # constraints.append(cvars['x'] < 200)
+    new_var_map = VariableMap()
     for var in all_vars:
         min_val, max_val = find_min_max(constraints, cvars[var])
-        print(f'Variable {var} [{min_val}, {max_val})')
+        new_var_map.set_min(var, min_val)
+        new_var_map.set_max(var, max_val)
+    print(new_var_map.pprint())
+    return new_var_map

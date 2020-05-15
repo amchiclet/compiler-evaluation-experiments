@@ -1,4 +1,4 @@
-from abstract_ast import Node, Assignment, Access, AbstractLoop, BinOp, Program
+from abstract_ast import Node, Assignment, Access, AbstractLoop, BinOp, Program, Declaration
 
 def get_accesses(node):
     accesses = set()
@@ -32,6 +32,24 @@ def get_array_names(p):
 
 class CNode(Node):
     pass
+
+# class CDeclaration(Declaration):
+#     def __init__(self, name, sizes, node_id=0):
+#         self.name = name
+#         self.sizes = sizes
+#         self.node_id = node_id
+#     def clone(self):
+#         cloned = CDeclaration(self.name, list(self.sizes))
+#         return cloned
+#     def pprint(self, indent=0):
+#         ws = '  ' * indent
+#         list_of_pprint = [f'[{size}]' for size in self.sizes]
+#         return f'{ws}{self.name}{"".join(list_of_pprint)}'
+#     def rename(self, rename_map):
+#         if self.name in rename_map:
+#             self.name = rename_map[self.name]
+#             return True
+#         return False
 
 class CAssignment(Assignment):
     def clone(self):
@@ -94,7 +112,7 @@ class CLoop(CNode):
         self.node_id = node_id
     def clone(self):
         cloned_body = [stmt.clone() for stmt in self.body]
-        cloned_loop = CLoop(self.var, self.begin, self.end, cloned_body, self.node_id)
+        cloned_loop = CLoop(self.var, self.begin, self.end, cloned_body, self.node_id) 
         return cloned_loop
     def rename(self, rename_map):
         # if loop variable name clashes just throw an error
@@ -128,6 +146,9 @@ class CBinOp(BinOp):
         return self.left.rename(rename_map) or self.right.rename(rename_map)
 
 class CProgram(Program):
+    def __init__(self, loops, node_id=0):
+        self.loops = loops
+        self.node_id = node_id
     def clone(self):
         cloned_loops = [loop.clone() for loop in self.loops]
         return CProgram(cloned_loops, self.node_id)

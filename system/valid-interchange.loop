@@ -1,7 +1,5 @@
-declare O[x][y][z];
-declare I[2*x][2*y][2*z][2][2][2];
-declare K[2][2][2];
-
-for [h, w, c, hh, ww, cc] {
-  O[100][w][c] = O[h][w][c] * I[h][w][c][hh][ww][cc] * K[hh][ww][cc];
+declare A[x];
+declare B[2*x];
+for [h, w] {
+  A[h] = A[h] * A[h] * B[h];
 }
