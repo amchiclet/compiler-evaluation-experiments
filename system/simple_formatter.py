@@ -2,51 +2,35 @@ from math import floor
 from abstract_ast import Assignment, AbstractIndex, AffineIndex, Access, BinOp, AbstractLoop, Declaration, Program, get_program_info
 from concrete_ast import CAssignment, CAccess, CScalar, CLiteral, CLoop, CBinOp, CProgram, get_array_names
 
-def determine_dimension_size(arrays, max_size_per_array):
-    # sort array names by their depth
-    depth_of_deepest_array = -1
-    for var, mentioned_loop_vars in arrays.items():
-        if len(mentioned_loop_vars) > depth_of_deepest_array:
-            depth_of_deepest_array = len(mentioned_loop_vars)
-    assert(depth_of_deepest_array > 0)
-    return floor(max_size_per_array ** (1 / depth_of_deepest_array))
-
 def loop_header(indent, loop_var, begin, end):
     return '  ' * indent + \
-        (f'for (int {loop_var} = {begin};'
-         f'{loop_var} < {end};'
+        (f'for (int {loop_var} = {begin}; '
+         f'{loop_var} < {end}; '
          f'++{loop_var}) {{')
 
 def frand():
-    return """
-float frand(float min, float max) {
+    return """float frand(float min, float max) {
   float scale = rand() / (float) RAND_MAX;
   return min + scale * (max - min);
-}
-"""
+}"""
 
 def irand():
-    return """
-float irand(int min, int max) {
+    return """float irand(int min, int max) {
   return min + (rand() % (max - min));
-}
-"""
+}"""
 
 def include():
-    return """
-#include <x86intrin.h>
+    return """#include <x86intrin.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
 #include <limits.h>
-#include <string.h>
-"""
+#include <string.h>"""
 
 def main():
-    return """
-int main(int argc, char **argv) {
+    return """int main(int argc, char **argv) {
   if (argc < 2) {
     printf("Not enough number of arguments\\n");
     return 1;
@@ -82,12 +66,10 @@ int main(int argc, char **argv) {
     printf("Unsupported command %s\\n", argv[1]);
     return 1;
   }
-}
-"""
+}"""
 
 def run():
-    return """
-void run(int n_iterations) {
+    return """void run(int n_iterations) {
   // assuming micro seconds
   if (CLOCKS_PER_SEC != 1000000) {
     printf("WARNING: CLOCK_PER_SEC=%ld. Expected micro seconds (1000000).", CLOCKS_PER_SEC);
@@ -103,15 +85,10 @@ void run(int n_iterations) {
     printf("Iteration %d %d\\n", i+1, runtimes[i]);
   }
   free(runtimes);
-}
-"""
-MAX_SIZE_PER_ARRAY = 501 * 501 * 501
+}"""
 
 def spaces(indent):
     return '  ' * indent
-
-
-MAX_SIZE_PER_ARRAY = 500 * 500 * 500
 
 # TODO: test program needs to be a different program
 class SimpleFormatter:
@@ -135,18 +112,18 @@ class SimpleFormatter:
 
     def declare_globals(self):
         lines = []
-        lines.append(include())
+        lines.append(include() + '\n')
         for array in sorted(self.array_sizes.keys()):
             lines.append(self.array_decl('float', array, self.array_sizes[array]))
-        lines.append(frand())
+        lines.append('\n' + frand() + '\n')
         lines.append(irand())
         return '\n'.join(lines)
 
-    def nested_loop(self, loop_vars, body_lines):
+    def nested_loop(self, loop_vars, sizes, body_lines):
         lines = []
         # loop headers
-        for loop_var in loop_vars:
-            lines.append(loop_header(self.indent, loop_var, 0, self.dimension_size))
+        for loop_var, size in zip(loop_vars, sizes):
+            lines.append(loop_header(self.indent, loop_var, 0, size))
             self.indent += 1
         ws = spaces(self.indent)
         for body_line in body_lines:
@@ -167,11 +144,13 @@ class SimpleFormatter:
         ws = spaces(self.indent)
 
         lines.append(f'{ws}float total = 0.0;')
-        for array, loop_vars in self.arrays.items():
+
+        for array, sizes in self.array_sizes.items():
             # loop_vars = self.loop_vars[array]
+            loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
             indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
             body_lines = [f'total += (*{array}){indices_str};']
-            lines.append(self.nested_loop(loop_vars, body_lines))
+            lines.append(self.nested_loop(loop_vars, sizes, body_lines))
 
         lines.append(f'{ws}printf("Checksum is %f\\n", total);')
         self.indent -= 1
@@ -236,7 +215,6 @@ class SimpleFormatter:
         return run()
     def main(self):
         return main()
-
     def kernel(self):
         lines = []
         ws = spaces(self.indent)
@@ -323,6 +301,23 @@ class SimpleFormatter:
         ws = spaces(self.indent)
         lines.append(f'{ws}}}')
         return '\n'.join(lines)
+
+    def write_to_file(self, file_name):
+        with open(file_name, 'w') as f:
+            f.write(self.declare_globals())
+            f.write('\n\n')
+            f.write(self.init())
+            f.write('\n\n')
+            f.write(self.kernel())
+            f.write('\n\n')
+            f.write(self.run())
+            f.write('\n\n')
+            f.write(self.check())
+            f.write('\n\n')
+            f.write(self.checksum())
+            f.write('\n\n')
+            f.write(self.main())
+            f.write('\n\n')
 
 class SimpleConcretizer:
     def __init__(self, program, var_map, array_sizes):

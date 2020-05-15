@@ -22,7 +22,7 @@ var_map.set_max('w', 33)
 
 restricted = restrict_var_map(program, var_map)
 array_sizes = calculate_array_sizes(program.decls, restricted)
-
+print(restricted.pprint())
 def iterate_mutations(program):
     loop_interchange = LoopInterchange()
     for mutation in loop_interchange.transform(program, var_map):
@@ -31,5 +31,12 @@ def iterate_mutations(program):
 for mutation in iterate_mutations(program):
     print('printing mutation')
     print(mutation.pprint())
-    formatter = SimpleFormatter(mutation, program, var_map, array_sizes)
-    print(formatter.check())
+    formatter = SimpleFormatter(mutation, program, restricted, array_sizes)
+    formatter.write_to_file('test-program.c')
+    # print(formatter.declare_globals())
+    # print(formatter.init())
+    # print(formatter.kernel())
+    # print(formatter.run())
+    # print(formatter.check())
+    # print(formatter.checksum())
+    # print(formatter.main())
