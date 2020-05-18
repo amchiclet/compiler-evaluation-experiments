@@ -6,7 +6,7 @@ compilers = [
 ]
 
 base_command = {
-    'pgi': ['pgcc', '-Minfo', 'fast'],
+    'pgi': ['pgcc', '-Minfo', '-fast'],
     'gcc': ['gcc', '-march=native', '-Ofast'],
     'icc': ['icc', '-xCORE-AVX512', '-qopt-zmm-usage=high', '-Ofast'],
     'clang': ['clang', '-march=native', '-Ofast']
