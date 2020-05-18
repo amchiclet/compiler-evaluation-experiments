@@ -156,31 +156,15 @@ def restrict_var_map(program, var_map):
             # constraints induced by array size
             constraints.append(0 <= cexpr)
             constraints.append(cexpr < csize)
-            print('cexpr vs size', cexpr, csize)
 
     new_var_map = var_map.clone()
 
-    # additional_constraints = []
     for var in all_vars:
         constraints.append(cvars[var] >= var_map.get_min(var))
         constraints.append(cvars[var] <= var_map.get_max(var))
-    print(constraints)
-    # all_constraints = constraints + additional_constraints
-    # for var in decl_vars:
-    #     min_val, max_val = find_min_max(all_constraints, cvars[var])
-    #     config_max_val = new_var_map.get_max(var)
-    #     if config_min_val and config_min_val < min_val:
-    #         new_var_map.set_min(var, min_val)
-    #         additional_constraints.append(cvars[var] < max_val)
-    #     if config_max_val and max_val < config_max_val:
-    #         new_var_map.set_max(var, max_val)
-    #         additional_constraints.append(cvars[var] < max_val)
-    
-    # constraints.append(cvars['x'] < 200)
-    # new_var_map = VariableMap()
+
     for var in all_vars:
         min_val, max_val = find_min_max(constraints, cvars[var])
         new_var_map.set_min(var, min_val)
         new_var_map.set_max(var, max_val)
-    print(new_var_map.pprint())
     return new_var_map
