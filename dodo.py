@@ -19,30 +19,16 @@ def forall(f):
             for t in tests:
                 yield from f(c, m, t)
 
-
-def task_rm():
-    """Clean"""
-    def rm(compiler, mode, test):
-        exe_name = f'{test}.{compiler}.{mode}'
-        yield {
-            'name': exe_name,
-            'actions': [['rm', '-f', exe_name]],
-        }
-        assembly_name = f'{exe_name}.s'
-        yield {
-            'name': assembly_name,
-            'actions': [['rm', '-f', assembly_name]],
-        }
-    yield from forall(rm)
-
 def task_measure():
     """Measure"""
     def measure(compiler, mode, test):
         exe_name = f'{test}.{compiler}.{mode}'
+        measure_name = f'{exe_name}.runtimes'
         yield {
             'name': exe_name,
-            'actions': [[f'./{exe_name}', '--measure', str(get_var('iterations', 1))]],
-            'verbosity': 2
+            'file_dep': [exe_name],
+            'actions': [f'./{exe_name} --measure {get_var("iterations", 1)} > {measure_name}'],
+            'targets': [measure_name]
         }
     yield from forall(measure)
 
