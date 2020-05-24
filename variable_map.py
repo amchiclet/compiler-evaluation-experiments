@@ -1,4 +1,6 @@
 from abstract_ast import get_accesses
+from random import randint
+
 class Limit:
     def __init__(self, min_val=None, max_val=None):
         self.min_val = min_val
@@ -34,7 +36,6 @@ class VariableMap:
         for var, limit in self.limits.items():
             cloned.limits[var] = limit.clone()
         return cloned
-
     def pprint(self):
         lines = []
         for var in sorted(self.limits.keys()):
@@ -158,13 +159,20 @@ def restrict_var_map(program, var_map):
             constraints.append(cexpr < csize)
 
     new_var_map = var_map.clone()
-
     for var in all_vars:
         constraints.append(cvars[var] >= var_map.get_min(var))
-        constraints.append(cvars[var] <= var_map.get_max(var))
+        # TODO: check if it's an iteration variable
+        #       for now, just reduce the maximum value
+        #       we should be able to discriminate between iteration variables
+        #       and other types of vars
+        new_max = randint(var_map.get_min(var),
+                          var_map.get_max(var))
+        # constraints.append(cvars[var] <= var_map.get_max(var))
+        constraints.append(cvars[var] <= new_max)
 
     for var in all_vars:
         min_val, max_val = find_min_max(constraints, cvars[var])
         new_var_map.set_min(var, min_val)
         new_var_map.set_max(var, max_val)
+
     return new_var_map
