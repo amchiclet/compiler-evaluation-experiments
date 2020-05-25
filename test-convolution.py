@@ -12,22 +12,29 @@ loop = program.loops[0]
 default_min = 1
 default_max = 100
 var_map = VariableMap(default_min, default_max)
-var_map.set_max('HH', 5)
-var_map.set_max('WW', 5)
-var_map.set_max('CC', 5)
+var_map.set_max('H', 50)
+var_map.set_max('W', 50)
+var_map.set_max('C', 50)
+var_map.set_max('HH', 50)
+var_map.set_max('WW', 50)
+var_map.set_max('CC', 50)
 
 restricted = restrict_var_map(program, var_map)
 array_sizes = calculate_array_sizes(program.decls, restricted)
+print(var_map.pprint())
 print(restricted.pprint())
 def iterate_mutations(program):
     loop_interchange = LoopInterchange()
-    loop_interchange.batch_size = 10
-    for mutation in loop_interchange.transform(program, var_map):
+    loop_interchange.batch_size = 20
+    for mutation in loop_interchange.transform(program, restricted):
         yield mutation
 
 generated_c_files = []
 mutation_number = 0
-output_dir = 'output'
+
+from pathlib import Path
+output_dir = 'output2'
+Path(output_dir).mkdir(parents=True, exist_ok=True)
 file_name = f'convolution.{mutation_number:04d}.c'
 generated_c_files.append(file_name)
 SimpleFormatter(program,
