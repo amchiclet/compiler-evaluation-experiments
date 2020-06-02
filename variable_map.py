@@ -1,5 +1,5 @@
 from abstract_ast import get_accesses
-from random import randint
+from random import randint, choice
 
 class Limit:
     def __init__(self, min_val=None, max_val=None):
@@ -13,6 +13,10 @@ class VariableMap:
         self.default_min = default_min
         self.default_max = default_max
         self.limits = {}
+    def has_min(self, var):
+        return var in self.limits and not self.limits[var].min_val is None
+    def has_max(self, var):
+        return var in self.limits and not self.limits[var].max_val is None
     def set_min(self, var, min_val):
         if var not in self.limits:
             self.limits[var] = Limit()
@@ -54,16 +58,18 @@ def find_min_max(constraints, i):
     min_optimize = Optimize()
     min_optimize.assert_exprs(*constraints)
     min_optimize.minimize(i)
-    assert(sat == min_optimize.check())
+    min_val = None
+    if sat == min_optimize.check():
+        min_val = min_optimize.model().eval(i).as_long()
 
     max_optimize = Optimize()
     max_optimize.assert_exprs(*constraints)
     max_optimize.maximize(i)
-    assert(sat == max_optimize.check())
-    return [
-        min_optimize.model().eval(i).as_long(),
-        max_optimize.model().eval(i).as_long(),
-    ]
+    max_val = None
+    if sat == max_optimize.check():
+        max_val = max_optimize.model().eval(i).as_long()
+
+    return (min_val, max_val)
 
 def calculate_array_sizes(decls, var_map):
     # maps name to [size]
@@ -158,21 +164,36 @@ def restrict_var_map(program, var_map):
             constraints.append(0 <= cexpr)
             constraints.append(cexpr < csize)
 
-    new_var_map = var_map.clone()
+    restricted_var_map = var_map.clone()
     for var in all_vars:
-        constraints.append(cvars[var] >= var_map.get_min(var))
-        # TODO: check if it's an iteration variable
-        #       for now, just reduce the maximum value
-        #       we should be able to discriminate between iteration variables
-        #       and other types of vars
-        new_max = randint(var_map.get_min(var),
-                          var_map.get_max(var))
-        # constraints.append(cvars[var] <= var_map.get_max(var))
-        constraints.append(cvars[var] <= new_max)
-
+        current_min = var_map.get_min(var)
+        current_max = var_map.get_max(var)
+        constraints.append(cvars[var] >= current_min)
+        constraints.append(cvars[var] <= current_max)
     for var in all_vars:
         min_val, max_val = find_min_max(constraints, cvars[var])
-        new_var_map.set_min(var, min_val)
-        new_var_map.set_max(var, max_val)
+        assert(min_val is not None)
+        assert(max_val is not None)
+        restricted_var_map.set_min(var, min_val)
+        restricted_var_map.set_max(var, max_val)
 
-    return new_var_map
+    # either randomize the max values for ref vars or decl vars
+    randomized_var_map = restricted_var_map.clone()
+    for var in choice([decl_vars, ref_vars]):
+        current_min = restricted_var_map.get_min(var)
+        current_max = restricted_var_map.get_max(var)
+        x = randint(current_min, current_max)
+        y = randint(current_min, current_max)
+        new_min = min(x, y)
+        new_max = max(x, y)
+        constraints.append(cvars[var] >= new_min)
+        constraints.append(cvars[var] <= new_max)
+        print(constraints[-2:])
+    for var in all_vars:
+        min_val, max_val = find_min_max(constraints, cvars[var])
+        assert(min_val is not None)
+        assert(max_val is not None)
+        randomized_var_map.set_min(var, min_val)
+        randomized_var_map.set_max(var, max_val)
+
+    return randomized_var_map
