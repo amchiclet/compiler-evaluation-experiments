@@ -168,6 +168,7 @@ def restrict_var_map(program, var_map):
     for var in all_vars:
         current_min = var_map.get_min(var)
         current_max = var_map.get_max(var)
+        print('restrict', var, current_min, current_max)
         constraints.append(cvars[var] >= current_min)
         constraints.append(cvars[var] <= current_max)
     for var in all_vars:
@@ -186,9 +187,10 @@ def restrict_var_map(program, var_map):
         y = randint(current_min, current_max)
         new_min = min(x, y)
         new_max = max(x, y)
+        print('random', var, new_min, new_max)
         constraints.append(cvars[var] >= new_min)
         constraints.append(cvars[var] <= new_max)
-        print(constraints[-2:])
+
     for var in all_vars:
         min_val, max_val = find_min_max(constraints, cvars[var])
         assert(min_val is not None)

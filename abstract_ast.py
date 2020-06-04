@@ -11,12 +11,6 @@ def is_list_syntactically_equal(list1, list2):
     return True
 
 class Node:
-    def is_statement(self):
-        raise NotImplementedError
-    def is_loop(self):
-        raise NotImplementedError
-    def is_expression(self):
-        raise NotImplementedError
     # clone the node including the node ids
     def clone(self):
         raise NotImplementedError
@@ -28,6 +22,7 @@ class Declaration(Node):
         self.name = name
         self.sizes = sizes if sizes else []
         self.node_id = node_id
+        self.surrounding_loop = None
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         list_of_pprint = [f'[{size.pprint()}]' for size in self.sizes]
@@ -47,6 +42,10 @@ class Assignment(Node):
         self.lhs = lhs
         self.rhs = rhs
         self.surrounding_loop = None
+        for access in get_accesses(self):
+            access.parent_stmt = self
+            for index in access.indices:
+                index.parent_stmt = self
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}{self.lhs.pprint()} = {self.rhs.pprint()};'
@@ -54,10 +53,6 @@ class Assignment(Node):
         return f'{self.lhs.dep_print(refs)} = {self.rhs.dep_print(refs)};'
     def clone(self):
         cloned = Assignment(self.lhs.clone(), self.rhs.clone(), self.node_id)
-        for access in get_accesses(cloned):
-            access.parent_stmt = cloned
-            for index in access.indices:
-                index.parent_stmt = cloned
         return cloned
     def is_syntactically_equal(self, other):
         return self.lhs.is_syntactically_equal(other.lhs) and \
@@ -92,25 +87,6 @@ class AffineIndex(Node):
         return self.var == other.var and \
             self.coeff == other.coeff and \
             self.offset == other.offset
-
-class AbstractIndex(Node):
-    def __init__(self, var, relationship=0, node_id=0):
-        self.node_id = node_id
-        self.var = var
-        self.relationship = relationship
-    def pprint(self, indent=0):
-        if self.relationship > 0:
-            sign = '>' * self.relationship
-        elif self.relationship < 0:
-            sign = '<' * (-self.relationship)
-        else:
-            sign = ''
-        s = f'{sign}{self.var}'
-        return s
-    def clone(self):
-        return AbstractIndex(self.var, self.relationship, self.node_id)
-    def is_syntactically_equal(self, other):
-        return self.var == other.var and self.relationship == other.relationship
 
 # TODO: create expr class
 from termcolor import colored
@@ -150,6 +126,9 @@ class AbstractLoop(Node):
         self.node_id = node_id
         self.loop_vars = loop_vars
         self.body = body
+        self.surrounding_loop = None
+        for stmt in body:
+            stmt.surrounding_loop = self
 
         # To be used for strip mining
         self.partial_loop_order = []
@@ -163,8 +142,6 @@ class AbstractLoop(Node):
         cloned_loop_vars = list(self.loop_vars)
         cloned_body = [stmt.clone() for stmt in self.body]
         cloned_loop = AbstractLoop(cloned_loop_vars, cloned_body, self.node_id)
-        for stmt in cloned_body:
-            stmt.surrounding_loop = cloned_loop
         return cloned_loop
     def is_syntactically_equal(self, other):
         if self.loop_vars != other.loop_vars:
@@ -193,6 +170,12 @@ class Program:
         self.node_id = node_id
         self.decls = decls
         self.loops = loops
+        self.surrounding_loop = None
+        self.loop_vars = []
+        for loop in loops:
+            loop.surrounding_loop = self
+        for loop in loops:
+            loop.surrounding_loop = self
     def pprint(self, indent=0):
         body = []
         body += [f'{decl.pprint(indent)}' for decl in self.decls]
@@ -273,19 +256,6 @@ def get_program_info(program):
             loop_vars[loop_var][1] = max(loop_vars[loop_var][1],
                                          abstract_index.relationship)
     return arrays, loop_vars
-
-# # two accesses are compatible when they index the same
-# # loop variables in the same order
-# def is_comparable(access1, access2):
-#     n_dimensions = len(access1.indices)
-#     if  len(access2.indices) != n_dimensions:
-#         return False
-#     for index1, index2 in zip(access1.indices, access2.indices):
-#         if type(index1) != type(index2):
-#             return False
-#         if index1.var != index2.var:
-#             return False
-#     return True
 
 def is_same_memory(access1, access2):
     return access1.var == access2.var

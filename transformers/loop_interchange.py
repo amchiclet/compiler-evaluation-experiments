@@ -1,4 +1,5 @@
 from dependence_analysis import analyze_dependence
+from variable_map import VariableMap
 import random
 
 def swap(i, j, l):

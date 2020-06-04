@@ -1,5 +1,5 @@
 from math import floor
-from abstract_ast import Assignment, AbstractIndex, AffineIndex, Access, BinOp, AbstractLoop, Declaration, Program, get_program_info
+from abstract_ast import Assignment, AffineIndex, Access, BinOp, AbstractLoop, Declaration, Program, get_program_info
 from concrete_ast import CAssignment, CAccess, CScalar, CLiteral, CLoop, CBinOp, CProgram, get_array_names
 
 def loop_header(indent, loop_var, begin, end):

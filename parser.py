@@ -1,14 +1,14 @@
 from lark import Lark, Transformer
 
 grammar = '''
-    start: declaration+ abstract_loop+
+    start: declaration+ statement+
 
     declaration: "declare" array ("[" size "]")* ";"
     size: affine_index
     abstract_loop: "for" "[" loop_vars "]" "{" statement+ "}"
     loop_vars: scalar ("," scalar)*
 
-    statement: assignment
+    statement: assignment | abstract_loop
     assignment: access "=" expr ";"
 
     expr: binop | access
@@ -41,7 +41,7 @@ grammar = '''
 
 '''
 
-from abstract_ast import Assignment, AbstractIndex, Access, AbstractLoop, BinOp, Program, get_accesses, AffineIndex, Declaration
+from abstract_ast import Assignment, Access, AbstractLoop, BinOp, Program, get_accesses, AffineIndex, Declaration
 
 class TreeSimplifier(Transformer):
     def __init__(self, start_node_id=0):
@@ -106,10 +106,10 @@ class TreeSimplifier(Transformer):
         return Assignment(lhs, args[1], self.next_node_id())
     def statement(self, args):
         stmt = args[0]
-        for access in get_accesses(stmt):
-            access.parent_stmt = stmt
-            for index in access.indices:
-                index.parent_stmt = stmt
+        # for access in get_accesses(stmt):
+        #     access.parent_stmt = stmt
+        #     for index in access.indices:
+        #         index.parent_stmt = stmt
         return stmt
     def loop_vars(self, args):
         return args
@@ -117,9 +117,9 @@ class TreeSimplifier(Transformer):
         loop_vars = args[0]
         body = args[1:]
         loop = AbstractLoop(loop_vars, body, self.next_node_id())
-        for stmt in body:
-            assert(isinstance(stmt, Assignment))
-            stmt.surrounding_loop = loop
+        # for stmt in body:
+        #     # assert(isinstance(stmt, Assignment))
+        #     stmt.surrounding_loop = loop
         return loop
     def start(self, args):
         decls = []
@@ -131,8 +131,8 @@ class TreeSimplifier(Transformer):
                 loops.append(arg)
             else:
                 raise RuntimeError('Unsupported syntax in main program')
-        if len(loops) > 1:
-            raise RuntimeError('Only single loops are supported now.')
+        # if len(loops) > 1:
+        #     raise RuntimeError('Only single loops are supported now.')
         return Program(decls, loops, self.next_node_id())
 
 def parse_str(code):
