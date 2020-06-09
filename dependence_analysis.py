@@ -55,7 +55,7 @@ def calculate_execution_order_direction_vector(source_ref, sink_ref):
 
     common_parents = get_common_prefix(source_loops, sink_loops)
     n_common_parents = len(common_parents)
-    print(f'common loops = {n_common_parents}')
+
     assert(n_common_parents > 0)
     n_common_loops = n_common_parents - 1
 

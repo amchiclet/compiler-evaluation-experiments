@@ -24,6 +24,7 @@ def include():
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 #include <assert.h>
 #include <limits.h>
@@ -70,11 +71,6 @@ def main():
 
 def run():
     return """void run(int n_iterations) {
-  // assuming micro seconds
-  if (CLOCKS_PER_SEC != 1000000) {
-    printf("WARNING: CLOCK_PER_SEC=%ld. Expected micro seconds (1000000).", CLOCKS_PER_SEC);
-  }
-
   int *runtimes = (int*)malloc(n_iterations * sizeof(int));
 
   for (int i = 0; i < n_iterations; ++i) {
@@ -218,13 +214,17 @@ class SimpleFormatter:
     def kernel(self):
         lines = []
         ws = spaces(self.indent)
-        lines.append(f'{ws}clock_t kernel() {{')
+        lines.append(f'{ws}uint32_t kernel() {{')
         self.indent += 1
         ws = spaces(self.indent)
-        lines.append(f'{ws}clock_t before = clock();')
+        lines.append(f'{ws}struct timespec before, after;')
+        lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &before);')
         lines.append(self.c_test_program.pprint(self.indent))
-        lines.append(f'{ws}clock_t after = clock();')
-        lines.append(f'{ws}return after - before;')
+        lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &after);')
+        lines.append(f'int secs = after.tv_sec - before.tv_sec;')
+        lines.append(f'int nsecs = after.tv_nsec - before.tv_nsec;')
+        lines.append(f'int duration = 10e9 * secs + nsecs;')
+        lines.append(f'return duration;')
         self.indent -= 1
         ws = spaces(self.indent)
         lines.append(f'{ws}}}')
@@ -336,13 +336,6 @@ class SimpleConcretizer:
             pass
             # return CDeclaration(node.name,
             #                     self.array_sizes[node.name])
-        elif isinstance(node, AbstractIndex):
-            if node.relationship == 0:
-                return CScalar(node.var)
-            elif node.relationship > 0:
-                return CBinOp('+', CScalar(node.var), CLiteral(node.relationship))
-            else:
-                return CBinOp('-', CScalar(node.var), CLiteral(-node.relationship))
         elif isinstance(node, AffineIndex):
             if not node.var or node.coeff == 0:
                 return CLiteral(node.offset)
