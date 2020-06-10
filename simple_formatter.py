@@ -71,14 +71,14 @@ def main():
 
 def run():
     return """void run(int n_iterations) {
-  int *runtimes = (int*)malloc(n_iterations * sizeof(int));
+  unsigned long long *runtimes = (unsigned long long*)malloc(n_iterations * sizeof(unsigned long long));
 
   for (int i = 0; i < n_iterations; ++i) {
-    runtimes[i] = (int)kernel();
+    runtimes[i] = kernel();
   }
 
   for (int i = 0; i < n_iterations; ++i) {
-    printf("Iteration %d %d\\n", i+1, runtimes[i]);
+    printf("Iteration %d %llu\\n", i+1, runtimes[i]);
   }
   free(runtimes);
 }"""
@@ -214,17 +214,16 @@ class SimpleFormatter:
     def kernel(self):
         lines = []
         ws = spaces(self.indent)
-        lines.append(f'{ws}uint32_t kernel() {{')
+        lines.append(f'{ws}unsigned long long kernel() {{')
         self.indent += 1
         ws = spaces(self.indent)
         lines.append(f'{ws}struct timespec before, after;')
         lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &before);')
         lines.append(self.c_test_program.pprint(self.indent))
         lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &after);')
-        lines.append(f'int secs = after.tv_sec - before.tv_sec;')
-        lines.append(f'int nsecs = after.tv_nsec - before.tv_nsec;')
-        lines.append(f'int duration = 10e9 * secs + nsecs;')
-        lines.append(f'return duration;')
+        lines.append(f'{ws}unsigned long long duration = (after.tv_sec - before.tv_sec) * 1e9;')
+        lines.append(f'{ws}duration += after.tv_nsec - before.tv_nsec;')
+        lines.append(f'{ws}return duration;')
         self.indent -= 1
         ws = spaces(self.indent)
         lines.append(f'{ws}}}')
