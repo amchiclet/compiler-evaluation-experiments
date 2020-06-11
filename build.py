@@ -1,10 +1,7 @@
-from compilers import base_command, novec_flag
+from compilers import modes
 
 def build_commands(compiler, mode, test):
-    command = base_command[compiler]
-    if mode == 'novec':
-        command.append(novec_flag[compiler])
-
+    command = modes[mode][compiler]
     def assembly(output):
         return command + ['-S', '-o', output, test]
     def exe(output):
