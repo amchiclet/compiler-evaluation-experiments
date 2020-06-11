@@ -45,7 +45,7 @@ def task_measure():
         n_iterations_name = get_n_iterations_name(compiler, mode, test)
         yield {
             'name': exe_name,
-            'file_dep': [exe_name],
+            'file_dep': [exe_name, n_iterations_name],
             'actions': [f'./{exe_name} --measure $(cat {n_iterations_name}) > {measure_name}'],
             'targets': [measure_name]
         }
