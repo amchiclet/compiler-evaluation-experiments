@@ -87,6 +87,7 @@ def calculate_array_sizes(decls, var_map):
         cvars[var] = cvar
         constraints += [
             var_map.get_min(var) <= cvar,
+            0 < cvar,
             cvar <= var_map.get_max(var)
         ]
 
@@ -165,12 +166,15 @@ def restrict_var_map(program, var_map):
             constraints.append(cexpr < csize)
 
     restricted_var_map = var_map.clone()
+
     for var in all_vars:
         current_min = var_map.get_min(var)
         current_max = var_map.get_max(var)
         print('restrict', var, current_min, current_max)
         constraints.append(cvars[var] >= current_min)
         constraints.append(cvars[var] <= current_max)
+        if var in decl_vars:
+            constraints.append(cvars[var] > 0)
     for var in all_vars:
         min_val, max_val = find_min_max(constraints, cvars[var])
         assert(min_val is not None)
