@@ -3,6 +3,7 @@ from loguru import logger
 from transformers.loop_interchange import LoopInterchange
 from variable_map import VariableMap, restrict_var_map, calculate_array_sizes
 from simple_formatter import SimpleFormatter
+from multiprocessing import Pool
 
 program, _ = parse_file('convolution.loop')
 print(program.pprint())
@@ -43,25 +44,32 @@ def iterate_programs(program, var_map, n):
     yield from iterate_mutations()
 
 from pathlib import Path
-output_dir = 'conv'
+output_dir = 'conv2'
 Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+def filename(problem, p, m):
+    return f'{problem}.p{p:04d}.m{m:04d}.c'
 
 generated_file_names = []
 n_programs = 100
 n_mutations = 12
-for p in range(n_programs):
+
+def generate_batch(p):
     m = 0
     for (mutation, restricted, array_sizes) in iterate_programs(program, var_map, n_mutations):
-        file_name = f'convolution.p{p:04d}.m{m:04d}.c'
-        generated_file_names.append(file_name)
+        f = filename('convolution', p, m)
         SimpleFormatter(program,
                         mutation,
                         restricted,
-                        array_sizes).write_to_file(f'{output_dir}/{file_name}')
+                        array_sizes).write_to_file(f'{output_dir}/{f}')
         m += 1
+
+pool = Pool()
+pool.map(generate_batch, range(n_programs))
 
 with open(f'{output_dir}/tests.py', 'w') as f:
     f.write('tests = [\n')
-    for file_name in generated_file_names:
-        f.write(f'    "{file_name}",\n')
+    for p in range(n_programs):
+        for m in range(n_mutations):
+            f.write(f'    "{filename("convolution", p, m)}",\n')
     f.write(']\n')
