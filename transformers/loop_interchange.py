@@ -29,6 +29,7 @@ class LoopInterchange:
             var_map = VariableMap()
         assert(len(program.loops) == 1)
         dependence_graph = analyze_dependence(program.loops[0], var_map)
+        dependence_graph.debug()
 
         space = [list(loop.loop_vars) for loop in program.loops]
         for _ in range(self.batch_size):

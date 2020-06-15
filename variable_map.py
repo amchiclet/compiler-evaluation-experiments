@@ -1,5 +1,6 @@
 from abstract_ast import get_accesses
-from random import randint, choice
+from random import randint, choice, shuffle
+from loguru import logger
 
 class Limit:
     def __init__(self, min_val=None, max_val=None):
@@ -97,8 +98,9 @@ def calculate_array_sizes(decls, var_map):
             new_constraints = constraints + [index == affine_to_cexpr(size, cvars)]
             min_val, max_val = find_min_max(new_constraints, index)
             array_sizes[decl.name].append(max_val)
+    logger.info('Array sizes:')
     for array, size in array_sizes.items():
-        print(array, size)
+        logger.info(f'{array} {size}')
     return array_sizes
 
 def restrict_var_map(program, var_map):
@@ -170,7 +172,7 @@ def restrict_var_map(program, var_map):
     for var in all_vars:
         current_min = var_map.get_min(var)
         current_max = var_map.get_max(var)
-        print('restrict', var, current_min, current_max)
+        logger.debug('restrict', var, current_min, current_max)
         constraints.append(cvars[var] >= current_min)
         constraints.append(cvars[var] <= current_max)
         if var in decl_vars:
@@ -182,24 +184,36 @@ def restrict_var_map(program, var_map):
         restricted_var_map.set_min(var, min_val)
         restricted_var_map.set_max(var, max_val)
 
-    # either randomize the max values for ref vars or decl vars
-    randomized_var_map = restricted_var_map.clone()
-    for var in choice([decl_vars, ref_vars]):
-        current_min = restricted_var_map.get_min(var)
-        current_max = restricted_var_map.get_max(var)
-        x = randint(current_min, current_max)
-        y = randint(current_min, current_max)
-        new_min = min(x, y)
-        new_max = max(x, y)
-        print('random', var, new_min, new_max)
-        constraints.append(cvars[var] >= new_min)
-        constraints.append(cvars[var] <= new_max)
+    def randomize_map(current_map, current_constraints):
+        randomized_var_map = current_map.clone()
+        constraints = list(current_constraints)
+        order = [decl_vars, ref_vars]
+        shuffle(order)
 
-    for var in all_vars:
-        min_val, max_val = find_min_max(constraints, cvars[var])
-        assert(min_val is not None)
-        assert(max_val is not None)
-        randomized_var_map.set_min(var, min_val)
-        randomized_var_map.set_max(var, max_val)
+        for variables in order:
+            # for var in choice([decl_vars, ref_vars]):
+            for var in variables:
+                current_min = current_map.get_min(var)
+                current_max = current_map.get_max(var)
+                x = randint(current_min, current_max)
+                y = randint(current_min, current_max)
+                new_min = min(x, y)
+                new_max = max(x, y)
+                logger.debug('random', var, new_min, new_max)
+                constraints.append(cvars[var] >= new_min)
+                constraints.append(cvars[var] <= new_max)
 
-    return randomized_var_map
+            for var in all_vars:
+                min_val, max_val = find_min_max(constraints, cvars[var])
+                if min_val is None or max_val is None:
+                    return None
+                randomized_var_map.set_min(var, min_val)
+                randomized_var_map.set_max(var, max_val)
+        return randomized_var_map
+
+    for n_attempt in range(10):
+        randomized = randomize_map(restricted_var_map, constraints)
+        if randomized:
+            return randomized
+    raise RuntimeError('Unable to find a proper variable map')
+

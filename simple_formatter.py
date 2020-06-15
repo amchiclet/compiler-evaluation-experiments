@@ -5,7 +5,7 @@ from concrete_ast import CAssignment, CAccess, CScalar, CLiteral, CLoop, CBinOp,
 def loop_header(indent, loop_var, begin, end):
     return '  ' * indent + \
         (f'for (int {loop_var} = {begin}; '
-         f'{loop_var} < {end}; '
+         f'{loop_var} <= {end}; '
          f'++{loop_var}) {{')
 
 def frand():
@@ -46,6 +46,16 @@ def main():
     int n_iterations = atoi(argv[2]);
     printf("Measuring with %d iterations\\n", n_iterations);
     init();
+    run(n_iterations);
+    return 0;
+  } else if (strcmp(argv[1], "--measure_no_init") == 0) {
+    if (argc < 3) {
+      printf("Not enough number of arguments for measure_no_init mode\\n");
+      return 1;
+    }
+    int n_iterations = atoi(argv[2]);
+    printf("Measuring with %d iterations\\n", n_iterations);
+    allocate();
     run(n_iterations);
     return 0;
   } else if (strcmp(argv[1], "--test") == 0) {
@@ -119,7 +129,7 @@ class SimpleFormatter:
         lines = []
         # loop headers
         for loop_var, size in zip(loop_vars, sizes):
-            lines.append(loop_header(self.indent, loop_var, 0, size))
+            lines.append(loop_header(self.indent, loop_var, 0, size-1))
             self.indent += 1
         ws = spaces(self.indent)
         for body_line in body_lines:
@@ -154,16 +164,26 @@ class SimpleFormatter:
         lines.append(f'{ws}}}')
         return '\n'.join(lines)
 
+    def array_allocate(self, ty, arrays, sizes):
+        lines = []
+        ws = spaces(self.indent)
+
+        # malloc
+        total_size_str = ' * '.join([f'{size}' for size in sizes])
+        for array in arrays:
+            lines.append(f'{ws}{array} = malloc(sizeof({ty}) * {total_size_str});')
+        return '\n'.join(lines)
+
     def array_init(self, ty, arrays, sizes, init_value):
         lines = []
         ws = spaces(self.indent)
         loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
         n_dimensions = len(loop_vars)
 
-        # malloc
-        total_size_str = ' * '.join([f'{size}' for size in sizes])
-        for array in arrays:
-            lines.append(f'{ws}{array} = malloc(sizeof({ty}) * {total_size_str});')
+        # # malloc
+        # total_size_str = ' * '.join([f'{size}' for size in sizes])
+        # for array in arrays:
+        #     lines.append(f'{ws}{array} = malloc(sizeof({ty}) * {total_size_str});')
 
         # loop headers
         for dimension, loop_var in enumerate(loop_vars):
@@ -186,6 +206,17 @@ class SimpleFormatter:
 
         return '\n'.join(lines)
 
+    def allocate(self):
+        lines = []
+        lines.append(f'void allocate() {{')
+        self.indent += 1
+        for array in sorted(self.array_sizes.keys()):
+            lines.append(self.array_allocate('float', [array], self.array_sizes[array]))
+        self.indent -= 1
+        lines.append('}')
+
+        return '\n'.join(lines)
+
     # TODO: create initialization program
     def init(self):
         lines = []
@@ -196,9 +227,12 @@ class SimpleFormatter:
 
         # Seed the randomizer
         ws = spaces(self.indent)
+        lines.append(f'{ws}allocate();')
+
         init_value = 'frand(0.0, 1.0)'
         for array in sorted(self.array_sizes.keys()):
-            lines.append(self.array_init('float', [array], self.array_sizes[array], init_value))
+            loop_ends = [size - 1 for size in self.array_sizes[array]]
+            lines.append(self.array_init('float', [array], loop_ends, init_value))
 
         # close function
         self.indent -= 1
@@ -233,8 +267,9 @@ class SimpleFormatter:
         n_dimensions = len(sizes)
         loop_vars = [f'i{dimension}' for dimension in range(n_dimensions)]
         # loop headers
+        loop_ends = [size - 1 for size in sizes]
         for dimension, loop_var in enumerate(loop_vars):
-            lines.append(loop_header(self.indent, loop_var, 0, sizes[dimension]))
+            lines.append(loop_header(self.indent, loop_var, 0, loop_ends[dimension]))
             self.indent += 1
 
         # loop body
@@ -273,7 +308,9 @@ class SimpleFormatter:
         for array in sorted(self.array_sizes.keys()):
             ref = array + '_ref'
             test = array + '_test'
-            lines.append(self.array_init('int', [ref, test], self.array_sizes[array], 'irand(1, 10)'))
+            loop_ends = [size - 1 for size in self.array_sizes[array]]
+            lines.append(self.array_allocate('int', [ref, test], self.array_sizes[array]))
+            lines.append(self.array_init('int', [ref, test], loop_ends, 'irand(1, 10)'))
 
         # make test program
         c_test_program = self.c_test_program.clone()
@@ -304,6 +341,8 @@ class SimpleFormatter:
     def write_to_file(self, file_name):
         with open(file_name, 'w') as f:
             f.write(self.declare_globals())
+            f.write('\n\n')
+            f.write(self.allocate())
             f.write('\n\n')
             f.write(self.init())
             f.write('\n\n')

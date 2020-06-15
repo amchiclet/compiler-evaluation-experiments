@@ -1,3 +1,5 @@
+from loguru import logger
+
 class Dependence:
     def __init__(self, source_ref, sink_ref, direction_vector):
         self.source_ref = source_ref
@@ -41,4 +43,4 @@ class DependenceGraph:
     def debug(self):
         for dep_list in self.graph.values():
             for dep in dep_list:
-                print(dep.pprint())
+                logger.debug(dep.pprint())

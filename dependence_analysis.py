@@ -14,8 +14,8 @@ def analyze_dependence(program, var_map):
         ref1_then_ref2_dv = calculate_execution_order_direction_vector(ref1, ref2)
         ref2_then_ref1_dv = calculate_execution_order_direction_vector(ref2, ref1)
         for dependence_dv in iterate_dependence_direction_vectors(ref1, ref2, var_map):
-            print(f'{ref1.pprint()} -> {ref2.pprint()}:, '
-                  f'{dependence_dv} {ref1_then_ref2_dv}')
+            logger.debug(f'{ref1.pprint()} -> {ref2.pprint()}:, '
+                         f'{dependence_dv} {ref1_then_ref2_dv}')
             dv1 = calculate_valid_direction_vector(dependence_dv,
                                                    ref1_then_ref2_dv)
             if dv1 is not None:
@@ -23,8 +23,8 @@ def analyze_dependence(program, var_map):
 
 
             dependence_dv_inv = negate_direction_vector(dependence_dv)
-            print(f'{ref2.pprint()} -> {ref2.pprint()}:, '
-                  f'{dependence_dv_inv} {ref2_then_ref1_dv}')
+            logger.debug(f'{ref2.pprint()} -> {ref2.pprint()}:, '
+                         f'{dependence_dv_inv} {ref2_then_ref1_dv}')
             dv2 = calculate_valid_direction_vector(dependence_dv_inv,
                                                    ref2_then_ref1_dv)
             if dv2 is not None:

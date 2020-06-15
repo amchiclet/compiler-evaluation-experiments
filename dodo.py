@@ -1,6 +1,7 @@
-from tests import tests
-from compilers import compilers, modes
-from build import build_commands, get_exe_name, get_measure_name, get_n_iterations_name
+# from tests import tests
+from patterns import patterns
+from compilers import compilers
+from build import build_commands, get_exe_name, get_measure_name, get_n_iterations_name, forall_compilations
 from doit import get_var
 
 DOIT_CONFIG = {
@@ -15,12 +16,7 @@ def task_nothing():
     }
 
 def forall(f):
-    for c in compilers:
-        for m in ['fast', 'novec', 'nopredict']:
-            if c not in modes[m]:
-                continue
-            for t in tests:
-                yield from f(c, m, t)
+    yield from forall_compilations(f, patterns)
 
 def task_determine_iterations():
     """Determine number of iterations"""
@@ -51,6 +47,19 @@ def task_measure():
         }
     yield from forall(measure)
 
+def task_test():
+    """Test"""
+    def test(compiler, mode, test):
+        exe_name = get_exe_name(compiler, mode, test)
+        test_result_name = f'{exe_name}.test_result'
+        yield {
+            'name': exe_name,
+            'file_dep': [exe_name],
+            'actions': [f'./{exe_name} --test > {test_result_name}'],
+            'targets': [test_result_name]
+        }
+    yield from forall(test)
+
 def task_build():
     """Build"""
     def build(compiler, mode, test):
@@ -63,7 +72,13 @@ def task_build():
             'actions': [f'echo {" ".join(exe_command)}', exe_command],
             'targets': [exe_name],
         }
+    yield from forall(build)
 
+def task_assembly():
+    """Assembly"""
+    def assembly(compiler, mode, test):
+        assembly, exe = build_commands(compiler, mode, test)
+        exe_name = get_exe_name(compiler, mode, test)
         assembly_name = f'{exe_name}.s'
         assembly_command = assembly(assembly_name)
         yield {
@@ -72,4 +87,4 @@ def task_build():
             'actions': [f'echo {" ".join(assembly_command)}', assembly_command],
             'targets': [assembly_name],
         }
-    yield from forall(build)
+    yield from forall(assembly)
