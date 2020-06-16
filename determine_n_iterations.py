@@ -2,6 +2,7 @@ import delegator
 import argparse
 import statistics
 import math
+from build import PathBuilder
 
 def nsecs(command, n_iterations):
     c = delegator.run(f'{command} --measure {n_iterations}')
@@ -19,9 +20,11 @@ def nsecs(command, n_iterations):
 def n_iterations(goal_ms, per_iteration_nsec):
     return math.ceil(goal_ms * 1e6 / per_iteration_nsec)
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--command', required=True, type=str)
-parser.add_argument('--goal_ms', required=True, type=int)
-args = parser.parse_args()
-per_iteration_nsec = nsecs(args.command, 1)
-print(n_iterations(args.goal_ms, per_iteration_nsec))
+def determine_n_iterations(compiler, mode, pattern, program, mutation, goal_ms):
+    path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
+    exe_name = path_builder.exe_path()
+    n_iterations_name = path_builder.n_iterations_path()
+    with open(n_iterations_name, 'w') as f:
+        per_iteration_nsec = nsecs(f'./{exe_name}', 1)
+        iters = n_iterations(goal_ms, per_iteration_nsec)
+        f.write(f'{iters}')
