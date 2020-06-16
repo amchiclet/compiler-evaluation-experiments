@@ -48,6 +48,9 @@ class PathBuilder:
     def program_summary_path(self):
         return f'{self.program_prefix()}.{self.compiler}.{self.mode}.summary'
 
+    def program_stability_path(self):
+        return f'{self.program_prefix()}.{self.compiler}.{self.mode}.stability'
+
 class CommandBuilder:
     def __init__(self, path_builder):
         self.path_builder = path_builder

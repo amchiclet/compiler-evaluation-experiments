@@ -4,6 +4,7 @@ from doit import get_var
 from build import forall_mutations, forall_programs, PathBuilder, CommandBuilder
 from aggregate import summarize_program
 from determine_n_iterations import determine_n_iterations
+from stats import calculate_stability
 
 DOIT_CONFIG = {
     'default_tasks': ['nothing'],
@@ -98,7 +99,7 @@ def task_assembly():
 
 def task_summarize_programs():
     """Summarize program runtimes"""
-    def determine(compiler, mode, pattern, program, mutations):
+    def aggregate(compiler, mode, pattern, program, mutations):
         args = [compiler, mode, pattern, program]
         path_builder = PathBuilder(*args)
         summary_path = path_builder.program_summary_path()
@@ -113,4 +114,19 @@ def task_summarize_programs():
             'actions': [(summarize_program, args + [mutations])],
             'targets': [summary_path]
         }
-    yield from forall_programs(patterns, determine)
+    yield from forall_programs(patterns, aggregate)
+
+def task_calculate_program_stability():
+    """Calculate runtime stability"""
+    def calculate(compiler, mode, pattern, program, _):
+        args = [compiler, mode, pattern, program]
+        path_builder = PathBuilder(*args)
+        summary_path = path_builder.program_summary_path()
+        stability_path = path_builder.program_stability_path()
+        yield {
+            'name': stability_path,
+            'file_dep': [summary_path],
+            'actions': [(calculate_stability, args)],
+            'targets': [stability_path]
+        }
+    yield from forall_programs(patterns, calculate)
