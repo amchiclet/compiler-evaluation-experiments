@@ -30,20 +30,29 @@ class PathBuilder:
     def source_code_path(self):
         return f'{self.mutation_prefix()}.c'
 
-    def exe_path(self):
-        return f'{self.source_code_path()}.{self.compiler}.{self.mode}'
+    def full_prefix(self):
+        return f'{self.mutation_prefix()}.{self.compiler}.{self.mode}'
+
+    # def exe_path(self):
+    #     return f'{self.source_code_path()}.{self.compiler}.{self.mode}'
 
     def assembly_path(self):
-        return f'{self.exe_path()}.s'
+        return f'{self.full_prefix()}.s'
 
     def runtimes_path(self):
-        return f'{self.exe_path()}.runtimes'
+        return f'{self.full_prefix()}.runtimes'
 
     def n_iterations_path(self):
-        return f'{self.exe_path()}.n_iterations'
+        return f'{self.full_prefix()}.n_iterations'
 
     def test_result_path(self):
-        return f'{self.exe_path()}.test_result'
+        return f'{self.full_prefix()}.test_result'
+
+    def mutation_summary_path(self):
+        return f'{self.full_prefix()}.summary'
+
+    def min_of_program_path(self):
+        return f'{self.program_prefix()}.{self.compiler}.{self.mode}.min'
 
     def program_summary_path(self):
         return f'{self.program_prefix()}.{self.compiler}.{self.mode}.summary'
@@ -57,7 +66,7 @@ class CommandBuilder:
 
     def build_exe(self):
         test = self.path_builder.source_code_path()
-        output = self.path_builder.exe_path()
+        output = self.path_builder.full_prefix()
         mode = self.path_builder.mode
         compiler = self.path_builder.compiler
         return compiler_command_map[mode][compiler] + ['-o', output, test]

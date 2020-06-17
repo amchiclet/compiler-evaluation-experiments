@@ -2,7 +2,7 @@ from patterns import patterns
 from compilers import compilers
 from doit import get_var
 from build import forall_mutations, forall_programs, PathBuilder, CommandBuilder
-from aggregate import summarize_program
+from aggregate import find_min_for_program, summarize_mutation
 from determine_n_iterations import determine_n_iterations
 from stats import calculate_stability
 
@@ -22,7 +22,7 @@ def task_determine_iterations():
     def determine(compiler, mode, pattern, program, mutation):
         args = [compiler, mode, pattern, program, mutation]
         path_builder = PathBuilder(*args)
-        exe_name = path_builder.exe_path()
+        exe_name = path_builder.full_prefix()
         n_iterations_name = path_builder.n_iterations_path()
         goals_ms = 100
         yield {
@@ -40,7 +40,7 @@ def task_measure():
     """Measure"""
     def measure(compiler, mode, pattern, program, mutation):
         path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-        exe_name = path_builder.exe_path()
+        exe_name = path_builder.full_prefix()
         measure_name = path_builder.runtimes_path()
         n_iterations_name = path_builder.n_iterations_path()
         yield {
@@ -55,7 +55,7 @@ def task_test():
     """Test"""
     def test(compiler, mode, pattern, program, mutation):
         path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-        exe_name = path_builder.exe_path()
+        exe_name = path_builder.full_prefix()
         test_result_name = path_builder.test_result_path()
         yield {
             'name': exe_name,
@@ -71,7 +71,7 @@ def task_build():
         path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
         command_builder = CommandBuilder(path_builder)
         source_path = path_builder.source_code_path()
-        exe_name = path_builder.exe_path()
+        exe_name = path_builder.full_prefix()
         exe_command = command_builder.build_exe()
         yield {
             'name': exe_name,
@@ -97,24 +97,39 @@ def task_assembly():
         }
     yield from forall_mutations(patterns, assembly)
 
-def task_summarize_programs():
+def task_summarize_mutations():
     """Summarize program runtimes"""
-    def aggregate(compiler, mode, pattern, program, mutations):
+    def aggregate(compiler, mode, pattern, program, mutation):
+        args = [compiler, mode, pattern, program, mutation]
+        path_builder = PathBuilder(*args)
+        summary_path = path_builder.mutation_summary_path()
+        runtimes_path = path_builder.runtimes_path()
+        yield {
+            'name': summary_path,
+            'file_dep': [runtimes_path],
+            'actions': [(summarize_mutation, args)],
+            'targets': [summary_path]
+        }
+    yield from forall_mutations(patterns, aggregate)
+
+def task_find_min_for_programs():
+    """Find min program runtimes"""
+    def find_min(compiler, mode, pattern, program, mutations):
         args = [compiler, mode, pattern, program]
         path_builder = PathBuilder(*args)
-        summary_path = path_builder.program_summary_path()
+        min_path = path_builder.min_of_program_path()
         runtimes_files = []
         for m in mutations:
             path_builder.mutation = m
             runtimes_path = path_builder.runtimes_path()
             runtimes_files.append(runtimes_path)
         yield {
-            'name': summary_path,
+            'name': min_path,
             'file_dep': runtimes_files,
-            'actions': [(summarize_program, args + [mutations])],
-            'targets': [summary_path]
+            'actions': [(find_min_for_program, args + [mutations])],
+            'targets': [min_path]
         }
-    yield from forall_programs(patterns, aggregate)
+    yield from forall_programs(patterns, find_min)
 
 def task_calculate_program_stability():
     """Calculate runtime stability"""

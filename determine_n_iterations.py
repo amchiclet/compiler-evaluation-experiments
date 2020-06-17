@@ -22,7 +22,7 @@ def n_iterations(goal_ms, per_iteration_nsec):
 
 def determine_n_iterations(compiler, mode, pattern, program, mutation, goal_ms):
     path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-    exe_name = path_builder.exe_path()
+    exe_name = path_builder.full_prefix()
     n_iterations_name = path_builder.n_iterations_path()
     with open(n_iterations_name, 'w') as f:
         per_iteration_nsec = nsecs(f'./{exe_name}', 1)
