@@ -4,7 +4,10 @@ from transformers.loop_interchange import LoopInterchange
 from variable_map import VariableMap, restrict_var_map, calculate_array_sizes
 from simple_formatter import SimpleFormatter
 from multiprocessing import Pool
-from build import program_str, mutation_str, filename
+from build import PathBuilder
+
+n_programs = 4
+n_mutations = 4
 
 logger.add(sink = 'convolution.log',
            level = 'INFO',
@@ -53,14 +56,18 @@ from pathlib import Path
 output_dir = 'temp'
 Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-generated_file_names = []
-n_programs = 10
-n_mutations = 12
+def program_str(p):
+    return f'p{p:04d}'
+
+def mutation_str(m):
+    return f'm{m:04d}'
 
 def generate_batch(p):
     m = 0
     for (mutation, new_var_map, new_array_sizes) in iterate_programs(program, var_map, n_mutations):
-        f = filename('convolution', p, m)
+        pattern_str = 'convolution'
+        pb = PathBuilder(pattern=pattern_str, program=program_str(p), mutation=mutation_str(m))
+        f = pb.source_code_path()
         SimpleFormatter(program,
                         mutation,
                         new_var_map,
@@ -80,7 +87,15 @@ from pprint import PrettyPrinter
 with open(f'{output_dir}/patterns.py', 'w') as f:
     f.write('patterns = ')
     pp = PrettyPrinter(indent=2, stream=f)
-    patterns = [('convolution', list_programs())]
+    patterns = []
+
+    pattern = 'convolution'
+    programs = []
+    for p in range(n_programs):
+        program = program_str(p)
+        mutations = [mutation_str(m) for m in range(n_mutations)]
+        programs.append((program, mutations))
+    patterns.append((pattern, programs))
     pp.pprint(patterns)
 
     # f.write('tests = [\n')

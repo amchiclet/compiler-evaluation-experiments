@@ -4,15 +4,6 @@ from scipy import stats
 from build import forall_programs, PathBuilder
 
 from patterns import patterns
-
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--runtimes_file', required=True, type=str)
-# parser.add_argument('--compiler', required=True, type=str)
-# parser.add_argument('--mode', required=True, type=str)
-# parser.add_argument('--pattern', required=True, type=str)
-# parser.add_argument('--program', required=True, type=str)
-# args = parser.parse_args()
-
 def format_runtimes_file(path):
     runtimes = []
     with open(path) as f:
@@ -24,7 +15,7 @@ def format_runtimes_file(path):
             r = int(line.split()[2])
             runtimes.append(r)
     # return format_runtimes(runtimes)
-    return Summary().init(runtimes).pprint()
+    return Summary().init_from_runtimes(runtimes).pprint()
 
 class Summary:
     def __init__(self, count=None, mean=None, std=None, gmean=None, gstd=None,
@@ -38,7 +29,8 @@ class Summary:
         self.median = median
         self.min_val = min_val
         self.max_val = max_val
-    def parse(self, path):
+
+    def parse_from_runtimes(self, path):
         runtimes = []
         with open(path) as f:
             for line in f:
@@ -48,8 +40,9 @@ class Summary:
             for line in f:
                 r = int(line.split()[2])
                 runtimes.append(r)
-        self.init(runtimes)
-    def init(self, runtimes):
+        return self.init_from_runtimes(runtimes)
+
+    def init_from_runtimes(self, runtimes):
         self.count = len(runtimes)
         self.mean = stats.tmean(runtimes)
         self.std = stats.tstd(runtimes)
@@ -59,16 +52,45 @@ class Summary:
         self.median = median(runtimes)
         self.min_val = min(runtimes)
         self.max_val = max(runtimes)
+        return self
+
     def pprint(self):
         return (f'count:{self.count} '
-                f'mean:{self.mean:.2f} '
-                f'std:{self.std:.2f} '
-                f'gmean:{self.gmean:.2f} '
-                f'gstd:{self.gstd:.2f} '
+                f'mean:{self.mean} '
+                f'std:{self.std} '
+                f'gmean:{self.gmean} '
+                f'gstd:{self.gstd} '
                 f'mode:{self.mode} '
                 f'median:{self.median} '
                 f'min:{self.min_val} '
                 f'max:{self.max_val}')
+
+    def parse_from_summary(self, path):
+        with open(path) as f:
+            s = f.read()
+            parts = s.split()
+            for part in parts:
+                subparts = part.split(':')
+                if subparts[0] == 'count':
+                    self.count = int(subparts[1])
+                elif subparts[0] == 'mean':
+                    self.mean = float(subparts[1])
+                elif subparts[0] == 'std':
+                    self.std = float(subparts[1])
+                elif subparts[0] == 'gmean':
+                    self.gmean = float(subparts[1])
+                elif subparts[0] == 'gstd':
+                    self.gstd = float(subparts[1])
+                elif subparts[0] == 'mode':
+                    self.mode = int(float(subparts[1]))
+                elif subparts[0] == 'median':
+                    self.median = int(float(subparts[1]))
+                elif subparts[0] == 'min':
+                    self.min_val = int(subparts[1])
+                elif subparts[0] == 'max':
+                    self.max_val = int(subparts[1])
+        return self
+
     def merge_min(self, other):
         self.count = min(self.count, other.count)
         self.mean = min(self.mean, other.mean)
@@ -80,39 +102,27 @@ class Summary:
         self.min_val = min(self.min_val, other.min_val)
         self.max_val = min(self.max_val, other.max_val)
 
-# def format_runtimes(runtimes):
-#     return (f'count:{len(runtimes)} '
-#             f'mean:{stats.tmean(runtimes):.2f} '
-#             f'std:{stats.tstd(runtimes):.2f} '
-#             f'gmean:{stats.gmean(runtimes):.2f} '
-#             f'gstd:{stats.gstd(runtimes):.2f} '
-#             f'mode:{stats.mode(runtimes)[0][0]} '
-#             f'median:{median(runtimes)} '
-#             f'min:{min(runtimes)} '
-#             f'max:{max(runtimes)}')
-
-
 def parse_mean(line):
     return float(line.split()[1].split(':')[1])
 
 def summarize_mutation(compiler, mode, pattern, program, mutation):
     path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-    summary_path = path_builder.mutation_summary_path()
+    summary_path = path_builder.summary_path()
     with open(summary_path, 'w') as f:
         f.write(format_runtimes_file(path_builder.runtimes_path()))
 
 def find_min_for_program(compiler, mode, pattern, program, mutations):
     assert(len(mutations) > 0)
     summaries = []
+    path_builder = PathBuilder(compiler, mode, pattern, program)
     for mutation in mutations:
-        path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-        runtimes_path = path_builder.runtimes_path()
+        runtimes_path = path_builder.runtimes_path(mutation=mutation)
         summary = Summary()
-        summary.parse(runtimes_path)
+        summary.parse_from_runtimes(runtimes_path)
         summaries.append(summary)
     min_summary = summaries[0]
     for other_summary in summaries[1:]:
         min_summary.merge_min(other_summary)
-    min_path = path_builder.min_of_program_path()        
+    min_path = path_builder.min_path()
     with open(min_path, 'w') as f:
         f.write(min_summary.pprint())

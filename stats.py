@@ -1,7 +1,7 @@
 from scipy import log, e
 from scipy.stats import gmean, gstd, tmean, tstd
 from math import sqrt
-from aggregate import parse_mean
+from aggregate import Summary
 from build import PathBuilder
 def geometric_mean(l):
     return gmean(l)
@@ -24,18 +24,23 @@ def format(l):
     return (f'arithmetic_stability:{arithmetic_stability(l):.10f} '
             f'geometric_stability:{geometric_stability(l):.10f}')
 
-def format_summary_file(path):
-    means = []
-    with open(path) as f:
-        for line in f:
-            if line:
-                means.append(parse_mean(line))
-    print(means)
-    return format(means)
+# def calculate_stability(min_of_program_path):
+#     means = []
+#     with open(min_of_program_path) as f:
+#         means.append(parse_mean(f.read))
+#     print(means)
+#     return format(means)
 
-def calculate_stability(compiler, mode, pattern, program):
-    path_builder = PathBuilder(compiler, mode, pattern, program)
-    stability_path = path_builder.program_stability_path()
+def calculate_mutation_perf_stability(min_of_program_path, mutation_summary_path, stability_path):
+    best_mutation = Summary().parse_from_summary(min_of_program_path).mean
+    mutation = Summary().parse_from_summary(mutation_summary_path).mean
     with open(stability_path, 'w') as f:
-        summary_path = path_builder.program_summary_path()
-        f.write(format_summary_file(summary_path))
+        f.write(f'{best_mutation / mutation}')
+
+def calculate_perf_stability(mutation_stability_paths, stability_path):
+    mutation_stabilities = []
+    for path in mutation_stability_paths:
+        with open(path) as f:
+            mutation_stabilities.append(float(f.read()))
+    with open(stability_path, 'w') as f:
+        f.write(f'{geometric_mean(mutation_stabilities)}')
