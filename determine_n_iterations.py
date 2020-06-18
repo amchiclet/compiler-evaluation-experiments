@@ -20,10 +20,7 @@ def nsecs(command, n_iterations):
 def n_iterations(goal_ms, per_iteration_nsec):
     return math.ceil(goal_ms * 1e6 / per_iteration_nsec)
 
-def determine_n_iterations(compiler, mode, pattern, program, mutation, goal_ms, min_iters=3, max_iters=100):
-    path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-    exe_name = path_builder.exe_path()
-    n_iterations_name = path_builder.n_iterations_path()
+def determine_n_iterations(exe_name, n_iterations_name, goal_ms, min_iters=3, max_iters=100):
     with open(n_iterations_name, 'w') as f:
         per_iteration_nsec = nsecs(f'./{exe_name}', 1)
         iters = n_iterations(goal_ms, per_iteration_nsec)

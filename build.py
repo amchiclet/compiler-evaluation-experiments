@@ -1,15 +1,6 @@
 from compilers import compilers, base_command, novec_flag, nopredict_flag
 import inspect
 
-# def program_str(p):
-#     return f'p{p:04d}'
-# def mutation_str(m):
-#     return f'm{m:04d}'
-# def filename(pattern, p, m):
-#     program = program_str(p) if isinstance(p, int) else p
-#     mutation = mutation_str(m) if isinstance(m, int) else m
-#     return f'{pattern}.{program}.{mutation}.c'
-
 class PathBuilder:
     def __init__(self, compiler=None, mode=None, pattern=None, program=None, mutation=None):
         self.compiler = compiler
@@ -85,17 +76,25 @@ class PathBuilder:
         prefix = self.prefix(pattern=pattern, program=program)
         return f'{prefix}.min'
 
-    def perf_stability_path(self, pattern=None, program=None, mutation=None):
+    def perf_path(self, pattern=None, program=None, mutation=None):
         prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.perf_stability'
+        return f'{prefix}.perf'
 
     def vec_speedup_path(self, compiler=None, pattern=None, program=None, mutation=None):
         prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.vec_speedup'
 
+    def vec_success_path(self, compiler=None, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.vec_success'
+
     def peer_fraction_path(self, c1, c2, pattern=None, program=None, mutation=None):
         prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.{c1}.{c2}.fraction'
+
+    def peer_is_faster_path(self, c1, c2, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.{c1}.{c2}.is_faster'
 
 class CommandBuilder:
     def build_exe(self, compiler, mode, test, output):
@@ -133,6 +132,10 @@ def iterate_compiler_vec_novec():
         if compiler in compiler_command_map['novec']:
             yield compiler
 
+def iterate_compiler_fast():
+    for compiler in compiler_command_map['fast'].keys():
+        yield compiler
+
 def iterate_compiler_pair_fast():
     compilers = sorted(compiler_command_map['fast'].keys())
     for c1 in compilers[:-1]:
@@ -140,30 +143,16 @@ def iterate_compiler_pair_fast():
             yield (c1, c2)
 
 def iterate_mutations(patterns):
+    for pattern, program, mutations in iterate_programs(patterns):
+        for mutation in mutations:
+            yield (pattern, program, mutation)
+
+def iterate_programs(patterns):
     for pattern, programs in patterns:
         for program, mutations in programs:
-            for mutation in mutations:
-                yield (pattern, program, mutation)
+            yield (pattern, program, mutations)
 
-def forall_modes(patterns, f):
+def iterate_compiler_modes():
     for mode, compilers in compiler_command_map.items():
         for compiler in compilers:
-            yield from gen(f, compiler, mode, patterns)
-
-def forall_patterns(patterns, f):
-    def wrap(compiler, mode, patterns):
-        for pattern, programs in patterns:
-            yield from gen(f, compiler, mode, pattern, programs)
-    yield from forall_modes(patterns, wrap)
-
-def forall_programs(patterns, f):
-    def wrap(compiler, mode, pattern, programs):
-        for program, mutations in programs:
-            yield from gen(f, compiler, mode, pattern, program, mutations)
-    yield from forall_patterns(patterns, wrap)
-
-def forall_mutations(patterns, f):
-    def wrap(compiler, mode, pattern, program, mutations):
-        for mutation in mutations:
-            yield from gen(f, compiler, mode, pattern, program, mutation)
-    yield from forall_programs(patterns, wrap)
+            yield (compiler, mode)

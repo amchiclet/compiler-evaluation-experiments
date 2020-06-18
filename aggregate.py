@@ -1,21 +1,6 @@
 import argparse
 from numpy import median
 from scipy import stats
-from build import forall_programs, PathBuilder
-
-from patterns import patterns
-def format_runtimes_file(path):
-    runtimes = []
-    with open(path) as f:
-        for line in f:
-            # ignore first line
-            n_iterations = int(line.split()[2])
-            break
-        for line in f:
-            r = int(line.split()[2])
-            runtimes.append(r)
-    # return format_runtimes(runtimes)
-    return Summary().init_from_runtimes(runtimes).pprint()
 
 class Summary:
     def __init__(self, count=None, mean=None, std=None, gmean=None, gstd=None,
@@ -102,27 +87,15 @@ class Summary:
         self.min_val = min(self.min_val, other.min_val)
         self.max_val = min(self.max_val, other.max_val)
 
-def parse_mean(line):
-    return float(line.split()[1].split(':')[1])
+def format_runtimes_file(path):
+    runtimes = []
+    with open(path) as f:
+        for line in f:
+            # ignore first line
+            n_iterations = int(line.split()[2])
+            break
+        for line in f:
+            r = int(line.split()[2])
+            runtimes.append(r)
+    return Summary().init_from_runtimes(runtimes).pprint()
 
-def summarize_mutation(compiler, mode, pattern, program, mutation):
-    path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-    summary_path = path_builder.summary_path()
-    with open(summary_path, 'w') as f:
-        f.write(format_runtimes_file(path_builder.runtimes_path()))
-
-def find_min_for_program(compiler, mode, pattern, program, mutations):
-    assert(len(mutations) > 0)
-    summaries = []
-    path_builder = PathBuilder(compiler, mode, pattern, program)
-    for mutation in mutations:
-        runtimes_path = path_builder.runtimes_path(mutation=mutation)
-        summary = Summary()
-        summary.parse_from_runtimes(runtimes_path)
-        summaries.append(summary)
-    min_summary = summaries[0]
-    for other_summary in summaries[1:]:
-        min_summary.merge_min(other_summary)
-    min_path = path_builder.min_path()
-    with open(min_path, 'w') as f:
-        f.write(min_summary.pprint())
