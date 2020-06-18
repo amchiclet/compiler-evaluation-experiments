@@ -77,8 +77,8 @@ class PathBuilder:
     def test_result_path(self):
         return f'{self.prefix()}.test_result'
 
-    def summary_path(self, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
+    def summary_path(self, compiler=None, mode=None, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(compiler=compiler, mode=mode, pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.summary'
 
     def min_path(self, pattern=None, program=None):
@@ -88,6 +88,14 @@ class PathBuilder:
     def perf_stability_path(self, pattern=None, program=None, mutation=None):
         prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.perf_stability'
+
+    def vec_speedup_path(self, compiler=None, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.vec_speedup'
+
+    def peer_fraction_path(self, c1, c2, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.{c1}.{c2}.fraction'
 
 class CommandBuilder:
     def build_exe(self, compiler, mode, test, output):
@@ -119,6 +127,17 @@ def gen(f, *argv):
         yield from f(*argv)
     else:
         yield f(*argv)
+
+def iterate_compiler_vec_novec():
+    for compiler in compiler_command_map['fast']:
+        if compiler in compiler_command_map['novec']:
+            yield compiler
+
+def iterate_compiler_pair_fast():
+    compilers = sorted(compiler_command_map['fast'].keys())
+    for c1 in compilers[:-1]:
+        for c2 in compilers[1:]:
+            yield (c1, c2)
 
 def iterate_mutations(patterns):
     for pattern, programs in patterns:

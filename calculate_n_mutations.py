@@ -1,10 +1,10 @@
 # what population we want to include
 # For example, if we want to compute the probability that the the top and bottom 10% is included
 # in our sample, then use 0.1
-threshold = 0.25
+threshold = 0.05
 
 # What is the probability we are aiming for
-probability_goal = 0.9
+probability_goal = 0.95
 
 def include_top_and_bottom_prob(n_choose):
     include_top_or_bottom = 1 - ((1 - threshold*2)**n_choose)

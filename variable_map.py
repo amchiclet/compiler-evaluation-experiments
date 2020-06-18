@@ -211,7 +211,8 @@ def restrict_var_map(program, var_map):
                 randomized_var_map.set_max(var, max_val)
         return randomized_var_map
 
-    for n_attempt in range(10):
+    while True:
+    # for n_attempt in range(10):
         randomized = randomize_map(restricted_var_map, constraints)
         if randomized:
             return randomized

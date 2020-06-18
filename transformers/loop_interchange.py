@@ -7,6 +7,9 @@ def swap(i, j, l):
     l[i] = l[j]
     l[j] = t
 
+def reorder(new_order, l):
+    l[:] = [l[i] for i in new_order]
+
 def is_positive(dv):
     for d in dv:
         if d == '>':
@@ -45,10 +48,26 @@ class LoopInterchange:
                             return False
                     return True
 
-                i1, i2 = random.sample(range(len(loop.loop_vars)), 2)
-                if is_interchangable(i1, i2):
+                def is_permutable(new_order):
+                    for dv in iterate_direction_vectors(dependence_graph, loop):
+                        cloned = list(dv)
+                        reorder(new_order, cloned)
+                        if is_positive(cloned):
+                            return False
+                    return True
+
+                new_order = list(range(len(loop.loop_vars)))
+                random.shuffle(new_order)
+                if is_permutable(new_order):
                     clone = program.clone()
-                    swap(i1, i2, clone.loops[loop_i].loop_vars)
+                    reorder(new_order, clone.loops[loop_i].loop_vars)
                     yield clone
                     break
+
+                # i1, i2 = random.sample(range(len(loop.loop_vars)), 2)
+                # if is_interchangable(i1, i2):
+                #     clone = program.clone()
+                #     swap(i1, i2, clone.loops[loop_i].loop_vars)
+                #     yield clone
+                #     break
                     

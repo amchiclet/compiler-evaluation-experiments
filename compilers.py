@@ -1,6 +1,6 @@
 compilers = [
     'gcc',
-    # 'icc',
+    'icc',
     # 'pgi',
     'clang',
 ]

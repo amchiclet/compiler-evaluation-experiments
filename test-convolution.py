@@ -6,8 +6,9 @@ from simple_formatter import SimpleFormatter
 from multiprocessing import Pool
 from build import PathBuilder
 
-n_programs = 4
-n_mutations = 4
+n_programs = 10
+n_mutations = 72
+output_dir = 'temp'
 
 logger.add(sink = 'convolution.log',
            level = 'INFO',
@@ -53,7 +54,6 @@ def iterate_programs(program, var_map, n):
     yield from iterate_mutations()
 
 from pathlib import Path
-output_dir = 'temp'
 Path(output_dir).mkdir(parents=True, exist_ok=True)
 
 def program_str(p):
@@ -68,8 +68,8 @@ def generate_batch(p):
         pattern_str = 'convolution'
         pb = PathBuilder(pattern=pattern_str, program=program_str(p), mutation=mutation_str(m))
         f = pb.source_code_path()
-        SimpleFormatter(program,
-                        mutation,
+        SimpleFormatter(mutation,
+                        program,
                         new_var_map,
                         new_array_sizes).write_to_file(f'{output_dir}/{f}')
         m += 1

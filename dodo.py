@@ -1,10 +1,10 @@
 from patterns import patterns
 from compilers import compilers
 from doit import get_var
-from build import forall_modes, forall_mutations, forall_programs, PathBuilder, CommandBuilder, iterate_mutations
+from build import forall_modes, forall_mutations, forall_programs, PathBuilder, CommandBuilder, iterate_mutations, iterate_compiler_vec_novec, iterate_compiler_pair_fast
 from aggregate import find_min_for_program, summarize_mutation
 from determine_n_iterations import determine_n_iterations
-from stats import calculate_mutation_perf_stability, calculate_perf_stability
+from stats import calculate_mutation_perf_stability, calculate_perf_stability, calculate_vec_speedup, calculate_vec_stability, calculate_peer_fraction
 
 DOIT_CONFIG = {
     'default_tasks': ['nothing'],
@@ -152,9 +152,10 @@ def task_calculate_compiler_perf_stability():
     def calculate(compiler, mode, patterns):
         path_builder = PathBuilder(compiler, mode)
         stability_path = path_builder.perf_stability_path()
-        print(stability_path)
-        mutation_stabilities = [path_builder.perf_stability_path(*args)
-                                for args in iterate_mutations(patterns)]
+        mutation_stabilities = [path_builder.perf_stability_path(pattern=pattern,
+                                                                 program=program,
+                                                                 mutation=mutation)
+                                for (pattern, program, mutation) in iterate_mutations(patterns)]
         yield {
             'name': stability_path,
             'file_dep': mutation_stabilities,
@@ -163,3 +164,52 @@ def task_calculate_compiler_perf_stability():
             'targets': [stability_path]
         }
     yield from forall_modes(patterns, calculate)
+
+def task_calculate_mutation_vec_speedup():
+    """Calculate mutation vec speedup"""
+    for (pattern, program, mutation) in iterate_mutations(patterns):
+        path_builder = PathBuilder(pattern=pattern, program=program, mutation=mutation)
+        for compiler in iterate_compiler_vec_novec():
+            vec_path = path_builder.summary_path(compiler=compiler, mode='fast')
+            novec_path = path_builder.summary_path(compiler=compiler, mode='novec')
+            stability_path = path_builder.vec_speedup_path(compiler=compiler)
+            yield {
+                'name': stability_path,
+                'file_dep': [vec_path, novec_path],
+                'actions': [(calculate_vec_speedup,
+                             [vec_path, novec_path, stability_path])],
+                'targets': [stability_path]
+            }
+
+def task_calculate_vec_stability():
+    """Calculate compiler vectorization stability"""
+    for compiler in iterate_compiler_vec_novec():
+        path_builder = PathBuilder(compiler)
+        mutation_vec_speedups = [path_builder.vec_speedup_path(pattern=pattern,
+                                                               program=program,
+                                                               mutation=mutation)
+                                 for (pattern, program, mutation) in iterate_mutations(patterns)]
+        stability_path = path_builder.vec_speedup_path()
+        yield {
+            'name': stability_path,
+            'file_dep': mutation_vec_speedups,
+            'actions': [(calculate_vec_stability,
+                         [mutation_vec_speedups, stability_path])],
+            'targets': [stability_path]
+        }
+
+def task_calculate_mutation_peer_fraction():
+    """Calculate mutation peer fraction"""
+    for (pattern, program, mutation) in iterate_mutations(patterns):
+        path_builder = PathBuilder(mode='fast', pattern=pattern, program=program, mutation=mutation)
+        for c1, c2 in iterate_compiler_pair_fast():
+            c1_path = path_builder.summary_path(compiler=c1)
+            c2_path = path_builder.summary_path(compiler=c2)
+            peer_fraction_path = path_builder.peer_fraction_path(c1, c2)
+            yield {
+                'name': peer_fraction_path,
+                'file_dep': [c1_path, c2_path],
+                'actions': [(calculate_peer_fraction,
+                             [c1_path, c2_path, peer_fraction_path])],
+                'targets': [peer_fraction_path]
+            }
