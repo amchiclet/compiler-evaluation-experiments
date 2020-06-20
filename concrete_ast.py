@@ -126,7 +126,7 @@ class CLoop(CNode):
         header = f'{ws}for [{", ".join(self.loop_vars)}] {{'
     def pprint(self, indent=0):
         ws = '  ' * indent
-        lines = [f'{ws}for (int {self.var} = {self.begin}; {self.var} < {self.end}; ++{self.var}) {{']
+        lines = [f'{ws}for (int {self.var} = {self.begin}; {self.var} <= {self.end}; ++{self.var}) {{']
         for stmt in self.body:
             lines.append(stmt.pprint(indent + 1))
         lines.append(f'{ws}}}')

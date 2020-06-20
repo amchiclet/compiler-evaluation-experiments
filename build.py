@@ -80,21 +80,59 @@ class PathBuilder:
         prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.perf'
 
+    def perf_ci_path(self, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.perf_ci'
+
+    # VECTORIZATION
     def vec_speedup_path(self, compiler=None, pattern=None, program=None, mutation=None):
         prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.vec_speedup'
+
+    def vec_speedup_ci_path(self, compiler=None, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.vec_speedup_ci'
+
+    def best_vec_speedup_path(self, mutation=None):
+        prefix = self.prefix(mutation=mutation)
+        return f'{prefix}.best_vec_speedup'
+
+    def normalized_vec_speedup_path(self, compiler=None, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.normalized_vec_speedup'
 
     def vec_success_path(self, compiler=None, pattern=None, program=None, mutation=None):
         prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.vec_success'
 
+    # PEER
+    def sum_of_logs_path(self, compiler=None, mode=None, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(compiler=compiler, mode=mode, pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.sum_of_logs'
+
     def peer_fraction_path(self, c1, c2, pattern=None, program=None, mutation=None):
         prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.{c1}.{c2}.fraction'
 
+    def peer_fraction_ci_path(self, c1, c2, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.{c1}.{c2}.fraction_ci'
+
+    def best_peer_fraction_path(self, c1, c2, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.{c1}.{c2}.best_fraction'
+
+    def normalized_peer_fraction_path(self, c1, c2, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.{c1}.{c2}.normalized_fraction'
+
     def peer_is_faster_path(self, c1, c2, pattern=None, program=None, mutation=None):
         prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
         return f'{prefix}.{c1}.{c2}.is_faster'
+
+    def peer_is_faster_ci_path(self, c1, c2, pattern=None, program=None, mutation=None):
+        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
+        return f'{prefix}.{c1}.{c2}.is_faster_ci'
 
 class CommandBuilder:
     def build_exe(self, compiler, mode, test, output):
@@ -138,8 +176,8 @@ def iterate_compiler_fast():
 
 def iterate_compiler_pair_fast():
     compilers = sorted(compiler_command_map['fast'].keys())
-    for c1 in compilers[:-1]:
-        for c2 in compilers[1:]:
+    for i, c1 in enumerate(compilers[:-1]):
+        for c2 in compilers[i+1:]:
             yield (c1, c2)
 
 def iterate_mutations(patterns):

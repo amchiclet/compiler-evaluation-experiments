@@ -392,7 +392,7 @@ class SimpleConcretizer:
             indices = [self.concretize(index) for index in node.indices]
             return CAccess(node.var, indices)
         elif isinstance(node, BinOp):
-            return CBinOp('*',
+            return CBinOp(node.op,
                           self.concretize(node.left.clone()),
                           self.concretize(node.right.clone()))
         elif isinstance(node, AbstractLoop):
