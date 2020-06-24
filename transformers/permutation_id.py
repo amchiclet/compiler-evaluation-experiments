@@ -33,9 +33,9 @@ def to_id(p):
         result += strides[i+1] * value
     return result
 
-print(calculate_strides(4))
-for i in range(720):
-    p = to_permutation(i, 6)
-    n = to_id(p)
-    assert(i == n)
-    print(f'id({i}) permutation({p})  back to id({to_id(p)})')
+# print(calculate_strides(4))
+# for i in range(720):
+#     p = to_permutation(i, 6)
+#     n = to_id(p)
+#     assert(i == n)
+#     print(f'id({i}) permutation({p})  back to id({to_id(p)})')

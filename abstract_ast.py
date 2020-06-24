@@ -174,8 +174,6 @@ class Program:
         self.loop_vars = []
         for loop in loops:
             loop.surrounding_loop = self
-        for loop in loops:
-            loop.surrounding_loop = self
     def pprint(self, indent=0):
         body = []
         body += [f'{decl.pprint(indent)}' for decl in self.decls]
