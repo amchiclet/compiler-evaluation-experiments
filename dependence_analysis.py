@@ -52,12 +52,19 @@ def calculate_execution_order_direction_vector(source_ref, sink_ref):
     sink_stmt = sink_ref.parent_stmt
     sink_loops = gather_surrounding_loops(sink_stmt)
     sink_trace = sink_loops + [sink_stmt]
+    logger.debug(f'debugging execution order dv\n'
+                 f'source: {source_trace}\n'
+                 f'sink: {sink_trace}')
 
     common_parents = get_common_prefix(source_loops, sink_loops)
     n_common_parents = len(common_parents)
 
     assert(n_common_parents > 0)
-    n_common_loops = n_common_parents - 1
+    n_common_loops = 0
+    for parent in common_parents:
+        if isinstance(parent, AbstractLoop):
+            n_common_loops += len(parent.loop_vars)
+    # n_common_loops = n_common_parents - 1
 
     common_ancestor = common_parents[-1]
     source_first_diff = source_trace[n_common_parents]

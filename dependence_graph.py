@@ -8,8 +8,8 @@ class Dependence:
     def pprint(self):
         stmt1 = self.source_ref.parent_stmt
         stmt2 = self.sink_ref.parent_stmt
-        return (f'From: {stmt1.dep_print([self.source_ref])}\n'
-                f'To:   {stmt2.dep_print([self.sink_ref])}\n'
+        return (f'From: {stmt1.dep_print([self.source_ref])}({self.source_ref.node_id})\n'
+                f'To:   {stmt2.dep_print([self.sink_ref])}({self.sink_ref.node_id})\n'
                 f'DV:   {self.direction_vector}')
 
 class DependenceGraph:
@@ -37,6 +37,11 @@ class DependenceGraph:
         key = (source_id, sink_id)
         if not key in self.graph:
             self.graph[key] = []
+
+        existing_deps = self.graph[key]
+        for existing_dep in existing_deps:
+            if existing_dep.direction_vector == direction_vector:
+                return
         dep = Dependence(source_ref, sink_ref, direction_vector)
         self.graph[key].append(dep)
 
