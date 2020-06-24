@@ -212,6 +212,22 @@ def get_accesses(node):
         print(node)
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
 
+def get_loops(node):
+    if isinstance(node, AbstractLoop):
+        loops = {node.node_id:node}
+        for stmt in node.body:
+            loops.update(get_loops(stmt))
+        return loops
+    elif isinstance(node, Program):
+        loops = {}
+        for loop in node.loops:
+            loops.update(get_loops(loop))
+        return loops
+    elif isinstance(node, Assignment):
+        return {}
+    else:
+        raise RuntimeError('get_loops: Unhandled type of node ' + str(type(node)))
+
 # returns a map from array name to the number of dimensions for that array
 def get_arrays(program):
     arrays = {}

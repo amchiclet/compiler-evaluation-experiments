@@ -1,0 +1,11 @@
+declare A[I];
+declare B[I][J];
+declare C[I];
+
+for [i, j, k] {
+  A[i] = A[i] + B[i][j];
+}
+
+for [i, j, k] {
+  A[i] = A[i] + C[i];
+}
