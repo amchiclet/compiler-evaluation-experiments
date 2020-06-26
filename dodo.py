@@ -2,7 +2,7 @@ from patterns import patterns
 from compilers import compilers
 from doit import get_var
 from build import PathBuilder, CommandBuilder, iterate_mutations, iterate_programs, iterate_compiler_vec_novec, iterate_compiler_pair_fast, iterate_compiler_fast, iterate_compiler_modes
-from determine_n_iterations import determine_n_iterations
+from determine_n_iterations import determine_n_iterations, calculate_ns_per_iteration, measure_runtime
 from stats import \
     calculate_perf_slowdown, \
     calculate_vec_speedup, \
@@ -40,6 +40,35 @@ def task_determine_iterations():
                 'file_dep': [exe_name],
                 'actions': [(determine_n_iterations, [exe_name, n_iterations_name, goals_ms])],
                 'targets': [n_iterations_name]
+            }
+
+def task_find_ns_per_iteration():
+    """Determine nanosecond per iteration"""
+    for (compiler, mode) in iterate_compiler_modes():
+        for (pattern, program, mutation) in iterate_mutations(patterns):
+            path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
+            exe_name = path_builder.exe_path()
+            output_path = path_builder.ns_per_iteration_path()
+            yield {
+                'name': exe_name,
+                'file_dep': [exe_name],
+                'actions': [(calculate_ns_per_iteration, [exe_name, output_path])],
+                'targets': [output_path]
+            }
+
+def task_measure_runtimes():
+    """Determine runtimes nanosec"""
+    for (compiler, mode) in iterate_compiler_modes():
+        for (pattern, program, mutation) in iterate_mutations(patterns):
+            path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
+            exe_name = path_builder.exe_path()
+            ns_per_iteration_path = path_builder.ns_per_iteration_path()
+            output_path = path_builder.runtimes_ns_path()
+            yield {
+                'name': exe_name,
+                'file_dep': [exe_name, ns_per_iteration_path],
+                'actions': [(measure_runtime, [exe_name, ns_per_iteration_path, output_path])],
+                'targets': [output_path]
             }
 
 def task_measure():

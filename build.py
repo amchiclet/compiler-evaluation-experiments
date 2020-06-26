@@ -62,8 +62,14 @@ class PathBuilder:
     def runtimes_path(self, mutation=None):
         return f'{self.prefix(mutation=mutation)}.runtimes'
 
+    def runtimes_ns_path(self, mutation=None):
+        return f'{self.prefix(mutation=mutation)}.nanosec_runtimes'
+
     def n_iterations_path(self):
         return f'{self.prefix()}.n_iterations'
+
+    def ns_per_iteration_path(self):
+        return f'{self.prefix()}.nanosec_per_iteration'
 
     def test_result_path(self):
         return f'{self.prefix()}.test_result'
