@@ -10,25 +10,27 @@ def is_ordered(l, v1, v2):
 def analyze_dependence(program, var_map):
     graph = DependenceGraph()
     for (ref1, ref2) in iterate_unique_reference_pairs(program):
-
-        ref1_then_ref2_dv = calculate_execution_order_direction_vector(ref1, ref2)
-        ref2_then_ref1_dv = calculate_execution_order_direction_vector(ref2, ref1)
         for dependence_dv in iterate_dependence_direction_vectors(ref1, ref2, var_map):
-            logger.debug(f'{ref1.pprint()} -> {ref2.pprint()}:, '
-                         f'{dependence_dv} {ref1_then_ref2_dv}')
-            dv1 = calculate_valid_direction_vector(dependence_dv,
-                                                   ref1_then_ref2_dv)
-            if dv1 is not None:
-                graph.add(ref1, ref2, dv1)
-
+            for ref1_then_ref2_dv in iterate_execution_order_direction_vector(ref1, ref2):
+                logger.debug(f'Testing:\n'
+                             f'{ref1.pprint()} -> {ref2.pprint()}:, '
+                             f'{dependence_dv} {ref1_then_ref2_dv}')
+                dv1 = calculate_valid_direction_vector(dependence_dv,
+                                                       ref1_then_ref2_dv)
+                if dv1 is not None:
+                    logger.debug(f'Valid direction vector: {dv1}')
+                    graph.add(ref1, ref2, dv1)
 
             dependence_dv_inv = negate_direction_vector(dependence_dv)
-            logger.debug(f'{ref2.pprint()} -> {ref2.pprint()}:, '
-                         f'{dependence_dv_inv} {ref2_then_ref1_dv}')
-            dv2 = calculate_valid_direction_vector(dependence_dv_inv,
-                                                   ref2_then_ref1_dv)
-            if dv2 is not None:
-                graph.add(ref2, ref1, dv2)
+            for ref2_then_ref1_dv in iterate_execution_order_direction_vector(ref2, ref1):
+                logger.debug(f'Testing:\n'
+                             f'{ref2.pprint()} -> {ref2.pprint()}:, '
+                             f'{dependence_dv_inv} {ref2_then_ref1_dv}')
+                dv2 = calculate_valid_direction_vector(dependence_dv_inv,
+                                                       ref2_then_ref1_dv)
+                if dv2 is not None:
+                    logger.debug(f'Valid direction vector: {dv2}')
+                    graph.add(ref2, ref1, dv2)
     return graph
 
 def iterate_unique_reference_pairs(program):
@@ -44,8 +46,7 @@ def iterate_unique_reference_pairs(program):
                 continue
             yield (ref1, ref2)
 
-
-def calculate_execution_order_direction_vector(source_ref, sink_ref):
+def iterate_execution_order_direction_vector(source_ref, sink_ref):
     source_stmt = source_ref.parent_stmt
     source_loops = gather_surrounding_loops(source_stmt)
     source_trace = source_loops + [source_stmt]
@@ -64,7 +65,6 @@ def calculate_execution_order_direction_vector(source_ref, sink_ref):
     for parent in common_parents:
         if isinstance(parent, AbstractLoop):
             n_common_loops += len(parent.loop_vars)
-    # n_common_loops = n_common_parents - 1
 
     common_ancestor = common_parents[-1]
     source_first_diff = source_trace[n_common_parents]
@@ -74,17 +74,20 @@ def calculate_execution_order_direction_vector(source_ref, sink_ref):
         if not is_ordered(common_ancestor.loops,
                           source_first_diff,
                           sink_first_diff):
-            return None
+            yield None
         else:
-            return []
-
-    assert(isinstance(common_ancestor, AbstractLoop))
-    if is_ordered(common_ancestor.body,
-                  source_first_diff,
-                  sink_first_diff):
-        return ['<='] + ['<=>'] * (n_common_loops - 1)
+            yield []
     else:
-        return ['<'] + ['<=>'] * (n_common_loops - 1)
+        assert(isinstance(common_ancestor, AbstractLoop))
+        if is_ordered(common_ancestor.body,
+                      source_first_diff,
+                      sink_first_diff):
+            yield ['<='] + ['<=>'] * (n_common_loops - 1)
+        else:
+            for lt_position in range(n_common_loops):
+                leading_eqs = ['='] * lt_position
+                trailing_stars = ['<=>'] * (n_common_loops - 1 - lt_position)
+                yield leading_eqs + ['<'] + trailing_stars
 
 def gather_surrounding_loops(stmt):
     def recurse(s, acc):
@@ -94,9 +97,9 @@ def gather_surrounding_loops(stmt):
         return recurse(outer, [outer] + acc)
     return recurse(stmt, [])
 
-def gather_surrounding_loop_vars(ref):
+def gather_loop_vars(loops):
     loop_vars = []
-    for loop in gather_surrounding_loops(ref.parent_stmt):
+    for loop in loops:
         loop_vars += loop.loop_vars
     return loop_vars
 
@@ -109,8 +112,10 @@ def get_common_prefix(l1, l2):
     return common
 
 def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
-    source_loop_vars = gather_surrounding_loop_vars(source_ref)
-    sink_loop_vars = gather_surrounding_loop_vars(sink_ref)
+    source_loops = gather_surrounding_loops(source_ref.parent_stmt)
+    source_loop_vars = gather_loop_vars(source_loops)
+    sink_loops = gather_surrounding_loops(sink_ref.parent_stmt)
+    sink_loop_vars = gather_loop_vars(sink_loops)
     source_cvars, sink_cvars = generate_constraint_vars(source_loop_vars,
                                                         sink_loop_vars)
 
@@ -146,8 +151,8 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
                 yield from iterate_recursive(constraints + [source_cvar > sink_cvar],
                                              remaining_loop_vars[1:],
                                              accumulated_dv + ['>'])
-    common_loop_vars = get_common_prefix(source_loop_vars,
-                                         sink_loop_vars)
+    common_loops = get_common_prefix(source_loops, sink_loops)
+    common_loop_vars = gather_loop_vars(common_loops)
     yield from iterate_recursive(constraints, common_loop_vars, [])
 
 def generate_constraint_vars(source_loop_vars, sink_loop_vars):
