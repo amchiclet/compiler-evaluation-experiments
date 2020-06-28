@@ -71,6 +71,9 @@ class PathBuilder:
     def ns_per_iteration_path(self):
         return f'{self.prefix()}.nanosec_per_iteration'
 
+    def vector_rate_path(self):
+        return f'{self.prefix()}.vector_rate'
+
     def test_result_path(self):
         return f'{self.prefix()}.test_result'
 

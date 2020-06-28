@@ -15,6 +15,7 @@ from stats import \
     calculate_normalized, \
     calculate_sum_of_logs, \
     calculate_is_faster
+from vtune import measure_vrate
 
 DOIT_CONFIG = {
     'default_tasks': ['nothing'],
@@ -68,6 +69,21 @@ def task_measure_runtimes():
                 'name': exe_name,
                 'file_dep': [exe_name, ns_per_iteration_path],
                 'actions': [(measure_runtime, [exe_name, ns_per_iteration_path, output_path])],
+                'targets': [output_path]
+            }
+
+def task_measure_vector_rates():
+    """Determine vector rates"""
+    for (compiler, mode) in iterate_compiler_modes():
+        for (pattern, program, mutation) in iterate_mutations(patterns):
+            path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
+            exe_name = path_builder.exe_path()
+            ns_per_iteration_path = path_builder.ns_per_iteration_path()
+            output_path = path_builder.vector_rate_path()
+            yield {
+                'name': exe_name,
+                'file_dep': [exe_name, ns_per_iteration_path],
+                'actions': [(measure_vrate, [exe_name, ns_per_iteration_path, output_path])],
                 'targets': [output_path]
             }
 
