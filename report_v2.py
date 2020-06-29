@@ -14,23 +14,27 @@ base_dir = os.getcwd()
 sys.path = [base_dir] + sys.path
 from patterns import patterns
 
-def read_nanosec_runtimes(compiler, mode, pattern, program, mutation):
-    pb = PathBuilder(compiler, mode, pattern, program, mutation)
-    path = pb.runtimes_ns_path()
-    if not os.path.exists(path):
-        return None
-    with open(path) as f:
-        runtimes_str = f.read()
-        return list(map(int, runtimes_str.split()))
-
-def read_database():
+def read_runtimes_database():
     database = {}
     for compiler, mode in iterate_compiler_modes():
         for pattern, program, mutation in iterate_mutations(patterns):
             key = (compiler, mode, pattern, program, mutation)
-            runtimes = read_nanosec_runtimes(*key)
-            if runtimes:
-                database[key] = tmean(runtimes)
+            path = PathBuilder(*key).runtimes_ns_path()
+            if os.path.exists(path):
+                with open(path) as f:
+                    runtimes_str = f.read()
+                    database[key] = tmean(list(map(int, runtimes_str.split())))
+    return database
+
+def read_vector_rates_database():
+    database = {}
+    for compiler, mode in iterate_compiler_modes():
+        for pattern, program, mutation in iterate_mutations(patterns):
+            key = (compiler, mode, pattern, program, mutation)
+            path = PathBuilder(*key).vector_rate_path()
+            if os.path.exists(path):
+                with open(path) as f:
+                    database[key] = float(f.read())
     return database
 
 def merge_value(database, key, value, merge_function):
@@ -54,6 +58,17 @@ def get_normalized_runtimes(runtimes):
         normalized[key] = best_mutations[key[:-1]] / runtime
     return normalized
 
+def get_normalized_vector_rates(vector_rates):
+    best_mutations = {}
+    for key, vector_rate in vector_rates.items():
+        merge_value(best_mutations, key[:-1], vector_rate, max)
+
+    normalized = {}
+    for key, vector_rate in vector_rates.items():
+        if best_mutations[key[:-1]] > 0:
+            normalized[key] = vector_rate / best_mutations[key[:-1]]
+    return normalized
+
 def get_normalized_vec_speedups(runtimes):
     grouped = {}
     for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
@@ -72,6 +87,43 @@ def get_normalized_vec_speedups(runtimes):
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
+
+    return normalized
+
+vectorizable_threshold = 1.00
+def get_normalized_vectorizables(runtimes):
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        key = (compiler, pattern, program, mutation)
+        update_dict_dict(grouped, key, mode, runtime)
+
+    speedups = {}
+    for key, mode_runtimes in grouped.items():
+        if 'novec' in mode_runtimes and 'fast' in mode_runtimes:
+            speedups[key] = mode_runtimes['novec'] / mode_runtimes['fast']
+
+    best_speedups = {}
+    for key, speedup in speedups.items():
+        merge_value(best_speedups, key[:-1], speedup, max)
+    debug(best_speedups)
+    n_vectorizables = {}
+    n_actually_vectorized = {}
+    for compiler in compilers:
+        n_vectorizables[compiler] = 0
+        n_actually_vectorized[compiler] = 0
+
+    for key, speedup in speedups.items():
+        compiler = key[0]
+        best_speedup = best_speedups[key[:-1]]
+        if best_speedup > vectorizable_threshold:
+            n_vectorizables[compiler] += 1
+            if speedup > vectorizable_threshold:
+                n_actually_vectorized[compiler] += 1
+
+    normalized = {}
+    for key, n_total in n_vectorizables.items():
+        if n_total > 0:
+            normalized[key] = n_actually_vectorized[key] / n_total
 
     return normalized
 
@@ -155,6 +207,9 @@ def get_normalized_peer_ranks(runtimes):
 
     return normalized
 
-runtimes = read_database()
+runtimes = read_runtimes_database()
 debug(runtimes)
-x = get_normalized_peer_ranks(runtimes)
+# x = get_normalized_peer_ranks(runtimes)
+# vector_rates = read_vector_rates_database()
+# x = get_normalized_vectorizables(runtimes)
+# debug(x)
