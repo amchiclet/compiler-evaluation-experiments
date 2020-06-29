@@ -1,0 +1,6 @@
+declare A[I];
+declare B[I];
+
+for [i] {
+  A[i] = A[i] + B[i];
+}

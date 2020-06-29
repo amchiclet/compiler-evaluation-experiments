@@ -33,24 +33,6 @@ def get_array_names(p):
 class CNode(Node):
     pass
 
-# class CDeclaration(Declaration):
-#     def __init__(self, name, sizes, node_id=0):
-#         self.name = name
-#         self.sizes = sizes
-#         self.node_id = node_id
-#     def clone(self):
-#         cloned = CDeclaration(self.name, list(self.sizes))
-#         return cloned
-#     def pprint(self, indent=0):
-#         ws = '  ' * indent
-#         list_of_pprint = [f'[{size}]' for size in self.sizes]
-#         return f'{ws}{self.name}{"".join(list_of_pprint)}'
-#     def rename(self, rename_map):
-#         if self.name in rename_map:
-#             self.name = rename_map[self.name]
-#             return True
-#         return False
-
 class CAssignment(Assignment):
     def clone(self):
         cloned = CAssignment(self.lhs.clone(), self.rhs.clone(), self.node_id)
@@ -100,7 +82,7 @@ class CAccess(Access):
                 raise RuntimeError('Array indices are not expected to be renamed')
     def pprint(self, indent=0):
         list_of_pprint = [f'[{index.pprint()}]' for index in self.indices]
-        return f'(*{self.var}){"".join(list_of_pprint)}'
+        return f'{self.var}{"".join(list_of_pprint)}'
 
 
 class CLoop(CNode):

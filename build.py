@@ -53,8 +53,20 @@ class PathBuilder:
     def exe_path(self):
         return f'{self.prefix()}.exe'
 
-    def source_code_path(self):
+    def main_path(self):
+        return f'main.c'
+    def main_obj_path(self):
+        return f'{self.prefix()}.main.o'
+
+    def core_path(self):
         return f'{self.source_part()}.c'
+    def core_obj_path(self):
+        return f'{self.prefix()}.o'
+
+    def wrapper_path(self):
+        return f'{self.source_part()}.wrapper.c'
+    def wrapper_obj_path(self):
+        return f'{self.prefix()}.wrapper.o'
 
     def assembly_path(self):
         return f'{self.prefix()}.s'
@@ -144,11 +156,12 @@ class PathBuilder:
         return f'{prefix}.{c1}.{c2}.is_faster_ci'
 
 class CommandBuilder:
-    def build_exe(self, compiler, mode, test, output):
-        return compiler_command_map[mode][compiler] + ['-o', output, test]
-
-    def build_assembly(self, compiler, mode, test, output):
-        return compiler_command_map[mode][compiler] + ['-S', '-o', output, test]
+    def link_objects(self, compiler, mode, objects, output):
+        return compiler_command_map[mode][compiler] + ['-o', output] + objects
+    def build_object(self, compiler, mode, source, output):
+        return compiler_command_map[mode][compiler] + ['-c', '-o', output, source]
+    def build_assembly(self, compiler, mode, source, output):
+        return compiler_command_map[mode][compiler] + ['-S', '-o', output, source]
 
 def create_compiler_command_map():
     m = {

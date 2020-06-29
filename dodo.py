@@ -118,15 +118,53 @@ def task_test():
 
 def task_build():
     """Build"""
+    for compiler in compilers:
+        pb = PathBuilder(compiler)
+        main_path = pb.main_path()
+        main_obj_path = pb.main_obj_path()
+        main_command = CommandBuilder().build_object(compiler, 'novec', main_path, main_obj_path)
+        yield {
+            'name': main_obj_path,
+            'file_dep': [main_path],
+            'actions': [f'echo {" ".join(main_command)}', main_command],
+            'targets': [main_obj_path],
+        }
+
     for (compiler, mode) in iterate_compiler_modes():
         for (pattern, program, mutation) in iterate_mutations(patterns):
             path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-            source_path = path_builder.source_code_path()
+            wrapper_path = path_builder.wrapper_path()
+            wrapper_obj_path = path_builder.wrapper_obj_path()
+            wrapper_command = CommandBuilder().build_object(compiler, 'novec', wrapper_path, wrapper_obj_path)
+            yield {
+                'name': wrapper_obj_path,
+                'file_dep': [wrapper_path],
+                'actions': [f'echo {" ".join(wrapper_command)}', wrapper_command],
+                'targets': [wrapper_obj_path],
+            }
+
+            # Only the core is compiled with the needed setting
+            core_path = path_builder.core_path()
+            core_obj_path = path_builder.core_obj_path()
+            core_command = CommandBuilder().build_object(compiler, mode, core_path, core_obj_path)
+            yield {
+                'name': core_obj_path,
+                'file_dep': [core_path],
+                'actions': [f'echo {" ".join(core_command)}', core_command],
+                'targets': [core_obj_path],
+            }
+
+            pb = PathBuilder(compiler)
+            main_path = pb.main_path()
+            main_obj_path = pb.main_obj_path()
+
+            objs = [main_obj_path, wrapper_obj_path, core_obj_path]
             exe_name = path_builder.exe_path()
-            exe_command = CommandBuilder().build_exe(compiler, mode, source_path, exe_name)
+            exe_command = CommandBuilder().link_objects(compiler, 'novec', objs, exe_name)
+            print(main_obj_path, wrapper_obj_path, core_obj_path, exe_name)
             yield {
                 'name': exe_name,
-                'file_dep': [source_path],
+                'file_dep': objs,
                 'actions': [f'echo {" ".join(exe_command)}', exe_command],
                 'targets': [exe_name],
             }
@@ -136,7 +174,7 @@ def task_assembly():
     for (compiler, mode) in iterate_compiler_modes():
         for (pattern, program, mutation) in iterate_mutations(patterns):
             path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-            source_path = path_builder.source_code_path()
+            source_path = path_builder.core_path()
             assembly_name = path_builder.assembly_path()
             assembly_command = CommandBuilder().build_assembly(compiler, mode, source_path, assembly_name)
             yield {
