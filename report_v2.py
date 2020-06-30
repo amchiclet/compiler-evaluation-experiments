@@ -14,6 +14,35 @@ base_dir = os.getcwd()
 sys.path = [base_dir] + sys.path
 from patterns import patterns
 
+class Outlier:
+    def __init__(self, merge_predicate):
+        self.normalized = None
+        self.raw = None
+        self.key = None
+        self.merge_predicate = merge_predicate
+    def merge(self, normalized, raw, key):
+        if self.normalized is None or self.merge_predicate(self.normalized, normalized):
+            self.normalized = normalized
+            self.raw = raw
+            self.key = key
+    def __repr__(self):
+        return f'{self.raw}({self.key})({self.normalized})'
+
+is_greater = lambda x, y: x > y
+is_lesser = lambda x, y: x < y
+
+class Outliers:
+    def __init__(self):
+        self.outliers = {}
+    def merge(self, key, new_value, identifier, raw):
+        if key not in self.outliers:
+            self.outliers[key] = (Outlier(is_greater),
+                                  Outlier(is_lesser))
+        for outlier in self.outliers[key]:
+            outlier.merge(new_value, identifier, raw)
+    def debug(self):
+        debug(self.outliers)
+
 def read_runtimes_database():
     database = {}
     for compiler, mode in iterate_compiler_modes():
@@ -25,6 +54,12 @@ def read_runtimes_database():
                     runtimes_str = f.read()
                     database[key] = tmean(list(map(int, runtimes_str.split())))
     return database
+
+def get_mutations(runtimes):
+    mutations = set()
+    for (_, _, pattern, program, mutation) in runtimes:
+        mutations.add((pattern, program, mutation))
+    return mutations
 
 def read_vector_rates_database():
     database = {}
@@ -53,21 +88,27 @@ def get_normalized_runtimes(runtimes):
     for key, runtime in runtimes.items():
         merge_value(best_mutations, key[:-1], runtime, min)
 
+    outliers = Outliers()
     normalized = {}
     for key, runtime in runtimes.items():
         normalized[key] = best_mutations[key[:-1]] / runtime
-    return normalized
+        outliers.merge(key[:-1], normalized[key], runtime, key)
+
+    return normalized, outliers
 
 def get_normalized_vector_rates(vector_rates):
     best_mutations = {}
     for key, vector_rate in vector_rates.items():
         merge_value(best_mutations, key[:-1], vector_rate, max)
 
+    outliers = Outliers()
     normalized = {}
     for key, vector_rate in vector_rates.items():
         if best_mutations[key[:-1]] > 0:
             normalized[key] = vector_rate / best_mutations[key[:-1]]
-    return normalized
+            outliers.merge(key[:-1], normalized[key], vector_rate, key)
+
+    return normalized, outliers
 
 def get_normalized_vec_speedups(runtimes):
     grouped = {}
@@ -84,9 +125,38 @@ def get_normalized_vec_speedups(runtimes):
     for key, speedup in speedups.items():
         merge_value(best_speedups, key[:-1], speedup, max)
 
+    outliers = Outliers()
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
+        outliers.merge(key[:-1], normalized[key], speedup, key)
+
+    return normalized, outliers
+
+def get_normalized_cost_model_performance(runtimes):
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        key = (compiler, pattern, program, mutation)
+        update_dict_dict(grouped, key, mode, runtime)
+
+    n_cost_model_good = {}
+    n_total_mutations = {}
+    for compiler in compilers:
+        n_cost_model_good[compiler] = 0
+        n_total_mutations[compiler] = 0
+
+    for key, mode_runtimes in grouped.items():
+        if 'nopredict' in mode_runtimes and 'fast' in mode_runtimes:
+            compiler = key[0]
+            with_cost_model = mode_runtimes['fast'] * 0.95
+            if mode_runtimes['nopredict'] >= with_cost_model:
+                n_cost_model_good[compiler] += 1
+            n_total_mutations[compiler] += 1
+
+    normalized = {}
+    for key, n_total in n_total_mutations.items():
+        if n_total > 0:
+            normalized[key] = n_cost_model_good[key] / n_total
 
     return normalized
 
@@ -105,7 +175,7 @@ def get_normalized_vectorizables(runtimes):
     best_speedups = {}
     for key, speedup in speedups.items():
         merge_value(best_speedups, key[:-1], speedup, max)
-    debug(best_speedups)
+
     n_vectorizables = {}
     n_actually_vectorized = {}
     for compiler in compilers:
@@ -161,11 +231,13 @@ def get_normalized_peer_speedups(runtimes):
     for key, speedup in speedups.items():
         merge_value(best_speedups, key[:-1], speedup, max)
 
+    outliers = Outliers()
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
+        outliers.merge(key[:-1], normalized[key], speedup, key)
 
-    return normalized
+    return normalized, outliers
 
 def get_normalized_peer_ranks(runtimes):
     grouped = {}
@@ -208,8 +280,22 @@ def get_normalized_peer_ranks(runtimes):
     return normalized
 
 runtimes = read_runtimes_database()
-debug(runtimes)
-# x = get_normalized_peer_ranks(runtimes)
+# normalized, outliers = get_normalized_runtimes(runtimes)
+# normalized, outliers = get_normalized_vec_speedups(runtimes)
+normalized, outliers = get_normalized_peer_speedups(runtimes)
+
+# x3 = get_normalized_vectorizables(runtimes)
+# x4 = get_normalized_peer_ranks(runtimes)
+# x5 = get_normalized_cost_model_performance(runtimes)
+
+debug(normalized)
+outliers.debug()
 # vector_rates = read_vector_rates_database()
-# x = get_normalized_vectorizables(runtimes)
-# debug(x)
+# normalized_3, outliers_3 = get_normalized_vector_rates(vector_rates)
+
+# for (pattern, p, m) in get_mutations(runtimes):
+#     nopredict = runtimes[('icc', 'nopredict', pattern, p, m)]
+#     fast = runtimes[('icc', 'fast', pattern, p, m)]
+#     with_cost_model = fast * 0.95
+#     is_prediction_good = nopredict >= with_cost_model
+#     print(f'nopredict({nopredict:.2f}) > fast({fast:.2f})? {is_prediction_good}')

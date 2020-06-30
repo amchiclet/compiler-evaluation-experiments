@@ -2,7 +2,7 @@ compilers = [
     'gcc',
     'icc',
     # 'pgi',
-    'clang',
+    # 'clang',
 ]
 
 base_command = {
@@ -12,16 +12,16 @@ base_command = {
     'clang': ['clang', '-march=native', '-Ofast']
 }
 
-novec_flag = {
-    'pgi': '-Mnovect',
-    'gcc': '-fno-tree-vectorize',
-    'icc': '-no-vec',
-    'clang': '-fno-vectorize',
+novec_flags = {
+    'pgi': ['-Mnovect'],
+    'gcc': ['-fno-tree-vectorize'],
+    'icc': ['-no-vec'],
+    'clang': ['-fno-vectorize'],
 }
 
-nopredict_flag = {
+nopredict_flags = {
     # 'pgi': '-Mnovect',
-    # 'gcc': '-fno-vect-cost-model',
-    # 'icc': '-vec-threshold0',
-    # 'clang': '-fno-vectorize',
+    'gcc': ['-fno-vect-cost-model'],
+    'icc': ['-vec-threshold0'],
+    'clang': ['-mllvm -force-vector-width=16'],
 }

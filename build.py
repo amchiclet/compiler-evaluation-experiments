@@ -1,4 +1,4 @@
-from compilers import compilers, base_command, novec_flag, nopredict_flag
+from compilers import compilers, base_command, novec_flags, nopredict_flags
 import inspect
 
 class PathBuilder:
@@ -173,10 +173,10 @@ def create_compiler_command_map():
         if c in base_command:
             fast = base_command[c]
             m['fast'][c] = fast
-            if c in novec_flag:
-                m['novec'][c] = fast + [novec_flag[c]]
-            if c in nopredict_flag:
-                m['nopredict'][c] = fast + [nopredict_flag[c]]
+            if c in novec_flags:
+                m['novec'][c] = fast + novec_flags[c]
+            if c in nopredict_flags:
+                m['nopredict'][c] = fast + nopredict_flags[c]
     return m
 
 compiler_command_map = create_compiler_command_map()
