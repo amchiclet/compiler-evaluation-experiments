@@ -35,7 +35,7 @@ def spaces(indent):
 
 # TODO: test program needs to be a different program
 class SimpleFormatter:
-    def __init__(self, test_program, ref_program, var_map, array_sizes):
+    def __init__(self, test_program, var_map, array_sizes):
         self.array_sizes = array_sizes
         self.var_map = var_map
         self.indent = 0
@@ -45,9 +45,6 @@ class SimpleFormatter:
         self.c_test_program = SimpleConcretizer(test_program,
                                                 var_map,
                                                 array_sizes).concretize_program()
-        self.c_ref_program = SimpleConcretizer(ref_program,
-                                               var_map,
-                                               array_sizes).concretize_program()
 
     def array_param(self, ty, name, sizes):
         return f'{ty} {name}' + (''.join([f'[{size}]' for size in sizes]))
@@ -268,59 +265,6 @@ class SimpleFormatter:
             self.indent -= 1
             lines.append('  ' * self.indent + '}')
 
-        return '\n'.join(lines)
-
-    def check(self):
-        lines = []
-        ws = spaces(self.indent)
-        lines.append(f'{ws}int check() {{')
-        self.indent += 1
-        ws = spaces(self.indent)
-
-        test_program_rename_map = {}
-        ref_program_rename_map = {}
-        for array in sorted(self.array_sizes.keys()):
-            ref = array + '_ref'
-            ref_program_rename_map[array] = ref
-            test = array + '_test'
-            test_program_rename_map[array] = test
-            n_dimensions = len(self.array_sizes[array])
-            sizes = self.array_sizes[array]
-            lines.append(self.array_decl('int', ref, sizes))
-            lines.append(self.array_decl('int', test, sizes))
-
-        lines.append(f'{ws}// Initialization')
-        for array in sorted(self.array_sizes.keys()):
-            ref = array + '_ref'
-            test = array + '_test'
-            loop_ends = [size - 1 for size in self.array_sizes[array]]
-            lines.append(self.array_allocate('int', [ref, test], self.array_sizes[array]))
-            lines.append(self.array_init('int', [ref, test], loop_ends, 'irand(1, 10)'))
-
-        # make test program
-        c_test_program = self.c_test_program.clone()
-        c_ref_program = self.c_ref_program.clone()
-        c_test_program.rename(test_program_rename_map)
-        c_ref_program.rename(ref_program_rename_map)
-
-        lines.append(f'{ws}// Test program')
-        lines.append(c_test_program.pprint(self.indent))
-
-        lines.append(f'{ws}// Reference program')
-        lines.append(c_ref_program.pprint(self.indent))
-
-        # compare the results
-        lines.append(f'{ws}// Compare the results')
-        for array in sorted(self.array_sizes.keys()):
-            ref = array + '_ref'
-            test = array + '_test'
-            lines.append(self.array_compare(test, ref, self.array_sizes[array]))
-
-        # if it reaches here, everything is good
-        lines.append(f'{ws}return 1;')
-        self.indent -= 1
-        ws = spaces(self.indent)
-        lines.append(f'{ws}}}')
         return '\n'.join(lines)
 
     def write_kernel_wrapper(self, file_name):

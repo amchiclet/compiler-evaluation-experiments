@@ -131,11 +131,14 @@ def task_build():
         }
 
     for (compiler, mode) in iterate_compiler_modes():
-        for (pattern, program, mutation) in iterate_mutations(patterns):
-            path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
-            wrapper_path = path_builder.wrapper_path()
-            wrapper_obj_path = path_builder.wrapper_obj_path()
-            wrapper_command = CommandBuilder().build_object(compiler, 'novec', wrapper_path, wrapper_obj_path)
+        for (pattern, program, _) in iterate_programs(patterns):
+            pb = PathBuilder(compiler, mode, pattern, program)
+            wrapper_path = pb.wrapper_path()
+            wrapper_obj_path = pb.wrapper_obj_path()
+            wrapper_command = CommandBuilder().build_object(compiler,
+                                                            'novec',
+                                                            wrapper_path,
+                                                            wrapper_obj_path)
             yield {
                 'name': wrapper_obj_path,
                 'file_dep': [wrapper_path],
@@ -143,9 +146,13 @@ def task_build():
                 'targets': [wrapper_obj_path],
             }
 
+    for (compiler, mode) in iterate_compiler_modes():
+        for (pattern, program, mutation) in iterate_mutations(patterns):
+            pb = PathBuilder(compiler, mode, pattern, program, mutation)
+
             # Only the core is compiled with the needed setting
-            core_path = path_builder.core_path()
-            core_obj_path = path_builder.core_obj_path()
+            core_path = pb.core_path()
+            core_obj_path = pb.core_obj_path()
             core_command = CommandBuilder().build_object(compiler, mode, core_path, core_obj_path)
             yield {
                 'name': core_obj_path,
@@ -154,14 +161,12 @@ def task_build():
                 'targets': [core_obj_path],
             }
 
-            pb = PathBuilder(compiler)
-            main_path = pb.main_path()
-            main_obj_path = pb.main_obj_path()
+            main_obj_path = PathBuilder(compiler).main_obj_path()
+            wrapper_obj_path = PathBuilder(compiler, mode, pattern, program).wrapper_obj_path()
 
             objs = [main_obj_path, wrapper_obj_path, core_obj_path]
-            exe_name = path_builder.exe_path()
+            exe_name = pb.exe_path()
             exe_command = CommandBuilder().link_objects(compiler, 'novec', objs, exe_name)
-            print(main_obj_path, wrapper_obj_path, core_obj_path, exe_name)
             yield {
                 'name': exe_name,
                 'file_dep': objs,
