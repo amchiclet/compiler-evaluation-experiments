@@ -23,10 +23,14 @@ class Declaration(Node):
         self.sizes = sizes if sizes else []
         self.node_id = node_id
         self.surrounding_loop = None
+    def cprint(self, var_map, indent=0):
+        raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         list_of_pprint = [f'[{size.pprint()}]' for size in self.sizes]
         return f'{ws}Array: {self.name}{"".join(list_of_pprint)}'
+    def cprint(self, var_map, indent=0):
+        pass
     def clone(self):
         cloned_sizes = list(self.sizes)
         return Declaration(self.name, cloned_sizes, self.node_id)
@@ -46,6 +50,10 @@ class Assignment(Node):
             access.parent_stmt = self
             for index in access.indices:
                 index.parent_stmt = self
+    def cprint(self, var_map, indent=0):
+        ws = space_per_indent * indent * ' '
+        return f'{ws}{self.lhs.cprint(var_map)} = {self.rhs.cprint(var_map)};'
+
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}{self.lhs.pprint()} = {self.rhs.pprint()};'
@@ -67,6 +75,18 @@ class AffineIndex(Node):
         self.array = None
         self.dimension = None
         self.parent_stmt = None
+    def cprint(self, var_map, indent=0):
+        if self.var:
+            linear = f'{self.var}' if self.coeff == 1 else f'{self.coeff}*{self.var}'
+            if self.offset > 0:
+                return f'{linear}+{self.offset}'
+            elif self.offset < 0:
+                return f'{linear}{self.offset}'
+            else:
+                return f'{linear}'
+        else:
+            return f'{self.offset}'
+
     def pprint(self, indent=0):
         if self.var:
             linear = f'{self.var}' if self.coeff == 1 else f'{self.coeff}*{self.var}'
@@ -101,6 +121,10 @@ class Access(Node):
             index.dimension = dimension
         self.is_write = False
         self.parent_stmt = None
+    def cprint(self, var_map, indent=0):
+        list_of_pprint = [f'[{index.cprint(var_map)}]' for index in self.indices]
+        return f'{self.var}{"".join(list_of_pprint)}'
+
     def pprint(self, indent=0):
         list_of_pprint = [f'[{index.pprint()}]' for index in self.indices]
         return f'{self.var}{"".join(list_of_pprint)}'
@@ -132,6 +156,28 @@ class AbstractLoop(Node):
 
         # To be used for strip mining
         self.partial_loop_order = []
+
+    def cprint_recursive(self, depth, var_map, indent=0):
+        if depth == len(self.loop_vars):
+            lines = []
+            for stmt in self.body:
+                lines.append(stmt.cprint(var_map, indent+1))
+            return '\n'.join(lines)
+
+        ws = '  ' * indent
+        loop_var = self.loop_vars[depth]
+        begin = var_map.get_min(loop_var)
+        end = var_map.get_max(loop_var)
+        lines = [(f'{ws}for (int {loop_var} = {begin}; '
+                  f'{loop_var} <= {end}; '
+                  f'{loop_var}+=1) {{')]
+        lines.append(self.cprint_recursive(depth+1, var_map, indent+1))
+        lines.append(f'{ws}}}')
+        return '\n'.join(lines)
+
+    def cprint(self, var_map, indent=0):
+        return self.cprint_recursive(0, var_map, indent)
+
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         header = f'{ws}for [{", ".join(self.loop_vars)}] {{'
@@ -154,6 +200,8 @@ class BinOp(Node):
         self.op = op
         self.left = left
         self.right = right
+    def cprint(self, var_map, indent=0):
+        return f'{self.left.cprint(var_map)} {self.op} {self.right.cprint(var_map)}'
     def pprint(self, indent=0):
         return f'{self.left.pprint()} {self.op} {self.right.pprint()}'
     def dep_print(self, refs):
@@ -174,6 +222,13 @@ class Program:
         self.loop_vars = []
         for loop in loops:
             loop.surrounding_loop = self
+
+    def cprint(self, var_map, indent=0):
+        lines = []
+        for loop in self.loops:
+            lines.append(loop.cprint(var_map, indent))
+        return '\n'.join(lines)
+
     def pprint(self, indent=0):
         body = []
         body += [f'{decl.pprint(indent)}' for decl in self.decls]

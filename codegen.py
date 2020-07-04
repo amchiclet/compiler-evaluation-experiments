@@ -1,5 +1,5 @@
 from build import PathBuilder
-from simple_formatter_v2 import SimpleFormatter
+from simple_formatter import SimpleFormatter
 
 class CodeGen:
     def __init__(self, output_dir):

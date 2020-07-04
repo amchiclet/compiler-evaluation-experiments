@@ -84,7 +84,6 @@ class CAccess(Access):
         list_of_pprint = [f'[{index.pprint()}]' for index in self.indices]
         return f'{self.var}{"".join(list_of_pprint)}'
 
-
 class CLoop(CNode):
     def __init__(self, var, begin, end, body, node_id=0):
         self.var = var

@@ -30,12 +30,75 @@ def include():
 #include <limits.h>
 #include <string.h>"""
 
+def main():
+    return """int main(int argc, char **argv) {
+  if (argc < 2) {
+    printf("Not enough number of arguments\\n");
+    return 1;
+  }
+
+  srand(0);
+  if (strcmp(argv[1], "--measure") == 0) {
+    if (argc < 3) {
+      printf("Not enough number of arguments for measure mode\\n");
+      return 1;
+    }
+    int n_iterations = atoi(argv[2]);
+    printf("Measuring with %d iterations\\n", n_iterations);
+    init();
+    run(n_iterations);
+    return 0;
+  } else if (strcmp(argv[1], "--measure_no_init") == 0) {
+    if (argc < 3) {
+      printf("Not enough number of arguments for measure_no_init mode\\n");
+      return 1;
+    }
+    int n_iterations = atoi(argv[2]);
+    printf("Measuring with %d iterations\\n", n_iterations);
+    allocate();
+    run(n_iterations);
+    return 0;
+  } else if (strcmp(argv[1], "--test") == 0) {
+    printf("Testing\\n");
+    if (check()) {
+      printf("PASSED\\n");
+      return 0;
+    } else {
+      printf("FAILED\\n");
+      return 1;
+    }
+  } else if (strcmp(argv[1], "--checksum") == 0) {
+    printf("Calculating checksum\\n");
+    init();
+    kernel();
+    checksum();
+    return 0;
+  } else {
+    printf("Unsupported command %s\\n", argv[1]);
+    return 1;
+  }
+}"""
+
+def run():
+    return """void run(int n_iterations) {
+  unsigned long long *runtimes = (unsigned long long*)malloc(n_iterations * sizeof(unsigned long long));
+
+  for (int i = 0; i < n_iterations; ++i) {
+    runtimes[i] = kernel();
+  }
+
+  for (int i = 0; i < n_iterations; ++i) {
+    printf("Iteration %d %llu\\n", i+1, runtimes[i]);
+  }
+  free(runtimes);
+}"""
+
 def spaces(indent):
     return '  ' * indent
 
 # TODO: test program needs to be a different program
 class SimpleFormatter:
-    def __init__(self, test_program, var_map, array_sizes):
+    def __init__(self, test_program, ref_program, var_map, array_sizes):
         self.array_sizes = array_sizes
         self.var_map = var_map
         self.indent = 0
@@ -45,23 +108,21 @@ class SimpleFormatter:
         self.c_test_program = SimpleConcretizer(test_program,
                                                 var_map,
                                                 array_sizes).concretize_program()
-
-    def array_param(self, ty, name, sizes):
-        return f'{ty} {name}' + (''.join([f'[{size}]' for size in sizes]))
+        self.c_ref_program = SimpleConcretizer(ref_program,
+                                               var_map,
+                                               array_sizes).concretize_program()
 
     def array_decl(self, ty, name, sizes):
         ws = spaces(self.indent)
         return f'{ws}{ty} (*{name})' + (''.join([f'[{size}]' for size in sizes]) + ';')
 
-    def declare_data(self):
+    def declare_globals(self):
         lines = []
-        ws = spaces(self.indent)
-        lines.append('struct Data {')
-        self.indent += 1
+        lines.append(include() + '\n')
         for array in sorted(self.array_sizes.keys()):
             lines.append(self.array_decl('float', array, self.array_sizes[array]))
-        self.indent -= 1
-        lines.append('};')
+        lines.append('\n' + frand() + '\n')
+        lines.append(irand())
         return '\n'.join(lines)
 
     def nested_loop(self, loop_vars, sizes, body_lines):
@@ -80,15 +141,10 @@ class SimpleFormatter:
             lines.append('  ' * self.indent + '}')
         return '\n'.join(lines)
 
-    def checksum_inner(self):
+    def checksum(self):
         lines = []
         ws = spaces(self.indent)
-
-        params = []
-        for array in sorted(self.array_sizes.keys()):
-            params.append(self.array_param('float', array, self.array_sizes[array]))
-
-        lines.append(f'{ws}float checksum_inner({", ".join(params)}) {{')
+        lines.append(f'{ws}void checksum() {{')
 
         self.indent += 1
         ws = spaces(self.indent)
@@ -96,52 +152,22 @@ class SimpleFormatter:
         lines.append(f'{ws}float total = 0.0;')
 
         for array, sizes in self.array_sizes.items():
+            # loop_vars = self.loop_vars[array]
             loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
             indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
-            body_lines = [f'total += {array}{indices_str};']
+            body_lines = [f'total += (*{array}){indices_str};']
             lines.append(self.nested_loop(loop_vars, sizes, body_lines))
 
-        lines.append(f'{ws}return total;')
+        lines.append(f'{ws}printf("Checksum is %f\\n", total);')
         self.indent -= 1
         ws = spaces(self.indent)
         lines.append(f'{ws}}}')
         return '\n'.join(lines)
 
-    def cast_data(self):
-        ws = spaces(self.indent)
-        return f'{ws}struct Data *data = (struct Data*)void_ptr;'
-    def return_inner(self, function_name):
-        ws = spaces(self.indent)
-        params = [f'*data->{field}' for field in sorted(self.array_sizes.keys())]
-        return f'{ws}return {function_name}({", ".join(params)});'
-
-    def wrapper(self, return_type, wrapper_name, inner_name):
-        lines = []
-        ws = spaces(self.indent)
-        lines.append(f'{ws}{return_type} {wrapper_name}(void *void_ptr) {{')
-        self.indent += 1
-        lines.append(self.cast_data())
-        lines.append(self.return_inner(inner_name))
-        self.indent -= 1
-        lines.append(f'{ws}}};')
-        return '\n'.join(lines)
-
-    def init(self):
-        return self.wrapper('void', 'init', 'init_inner')
-    def checksum(self):
-        return self.wrapper('float', 'checksum', 'checksum_inner')
-    def kernel(self):
-        return self.wrapper('unsigned long long', 'kernel', 'core')
-    def declare_core(self):
-        params = []
-        for array in sorted(self.array_sizes.keys()):
-            params.append(self.array_param('float', array, self.array_sizes[array]))
-        ws = spaces(self.indent)
-        return f'{ws}unsigned long long core({", ".join(params)});'
     def array_allocate(self, ty, arrays, sizes):
         lines = []
         ws = spaces(self.indent)
-        
+
         # malloc
         total_size_str = ' * '.join([f'{size}' for size in sizes])
         for array in arrays:
@@ -153,6 +179,11 @@ class SimpleFormatter:
         ws = spaces(self.indent)
         loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
         n_dimensions = len(loop_vars)
+
+        # # malloc
+        # total_size_str = ' * '.join([f'{size}' for size in sizes])
+        # for array in arrays:
+        #     lines.append(f'{ws}{array} = malloc(sizeof({ty}) * {total_size_str});')
 
         # loop headers
         for dimension, loop_var in enumerate(loop_vars):
@@ -166,7 +197,7 @@ class SimpleFormatter:
         lines.append(init_stmt)
         indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
         for array in arrays:
-            lines.append(f'{ws}{array}{indices_str} = {init_var};')
+            lines.append(f'{ws}(*{array}){indices_str} = {init_var};')
 
         # close brackets
         for _ in range(n_dimensions):
@@ -177,30 +208,21 @@ class SimpleFormatter:
 
     def allocate(self):
         lines = []
-        lines.append(f'void *allocate() {{')
+        lines.append(f'void allocate() {{')
         self.indent += 1
-        ws = spaces(self.indent)
-        lines.append(f'{ws}struct Data *data = malloc(sizeof(struct Data));')
         for array in sorted(self.array_sizes.keys()):
-            lhs = f'data->{array}'
-            lines.append(self.array_allocate('float', [lhs], self.array_sizes[array]))
-        lines.append(f'{ws}return (void*)data;')
+            lines.append(self.array_allocate('float', [array], self.array_sizes[array]))
         self.indent -= 1
         lines.append('}')
 
         return '\n'.join(lines)
 
     # TODO: create initialization program
-    def init_inner(self):
+    def init(self):
         lines = []
 
-        # array parameters
-        params = []
-        for array in sorted(self.array_sizes.keys()):
-            params.append(self.array_param('float', array, self.array_sizes[array]))
-        
         # function header
-        lines.append(f'void init_inner({", ".join(params)}) {{')
+        lines.append(f'void init() {{')
         self.indent += 1
 
         # Seed the randomizer
@@ -223,14 +245,10 @@ class SimpleFormatter:
         return run()
     def main(self):
         return main()
-    def core(self):
+    def kernel(self):
         lines = []
         ws = spaces(self.indent)
-
-        params = []
-        for array in sorted(self.array_sizes.keys()):
-            params.append(self.array_param('float', array, self.array_sizes[array]))
-        lines.append(f'{ws}unsigned long long core({", ".join(params)}) {{')
+        lines.append(f'{ws}unsigned long long kernel() {{')
         self.indent += 1
         ws = spaces(self.indent)
         lines.append(f'{ws}struct timespec before, after;')
@@ -267,36 +285,76 @@ class SimpleFormatter:
 
         return '\n'.join(lines)
 
-    def write_kernel_wrapper(self, file_name):
+    def check(self):
+        lines = []
+        ws = spaces(self.indent)
+        lines.append(f'{ws}int check() {{')
+        self.indent += 1
+        ws = spaces(self.indent)
+
+        test_program_rename_map = {}
+        ref_program_rename_map = {}
+        for array in sorted(self.array_sizes.keys()):
+            ref = array + '_ref'
+            ref_program_rename_map[array] = ref
+            test = array + '_test'
+            test_program_rename_map[array] = test
+            n_dimensions = len(self.array_sizes[array])
+            sizes = self.array_sizes[array]
+            lines.append(self.array_decl('int', ref, sizes))
+            lines.append(self.array_decl('int', test, sizes))
+
+        lines.append(f'{ws}// Initialization')
+        for array in sorted(self.array_sizes.keys()):
+            ref = array + '_ref'
+            test = array + '_test'
+            loop_ends = [size - 1 for size in self.array_sizes[array]]
+            lines.append(self.array_allocate('int', [ref, test], self.array_sizes[array]))
+            lines.append(self.array_init('int', [ref, test], loop_ends, 'irand(1, 10)'))
+
+        # make test program
+        c_test_program = self.c_test_program.clone()
+        c_ref_program = self.c_ref_program.clone()
+        c_test_program.rename(test_program_rename_map)
+        c_ref_program.rename(ref_program_rename_map)
+
+        lines.append(f'{ws}// Test program')
+        lines.append(c_test_program.pprint(self.indent))
+
+        lines.append(f'{ws}// Reference program')
+        lines.append(c_ref_program.pprint(self.indent))
+
+        # compare the results
+        lines.append(f'{ws}// Compare the results')
+        for array in sorted(self.array_sizes.keys()):
+            ref = array + '_ref'
+            test = array + '_test'
+            lines.append(self.array_compare(test, ref, self.array_sizes[array]))
+
+        # if it reaches here, everything is good
+        lines.append(f'{ws}return 1;')
+        self.indent -= 1
+        ws = spaces(self.indent)
+        lines.append(f'{ws}}}')
+        return '\n'.join(lines)
+
+    def write_to_file(self, file_name):
         with open(file_name, 'w') as f:
-            f.write(include())
-            f.write('\n\n')
-            f.write(self.declare_core())
-            f.write('\n\n')
-            f.write(self.declare_data())
-            f.write('\n\n')
-            f.write(frand())
-            f.write('\n\n')
-            f.write(irand())
+            f.write(self.declare_globals())
             f.write('\n\n')
             f.write(self.allocate())
             f.write('\n\n')
-            f.write(self.init_inner())
-            f.write('\n\n')
-            f.write(self.checksum_inner())
-            f.write('\n\n')
             f.write(self.init())
-            f.write('\n\n')
-            f.write(self.checksum())
             f.write('\n\n')
             f.write(self.kernel())
             f.write('\n\n')
-        
-    def write_core(self, file_name):
-        with open(file_name, 'w') as f:
-            f.write(include())
+            f.write(self.run())
             f.write('\n\n')
-            f.write(self.core())
+            f.write(self.check())
+            f.write('\n\n')
+            f.write(self.checksum())
+            f.write('\n\n')
+            f.write(self.main())
             f.write('\n\n')
 
 class SimpleConcretizer:

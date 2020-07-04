@@ -2,15 +2,15 @@ from parser import parse_file
 from loguru import logger
 from transformers.loop_interchange import LoopInterchangeV2
 from variable_map import VariableMap, restrict_var_map, calculate_array_sizes
-from simple_formatter_v2 import SimpleFormatter
+from simple_formatter import SimpleFormatter
 from multiprocessing import Pool
 from build import PathBuilder
 from codegen import CodeGen
 import sys
 
-pattern_str = 'multiple'
-n_programs = 5
-n_mutations = 5
+pattern_str = 'delete_me'
+n_programs = 2
+n_mutations = 3
 output_dir = pattern_str
 
 logger.remove()
@@ -23,7 +23,7 @@ logger.add(sink = 'multiple.log',
                      '{message}'),
            enqueue = True)
 
-program, _ = parse_file('multiple.loops')
+program, _ = parse_file('loops/multiple.loop')
 logger.info(program.pprint())
 
 default_min = 0

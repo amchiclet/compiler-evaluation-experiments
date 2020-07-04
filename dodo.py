@@ -3,6 +3,7 @@ from compilers import compilers
 from doit import get_var
 from build import PathBuilder, CommandBuilder, iterate_mutations, iterate_programs, iterate_compiler_vec_novec, iterate_compiler_pair_fast, iterate_compiler_fast, iterate_compiler_modes
 from determine_n_iterations import determine_n_iterations, calculate_ns_per_iteration, measure_runtime
+
 from stats import \
     calculate_perf_slowdown, \
     calculate_vec_speedup, \

@@ -1,168 +1,301 @@
-import os
-import os.path
+from build import PathBuilder, iterate_compiler_modes, iterate_mutations
+from scipy.stats import tmean
+from scipy import log
 from compilers import compilers
-from tests import tests
-from tabulate import tabulate
-import statistics
 
-class Metrics:
-    # all of these are supposed to have a function with name format_*
-    def get_attribute_names():
-        return [
-            'runtime',
-        ]
+def debug(d):
+    for k, v in d.items():
+        print(f'{k} => {v}')
 
+import sys
+import os
+
+base_dir = os.getcwd()
+sys.path = [base_dir] + sys.path
+from patterns import patterns
+
+class Outlier:
+    def __init__(self, merge_predicate):
+        self.normalized = None
+        self.raw = None
+        self.key = None
+        self.merge_predicate = merge_predicate
+    def merge(self, normalized, raw, key):
+        if self.normalized is None or self.merge_predicate(self.normalized, normalized):
+            self.normalized = normalized
+            self.raw = raw
+            self.key = key
+    def __repr__(self):
+        return f'{self.raw}({self.key})({self.normalized})'
+
+is_greater = lambda x, y: x > y
+is_lesser = lambda x, y: x < y
+
+class Outliers:
     def __init__(self):
-        self.runtimes = []
+        self.outliers = {}
+    def merge(self, key, new_value, identifier, raw):
+        if key not in self.outliers:
+            self.outliers[key] = (Outlier(is_greater),
+                                  Outlier(is_lesser))
+        for outlier in self.outliers[key]:
+            outlier.merge(new_value, identifier, raw)
+    def debug(self):
+        debug(self.outliers)
 
-    def format_values(self, values):
-        if not values:
-            return 'N/A'
-        return self.format_range(values)
+def read_runtimes_database():
+    database = {}
+    for compiler, mode in iterate_compiler_modes():
+        for pattern, program, mutation in iterate_mutations(patterns):
+            key = (compiler, mode, pattern, program, mutation)
+            path = PathBuilder(*key).runtimes_ns_path()
+            if os.path.exists(path):
+                with open(path) as f:
+                    runtimes_str = f.read()
+                    database[key] = tmean(list(map(int, runtimes_str.split())))
+    return database
 
-    def format_range(self, values):
-        # print(values)
-        mean = statistics.mean(values)
-        stddev = statistics.stdev(values) if len(values) > 1 else 0
-        return f'{mean:.2f} ± {stddev:.2f}'
+def get_mutations(runtimes):
+    mutations = set()
+    for (_, _, pattern, program, mutation) in runtimes:
+        mutations.add((pattern, program, mutation))
+    return mutations
 
-    def format_runtime(self):
-        return self.format_values(self.runtimes)
+def read_vector_rates_database():
+    database = {}
+    for compiler, mode in iterate_compiler_modes():
+        for pattern, program, mutation in iterate_mutations(patterns):
+            key = (compiler, mode, pattern, program, mutation)
+            path = PathBuilder(*key).vector_rate_path()
+            if os.path.exists(path):
+                with open(path) as f:
+                    database[key] = float(f.read())
+    return database
 
-    def parse_runtimes(self, path):
-        if not os.path.exists(path):
-            return
-        runtimes = []
-        with open(path) as f:
-            for line in f:
-                self.runtimes.append(int(line.split()[2]))
+def merge_value(database, key, value, merge_function):
+    if key not in database:
+        database[key] = value
+    else:
+        database[key] = merge_function(database[key], value)
 
-def full_compiler_name(compiler, is_vector_mode):
-    return compiler + ('_v' if is_vector_mode else '_s')
+def update_dict_dict(d, k1, k2, v):
+    if k1 not in d:
+        d[k1] = {}
+    d[k1][k2] = v
 
-def mode_name(is_vector_mode):
-    return 'vec' if is_vector_mode else 'novec'
+def get_normalized_runtimes(runtimes):
+    best_mutations = {}
+    for key, runtime in runtimes.items():
+        merge_value(best_mutations, key[:-1], runtime, min)
 
-def runtime_path(compiler, test, is_vector_mode):
-    return f'{test}.{compiler}.{mode_name(is_vector_mode)}.runtimes'
+    outliers = Outliers()
+    normalized = {}
+    for key, runtime in runtimes.items():
+        normalized[key] = best_mutations[key[:-1]] / runtime
+        outliers.merge(key[:-1], normalized[key], runtime, key)
 
-def parse_metrics():
-    metrics = {}
-    for compiler in compilers:
-        for is_vector_mode in [True, False]:
-            key = full_compiler_name(compiler, is_vector_mode)
-            metrics[key] = {}
-            for test in tests:
-                metric = Metrics()
-                metric.parse_runtimes(runtime_path(compiler, test, is_vector_mode))
-                metrics[key][test] = metric
-    return metrics
+    return normalized, outliers
 
-def get_runtime(compiler, executable, table):
-    runtime_range = table[compiler]['runtime'][executable]
-    runtime = float(runtime_range.split()[0])
-    return runtime
+def get_normalized_vector_rates(vector_rates):
+    best_mutations = {}
+    for key, vector_rate in vector_rates.items():
+        merge_value(best_mutations, key[:-1], vector_rate, max)
 
-def get_stability_index(runtimes, base, threshold):
-    n_stable = sum(((r - base) / base) < threshold for r in runtimes)
-    return float(n_stable) / len(runtimes)
+    outliers = Outliers()
+    normalized = {}
+    for key, vector_rate in vector_rates.items():
+        if best_mutations[key[:-1]] > 0:
+            normalized[key] = vector_rate / best_mutations[key[:-1]]
+            outliers.merge(key[:-1], normalized[key], vector_rate, key)
 
-def get_speedup(runtimes, base):
-    return statistics.mean([r / base for r in runtimes])
+    return normalized, outliers
 
-class Agg:
-    def __init__(self, runtimes):
-        self.mean = statistics.mean(runtimes)
-        self.min = min(runtimes)
-def get_aggregate(runtimes):
-    return Agg(runtimes)
+def get_normalized_vec_speedups(runtimes):
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        key = (compiler, pattern, program, mutation)
+        update_dict_dict(grouped, key, mode, runtime)
 
-def format_for_latex(compiler_name, rows):
-    print('\\hline')
-    print(f'\\multicolumn{{6}}{{| c |}}{{{compiler_name}}} \\\\')
-    print('\\hline')
-    for row in rows:
-        print(' & '.join(row) + ' \\\\')
-    
-def report_for_compiler(compiler, table):
-    report = {}
-    program_names = []
-    is_vector_mode = True
-    vector = full_compiler_name(compiler, is_vector_mode)
-    scalar = full_compiler_name(compiler, not is_vector_mode)
-    for c in [vector, scalar]:
-        report[c] = {}
-        for t in tests:
-            # The executable_name should look like 'some_prefix.mutation_number.c'
-            p = ''.join(t.split('.')[0:-2])
-            if p not in program_names:
-                program_names.append(p)
-            if p not in report[c]:
-                report[c][p] = []
-            report[c][p].append(get_runtime(c, t, table))
-
-    agg_report = {}
     speedups = {}
-    stability_report = {}
-    threshold = 0.15
-    for c in [vector, scalar]:
-        agg_report[c] = {}
-        speedups[c] = {}
-        stability_report[c] = {}
-        for p in program_names:
-            runtimes = report[c][p]
-            agg_report[c][p] = get_aggregate(runtimes)
-            base = agg_report[c][p].min
-            speedups[c][p] = get_speedup(runtimes, base)
-            stability_report[c][p] = get_stability_index(runtimes,
-                                                         base,
-                                                         threshold)
+    for key, mode_runtimes in grouped.items():
+        if 'novec' in mode_runtimes and 'fast' in mode_runtimes:
+            speedups[key] = mode_runtimes['novec'] / mode_runtimes['fast']
 
-    vector_opportunity = {}
-    for p in program_names:
-        is_vector_mode = True
-        vector_opportunity[p] = agg_report[scalar][p].min / agg_report[vector][p].min
+    best_speedups = {}
+    for key, speedup in speedups.items():
+        merge_value(best_speedups, key[:-1], speedup, max)
 
-    # rows = [['program'] + full_compiler_names]
-    # header = ['program', 'avg speedup', 'scalar stability', 'vector stability']
-    rows = []
-    for p in program_names:
-        row = [
-            p,
-            f'{speedups[scalar][p]:.2f}',
-            f'{stability_report[scalar][p]:.2f}',
-            f'{speedups[vector][p]:.2f}',
-            f'{stability_report[vector][p]:.2f}',
-            f'{vector_opportunity[p]:.2f}'
-        ]
-        rows.append(row)
-    print(f'==== {compiler} ====')
-    print(tabulate(rows,
-                   headers=[
-                       'Program name',
-                       'Avg speedup (scalar)',
-                       'Stability (scalar)',
-                       'Avg speedup (vector)',
-                       'Stability (vector)',
-                       'Avg scalar/vector']))
-    print()
+    outliers = Outliers()
+    normalized = {}
+    for key, speedup in speedups.items():
+        normalized[key] = speedup / best_speedups[key[:-1]]
+        outliers.merge(key[:-1], normalized[key], speedup, key)
 
-if __name__ == '__main__':
-    metrics = parse_metrics()
-    table = {}
- 
+    return normalized, outliers
+
+def get_normalized_cost_model_performance(runtimes):
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        key = (compiler, pattern, program, mutation)
+        update_dict_dict(grouped, key, mode, runtime)
+
+    n_cost_model_good = {}
+    n_total_mutations = {}
     for compiler in compilers:
-        for is_vector_mode in [True, False]:
-            compiler_name = full_compiler_name(compiler, is_vector_mode)
-            table[compiler_name] = {}
-            for attribute_name in Metrics.get_attribute_names():
-                table[compiler_name][attribute_name] = {}
-                for test in tests:
-                    metric = metrics[compiler_name][test]
-                    formatter = getattr(metric, f'format_{attribute_name}')
-                    table[compiler_name][attribute_name][test] = formatter()
+        n_cost_model_good[compiler] = 0
+        n_total_mutations[compiler] = 0
 
-    for c in compilers:
-        report_for_compiler(c, table)
+    for key, mode_runtimes in grouped.items():
+        if 'nopredict' in mode_runtimes and 'fast' in mode_runtimes:
+            compiler = key[0]
+            with_cost_model = mode_runtimes['fast'] * 0.95
+            if mode_runtimes['nopredict'] >= with_cost_model:
+                n_cost_model_good[compiler] += 1
+            n_total_mutations[compiler] += 1
 
-    
+    normalized = {}
+    for key, n_total in n_total_mutations.items():
+        if n_total > 0:
+            normalized[key] = n_cost_model_good[key] / n_total
+
+    return normalized
+
+vectorizable_threshold = 1.00
+def get_normalized_vectorizables(runtimes):
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        key = (compiler, pattern, program, mutation)
+        update_dict_dict(grouped, key, mode, runtime)
+
+    speedups = {}
+    for key, mode_runtimes in grouped.items():
+        if 'novec' in mode_runtimes and 'fast' in mode_runtimes:
+            speedups[key] = mode_runtimes['novec'] / mode_runtimes['fast']
+
+    best_speedups = {}
+    for key, speedup in speedups.items():
+        merge_value(best_speedups, key[:-1], speedup, max)
+
+    n_vectorizables = {}
+    n_actually_vectorized = {}
+    for compiler in compilers:
+        n_vectorizables[compiler] = 0
+        n_actually_vectorized[compiler] = 0
+
+    for key, speedup in speedups.items():
+        compiler = key[0]
+        best_speedup = best_speedups[key[:-1]]
+        if best_speedup > vectorizable_threshold:
+            n_vectorizables[compiler] += 1
+            if speedup > vectorizable_threshold:
+                n_actually_vectorized[compiler] += 1
+
+    normalized = {}
+    for key, n_total in n_vectorizables.items():
+        if n_total > 0:
+            normalized[key] = n_actually_vectorized[key] / n_total
+
+    return normalized
+
+def get_normalized_peer_speedups(runtimes):
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        if mode == 'fast':
+            key = (pattern, program, mutation)
+            update_dict_dict(grouped, key, compiler, runtime)
+
+    keys_to_consider = []
+    overall_runtime = {}
+    for key, compiler_runtimes in grouped.items():
+        if all([compiler in compiler_runtimes for compiler in compilers]):
+            keys_to_consider.append(key)
+            for compiler, runtime in compiler_runtimes.items():
+                merge_value(overall_runtime, compiler, runtime,
+                            lambda v1, v2: log(v1) + log(v2))
+
+    ascend_perf_pairs = []
+    for i, c1 in enumerate(compilers[:-1]):
+        for c2 in compilers[i+1:]:
+            # lower runtime means better performance
+            ascend_perf = (c2, c1) if overall_runtime[c1] < overall_runtime[c2] else (c1, c2)
+            ascend_perf_pairs.append(ascend_perf)
+
+    speedups = {}
+    for key in keys_to_consider:
+        for (slower, faster) in ascend_perf_pairs:
+            slower_key = (slower, 'fast', *key)
+            faster_key = (faster, 'fast', *key)
+            speedups[(slower, faster, *key)] = runtimes[slower_key] / runtimes[faster_key]
+
+    best_speedups = {}
+    for key, speedup in speedups.items():
+        merge_value(best_speedups, key[:-1], speedup, max)
+
+    outliers = Outliers()
+    normalized = {}
+    for key, speedup in speedups.items():
+        normalized[key] = speedup / best_speedups[key[:-1]]
+        outliers.merge(key[:-1], normalized[key], speedup, key)
+
+    return normalized, outliers
+
+def get_normalized_peer_ranks(runtimes):
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        if mode == 'fast':
+            key = (pattern, program, mutation)
+            update_dict_dict(grouped, key, compiler, runtime)
+
+    keys_to_consider = []
+    overall_runtime = {}
+    for key, compiler_runtimes in grouped.items():
+        if all([compiler in compiler_runtimes for compiler in compilers]):
+            keys_to_consider.append(key)
+            for compiler, runtime in compiler_runtimes.items():
+                merge_value(overall_runtime, compiler, runtime,
+                            lambda v1, v2: log(v1) + log(v2))
+
+    ascend_perf_pairs = []
+    for i, c1 in enumerate(compilers[:-1]):
+        for c2 in compilers[i+1:]:
+            # lower runtime means better performance
+            ascend_perf = (c2, c1) if overall_runtime[c1] < overall_runtime[c2] else (c1, c2)
+            ascend_perf_pairs.append(ascend_perf)
+
+    correct_ranks = {}
+    for key in ascend_perf_pairs:
+        correct_ranks[key] = 0
+    for key in keys_to_consider:
+        for (slower, faster) in ascend_perf_pairs:
+            slower_key = (slower, 'fast', *key)
+            faster_key = (faster, 'fast', *key)
+            if runtimes[slower_key] > runtimes[faster_key]:
+                correct_ranks[(slower, faster)] += 1
+
+    normalized = {}
+    n_mutation_count = len(keys_to_consider)
+    for key, count in correct_ranks.items():
+        normalized[key] = count / n_mutation_count
+
+    return normalized
+
+runtimes = read_runtimes_database()
+# normalized, outliers = get_normalized_runtimes(runtimes)
+# normalized, outliers = get_normalized_vec_speedups(runtimes)
+normalized, outliers = get_normalized_peer_speedups(runtimes)
+
+# x3 = get_normalized_vectorizables(runtimes)
+# x4 = get_normalized_peer_ranks(runtimes)
+# x5 = get_normalized_cost_model_performance(runtimes)
+
+debug(normalized)
+outliers.debug()
+# vector_rates = read_vector_rates_database()
+# normalized_3, outliers_3 = get_normalized_vector_rates(vector_rates)
+
+# for (pattern, p, m) in get_mutations(runtimes):
+#     nopredict = runtimes[('icc', 'nopredict', pattern, p, m)]
+#     fast = runtimes[('icc', 'fast', pattern, p, m)]
+#     with_cost_model = fast * 0.95
+#     is_prediction_good = nopredict >= with_cost_model
+#     print(f'nopredict({nopredict:.2f}) > fast({fast:.2f})? {is_prediction_good}')
