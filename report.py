@@ -28,20 +28,28 @@ class Outlier:
     def __repr__(self):
         return f'{self.raw}({self.key})({self.normalized})'
 
+def negate(f):
+    def not_f(x, y):
+        return not f(x, y)
+    return not_f
+
 def is_greater(x, y):
     return x > y
 
-def is_less(x, y):
-    return x < y
+is_less = negate(is_greater)
 
 def create_min_max_outliers():
     return Outliers([is_greater, is_less])
 
-def is_wider(outlier_pair_1, outlier_pair_2):
-    pass
+def is_wider(pair1, pair2):
+    width1 = pair1[1] - pair1[0]
+    width2 = pair2[1] - pair2[0]
+    return width1 > width2
+
+is_narrower = negate(is_wider)
 
 def create_spread_outliers():
-    return Outliers([is_greater, is_less])
+    return Outliers([is_narrower])
 
 class Outliers:
     def __init__(self, merge_predicates):
@@ -303,6 +311,14 @@ normalized, outliers = get_normalized_peer_speedups(runtimes)
 
 debug(normalized)
 outliers.debug()
+
+per_program = create_spread_outliers()
+for key, [min_outlier, max_outlier] in outliers.outliers.items():
+    normalized = (min_outlier.normalized, max_outlier.normalized)
+    raws = (min_outlier.raw, max_outlier.raw)
+    per_program.merge(key, normalized, raws)
+per_program.debug()
+
 # vector_rates = read_vector_rates_database()
 # normalized_3, outliers_3 = get_normalized_vector_rates(vector_rates)
 
