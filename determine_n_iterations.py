@@ -30,16 +30,6 @@ def nsecs(command, n_iterations):
 def n_iterations_per_ms(goal_ms, per_iteration_nsec):
     return math.ceil(goal_ms * 1e6 / per_iteration_nsec)
 
-def determine_n_iterations(exe_name, n_iterations_name, goal_ms, min_iters=3, max_iters=100):
-    with open(n_iterations_name, 'w') as f:
-        per_iteration_nsec = nsecs(f'./{exe_name}', 1)
-        iters = n_iterations_per_ms(goal_ms, per_iteration_nsec)
-        if iters > max_iters:
-            iters = max_iters
-        if iters < min_iters:
-            iters = min_iters
-        f.write(f'{iters}')
-
 def calculate_ns_per_iteration(exe_name, output_path):
     max_iterations = 100
     nsec_per_iteration = nsecs(f'./{exe_name}', 1)

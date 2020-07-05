@@ -20,26 +20,39 @@ class Outlier:
         self.raw = None
         self.key = None
         self.merge_predicate = merge_predicate
-    def merge(self, normalized, raw, key):
+    def merge(self, key, normalized, raw):
         if self.normalized is None or self.merge_predicate(self.normalized, normalized):
             self.normalized = normalized
-            self.raw = raw
             self.key = key
+            self.raw = raw
     def __repr__(self):
         return f'{self.raw}({self.key})({self.normalized})'
 
-is_greater = lambda x, y: x > y
-is_lesser = lambda x, y: x < y
+def is_greater(x, y):
+    return x > y
+
+def is_less(x, y):
+    return x < y
+
+def create_min_max_outliers():
+    return Outliers([is_greater, is_less])
+
+def is_wider(outlier_pair_1, outlier_pair_2):
+    pass
+
+def create_spread_outliers():
+    return Outliers([is_greater, is_less])
 
 class Outliers:
-    def __init__(self):
+    def __init__(self, merge_predicates):
         self.outliers = {}
-    def merge(self, key, new_value, identifier, raw):
-        if key not in self.outliers:
-            self.outliers[key] = (Outlier(is_greater),
-                                  Outlier(is_lesser))
-        for outlier in self.outliers[key]:
-            outlier.merge(new_value, identifier, raw)
+        self.merge_predicates = merge_predicates
+    def merge(self, key, new_value, raw):
+        outliers_key = key[:-1]
+        if outliers_key not in self.outliers:
+            self.outliers[outliers_key] = [Outlier(p) for p in self.merge_predicates]
+        for outlier in self.outliers[outliers_key]:
+            outlier.merge(key, new_value, raw)
     def debug(self):
         debug(self.outliers)
 
@@ -88,11 +101,11 @@ def get_normalized_runtimes(runtimes):
     for key, runtime in runtimes.items():
         merge_value(best_mutations, key[:-1], runtime, min)
 
-    outliers = Outliers()
+    outliers = create_min_max_outliers()
     normalized = {}
     for key, runtime in runtimes.items():
         normalized[key] = best_mutations[key[:-1]] / runtime
-        outliers.merge(key[:-1], normalized[key], runtime, key)
+        outliers.merge(key, normalized[key], runtime)
 
     return normalized, outliers
 
@@ -101,12 +114,12 @@ def get_normalized_vector_rates(vector_rates):
     for key, vector_rate in vector_rates.items():
         merge_value(best_mutations, key[:-1], vector_rate, max)
 
-    outliers = Outliers()
+    outliers = create_min_max_outliers()
     normalized = {}
     for key, vector_rate in vector_rates.items():
         if best_mutations[key[:-1]] > 0:
             normalized[key] = vector_rate / best_mutations[key[:-1]]
-            outliers.merge(key[:-1], normalized[key], vector_rate, key)
+            outliers.merge(key, normalized[key], vector_rate)
 
     return normalized, outliers
 
@@ -125,11 +138,11 @@ def get_normalized_vec_speedups(runtimes):
     for key, speedup in speedups.items():
         merge_value(best_speedups, key[:-1], speedup, max)
 
-    outliers = Outliers()
+    outliers = create_min_max_outliers()
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
-        outliers.merge(key[:-1], normalized[key], speedup, key)
+        outliers.merge(key, normalized[key], speedup)
 
     return normalized, outliers
 
@@ -231,11 +244,11 @@ def get_normalized_peer_speedups(runtimes):
     for key, speedup in speedups.items():
         merge_value(best_speedups, key[:-1], speedup, max)
 
-    outliers = Outliers()
+    outliers = create_min_max_outliers()
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
-        outliers.merge(key[:-1], normalized[key], speedup, key)
+        outliers.merge(key, normalized[key], speedup)
 
     return normalized, outliers
 
