@@ -1,7 +1,15 @@
-from build import PathBuilder, iterate_compiler_modes, iterate_mutations
+from build import \
+    PathBuilder, \
+    iterate_compiler_modes, \
+    iterate_mutations
 from scipy.stats import tmean
 from scipy import log
 from compilers import compilers
+from stats import \
+    calculate_ci_geometric, \
+    calculate_ci_proportion, \
+    create_min_max_cases, \
+    create_max_spread_cases
 
 def debug(d):
     for k, v in d.items():
@@ -13,56 +21,6 @@ import os
 base_dir = os.getcwd()
 sys.path = [base_dir] + sys.path
 from patterns import patterns
-
-class Outlier:
-    def __init__(self, merge_predicate):
-        self.normalized = None
-        self.raw = None
-        self.key = None
-        self.merge_predicate = merge_predicate
-    def merge(self, key, normalized, raw):
-        if self.normalized is None or self.merge_predicate(self.normalized, normalized):
-            self.normalized = normalized
-            self.key = key
-            self.raw = raw
-    def __repr__(self):
-        return f'{self.raw}({self.key})({self.normalized})'
-
-def negate(f):
-    def not_f(x, y):
-        return not f(x, y)
-    return not_f
-
-def is_greater(x, y):
-    return x > y
-
-is_less = negate(is_greater)
-
-def create_min_max_outliers():
-    return Outliers([is_greater, is_less])
-
-def is_wider(pair1, pair2):
-    width1 = pair1[1] - pair1[0]
-    width2 = pair2[1] - pair2[0]
-    return width1 > width2
-
-is_narrower = negate(is_wider)
-
-def create_spread_outliers():
-    return Outliers([is_narrower])
-
-class Outliers:
-    def __init__(self, merge_predicates):
-        self.outliers = {}
-        self.merge_predicates = merge_predicates
-    def merge(self, key, new_value, raw):
-        outliers_key = key[:-1]
-        if outliers_key not in self.outliers:
-            self.outliers[outliers_key] = [Outlier(p) for p in self.merge_predicates]
-        for outlier in self.outliers[outliers_key]:
-            outlier.merge(key, new_value, raw)
-    def debug(self):
-        debug(self.outliers)
 
 def read_runtimes_database():
     database = {}
@@ -104,12 +62,17 @@ def update_dict_dict(d, k1, k2, v):
         d[k1] = {}
     d[k1][k2] = v
 
+def update_dict_array(d, k, v):
+    if k not in d:
+        d[k] = []
+    d[k].append(v)
+
 def get_normalized_runtimes(runtimes):
     best_mutations = {}
     for key, runtime in runtimes.items():
         merge_value(best_mutations, key[:-1], runtime, min)
 
-    outliers = create_min_max_outliers()
+    outliers = create_min_max_cases()
     normalized = {}
     for key, runtime in runtimes.items():
         normalized[key] = best_mutations[key[:-1]] / runtime
@@ -122,7 +85,7 @@ def get_normalized_vector_rates(vector_rates):
     for key, vector_rate in vector_rates.items():
         merge_value(best_mutations, key[:-1], vector_rate, max)
 
-    outliers = create_min_max_outliers()
+    outliers = create_min_max_cases()
     normalized = {}
     for key, vector_rate in vector_rates.items():
         if best_mutations[key[:-1]] > 0:
@@ -146,7 +109,7 @@ def get_normalized_vec_speedups(runtimes):
     for key, speedup in speedups.items():
         merge_value(best_speedups, key[:-1], speedup, max)
 
-    outliers = create_min_max_outliers()
+    outliers = create_min_max_cases()
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
@@ -177,7 +140,7 @@ def get_normalized_cost_model_performance(runtimes):
     normalized = {}
     for key, n_total in n_total_mutations.items():
         if n_total > 0:
-            normalized[key] = n_cost_model_good[key] / n_total
+            normalized[key] = (n_cost_model_good[key], n_total)
 
     return normalized
 
@@ -214,7 +177,7 @@ def get_normalized_vectorizables(runtimes):
     normalized = {}
     for key, n_total in n_vectorizables.items():
         if n_total > 0:
-            normalized[key] = n_actually_vectorized[key] / n_total
+            normalized[key] = (n_actually_vectorized[key], n_total)
 
     return normalized
 
@@ -252,7 +215,7 @@ def get_normalized_peer_speedups(runtimes):
     for key, speedup in speedups.items():
         merge_value(best_speedups, key[:-1], speedup, max)
 
-    outliers = create_min_max_outliers()
+    outliers = create_min_max_cases()
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
@@ -296,28 +259,40 @@ def get_normalized_peer_ranks(runtimes):
     normalized = {}
     n_mutation_count = len(keys_to_consider)
     for key, count in correct_ranks.items():
-        normalized[key] = count / n_mutation_count
+        normalized[key] = (count, n_mutation_count)
 
     return normalized
 
 runtimes = read_runtimes_database()
 # normalized, outliers = get_normalized_runtimes(runtimes)
 # normalized, outliers = get_normalized_vec_speedups(runtimes)
-normalized, outliers = get_normalized_peer_speedups(runtimes)
 
-# x3 = get_normalized_vectorizables(runtimes)
+# Example CI for mean
+# normalized, outliers = get_normalized_peer_speedups(runtimes)
+# grouped = {}
+# for (compiler1, compiler2, pattern, program, mutation), speedup in normalized.items():
+#     update_dict_array(grouped, (compiler1, compiler2), speedup)
+# for (c1, c2), speedups in grouped.items():
+#     print(f'{c1} < {c2}')
+#     print(calculate_ci_geometric(speedups))
+
+# Example CI for proportion
+normalized = get_normalized_vectorizables(runtimes)
+debug(normalized)
+for key, (occurrences, total) in normalized.items():
+    print(key)
+    print(calculate_ci_proportion(occurrences, total))
 # x4 = get_normalized_peer_ranks(runtimes)
 # x5 = get_normalized_cost_model_performance(runtimes)
 
-debug(normalized)
-outliers.debug()
+# outliers.debug()
 
-per_program = create_spread_outliers()
-for key, [min_outlier, max_outlier] in outliers.outliers.items():
-    normalized = (min_outlier.normalized, max_outlier.normalized)
-    raws = (min_outlier.raw, max_outlier.raw)
-    per_program.merge(key, normalized, raws)
-per_program.debug()
+# per_program = create_max_spread_cases()
+# for key, [min_outlier, max_outlier] in outliers.outliers.items():
+#     normalized = (min_outlier.normalized, max_outlier.normalized)
+#     raws = (min_outlier.raw, max_outlier.raw)
+#     per_program.merge(key, normalized, raws)
+# per_program.debug()
 
 # vector_rates = read_vector_rates_database()
 # normalized_3, outliers_3 = get_normalized_vector_rates(vector_rates)

@@ -60,25 +60,21 @@ class PathBuilder:
 
     def core_path(self):
         return f'{self.source_part()}.c'
+
     def core_obj_path(self):
         return f'{self.prefix()}.o'
 
     def wrapper_path(self):
         return f'{self.source_part()}.wrapper.c'
+
     def wrapper_obj_path(self):
         return f'{self.prefix()}.wrapper.o'
 
     def assembly_path(self):
         return f'{self.prefix()}.s'
 
-    def runtimes_path(self, mutation=None):
-        return f'{self.prefix(mutation=mutation)}.runtimes'
-
     def runtimes_ns_path(self, mutation=None):
         return f'{self.prefix(mutation=mutation)}.nanosec_runtimes'
-
-    def n_iterations_path(self):
-        return f'{self.prefix()}.n_iterations'
 
     def ns_per_iteration_path(self):
         return f'{self.prefix()}.nanosec_per_iteration'
@@ -86,74 +82,8 @@ class PathBuilder:
     def vector_rate_path(self):
         return f'{self.prefix()}.vector_rate'
 
-    def test_result_path(self):
-        return f'{self.prefix()}.test_result'
-
-    def summary_path(self, compiler=None, mode=None, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(compiler=compiler, mode=mode, pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.summary'
-
-    def min_path(self, pattern=None, program=None):
-        prefix = self.prefix(pattern=pattern, program=program)
-        return f'{prefix}.min'
-
-    def perf_path(self, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.perf'
-
-    def perf_ci_path(self, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.perf_ci'
-
-    # VECTORIZATION
-    def vec_speedup_path(self, compiler=None, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.vec_speedup'
-
-    def vec_speedup_ci_path(self, compiler=None, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.vec_speedup_ci'
-
-    def best_vec_speedup_path(self, mutation=None):
-        prefix = self.prefix(mutation=mutation)
-        return f'{prefix}.best_vec_speedup'
-
-    def normalized_vec_speedup_path(self, compiler=None, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.normalized_vec_speedup'
-
-    def vec_success_path(self, compiler=None, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(compiler=compiler, pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.vec_success'
-
-    # PEER
-    def sum_of_logs_path(self, compiler=None, mode=None, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(compiler=compiler, mode=mode, pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.sum_of_logs'
-
-    def peer_fraction_path(self, c1, c2, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.{c1}.{c2}.fraction'
-
-    def peer_fraction_ci_path(self, c1, c2, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.{c1}.{c2}.fraction_ci'
-
-    def best_peer_fraction_path(self, c1, c2, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.{c1}.{c2}.best_fraction'
-
-    def normalized_peer_fraction_path(self, c1, c2, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.{c1}.{c2}.normalized_fraction'
-
-    def peer_is_faster_path(self, c1, c2, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.{c1}.{c2}.is_faster'
-
-    def peer_is_faster_ci_path(self, c1, c2, pattern=None, program=None, mutation=None):
-        prefix = self.prefix(pattern=pattern, program=program, mutation=mutation)
-        return f'{prefix}.{c1}.{c2}.is_faster_ci'
+    def checksum_path(self, mutation=None):
+        return f'{self.prefix(mutation=mutation)}.checksum'
 
 class CommandBuilder:
     def link_objects(self, compiler, mode, objects, output):

@@ -1,3 +1,4 @@
+from numpy import quantile
 from scipy import log, e
 from scipy.stats import gmean, gstd, tmean, tstd, t, norm
 from math import sqrt
@@ -29,11 +30,7 @@ def confidence_interval_proportion(proportion, n_samples, level):
     error = z_value * sqrt((proportion * (1-proportion)) / n_samples)
     return (proportion - error, proportion + error)
 
-def calculate_ci_geometric(sample_paths, output_path):
-    samples = []
-    for path in sample_paths:
-        with open(path) as f:
-            samples.append(float(f.read()))
+def calculate_ci_geometric(samples):
     log_samples = list(map(log, samples))
     log_ci90 = confidence_interval_mean(log_samples, 0.90)
     log_ci95 = confidence_interval_mean(log_samples, 0.95)
@@ -41,24 +38,74 @@ def calculate_ci_geometric(sample_paths, output_path):
     ci90 = (e**log_ci95[0], e**log_ci90[1])
     ci95 = (e**log_ci95[0], e**log_ci95[1])
     ci99 = (e**log_ci99[0], e**log_ci99[1])
-    with open(output_path, 'w') as f:
-        f.write(f'ci-90:{ci90[0]}:{ci90[1]} '
-                f'ci-95:{ci95[0]}:{ci95[1]} '
-                f'ci-99:{ci99[0]}:{ci99[1]}')
+    return (ci90, ci95, ci99)
 
-def calculate_ci_proportion(sample_paths, output_path):
-    n = 0
-    total = 0
-    for path in sample_paths:
-        with open(path) as f:
-            if int(f.read()) > 0:
-                n += 1
-        total += 1
-    proportion = n / total
+def calculate_ci_proportion(occurrences, total):
+    proportion = occurrences / total
     ci90 = confidence_interval_proportion(proportion, total, 0.90)
     ci95 = confidence_interval_proportion(proportion, total, 0.95)
     ci99 = confidence_interval_proportion(proportion, total, 0.99)
-    with open(output_path, 'w') as f:
-        f.write(f'ci-90:{ci90[0]}:{ci90[1]} '
-                f'ci-95:{ci95[0]}:{ci95[1]} '
-                f'ci-99:{ci99[0]}:{ci99[1]} ')
+    return (ci90, ci95, ci99)
+
+def find_outliers(values, keys):
+    outliers = []
+    q1 = quantile(values, 0.25)
+    q3 = quantile(values, 0.75)
+    iqr = q3 - q1
+    max_val = q3 + 1.5 * iqr
+    min_val = q1 - 1.5 * iqr
+    distribution = (min_val, q1, q3, max_val)
+    for val, key in zip(values, keys):
+        if val < min_val or max_val < val:
+            outliers.append((val, key))
+    return distribution, outliers
+
+class InterestingCase:
+    def __init__(self, merge_predicate):
+        self.normalized = None
+        self.raw = None
+        self.key = None
+        self.merge_predicate = merge_predicate
+    def merge(self, key, normalized, raw):
+        if self.normalized is None or self.merge_predicate(self.normalized, normalized):
+            self.normalized = normalized
+            self.key = key
+            self.raw = raw
+    def __repr__(self):
+        return f'{self.raw}({self.key})({self.normalized})'
+
+def negate(f):
+    def not_f(x, y):
+        return not f(x, y)
+    return not_f
+
+def is_greater(x, y):
+    return x > y
+
+is_less = negate(is_greater)
+
+def create_min_max_cases():
+    return InterestingCases([is_greater, is_less])
+
+def is_wider(pair1, pair2):
+    width1 = pair1[1] - pair1[0]
+    width2 = pair2[1] - pair2[0]
+    return width1 > width2
+
+is_narrower = negate(is_wider)
+
+def create_max_spread_cases():
+    return InterestingCases([is_narrower])
+
+class InterestingCases:
+    def __init__(self, merge_predicates):
+        self.outliers = {}
+        self.merge_predicates = merge_predicates
+    def merge(self, key, new_value, raw):
+        outliers_key = key[:-1]
+        if outliers_key not in self.outliers:
+            self.outliers[outliers_key] = [InterestingCase(p) for p in self.merge_predicates]
+        for outlier in self.outliers[outliers_key]:
+            outlier.merge(key, new_value, raw)
+    def debug(self):
+        debug(self.outliers)

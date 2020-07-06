@@ -2,7 +2,7 @@ from patterns import patterns
 from compilers import compilers
 from doit import get_var
 from build import PathBuilder, CommandBuilder, iterate_mutations, iterate_programs, iterate_compiler_vec_novec, iterate_compiler_pair_fast, iterate_compiler_fast, iterate_compiler_modes
-from determine_n_iterations import calculate_ns_per_iteration, measure_runtime
+from measure import calculate_ns_per_iteration, measure_runtime, calculate_checksum
 
 from vtune import measure_vrate
 
@@ -25,7 +25,7 @@ def task_find_ns_per_iteration():
             exe_name = path_builder.exe_path()
             output_path = path_builder.ns_per_iteration_path()
             yield {
-                'name': exe_name,
+                'name': output_path,
                 'file_dep': [exe_name],
                 'actions': [(calculate_ns_per_iteration, [exe_name, output_path])],
                 'targets': [output_path]
@@ -40,9 +40,23 @@ def task_measure_runtimes():
             ns_per_iteration_path = path_builder.ns_per_iteration_path()
             output_path = path_builder.runtimes_ns_path()
             yield {
-                'name': exe_name,
+                'name': output_path,
                 'file_dep': [exe_name, ns_per_iteration_path],
                 'actions': [(measure_runtime, [exe_name, ns_per_iteration_path, output_path])],
+                'targets': [output_path]
+            }
+
+def task_calculate_checksum():
+    """Calculate checksum"""
+    for (compiler, mode) in iterate_compiler_modes():
+        for (pattern, program, mutation) in iterate_mutations(patterns):
+            path_builder = PathBuilder(compiler, mode, pattern, program, mutation)
+            exe_name = path_builder.exe_path()
+            output_path = path_builder.checksum_path()
+            yield {
+                'name': output_path,
+                'file_dep': [exe_name],
+                'actions': [(calculate_checksum, [exe_name, output_path])],
                 'targets': [output_path]
             }
 
@@ -55,7 +69,7 @@ def task_measure_vector_rates():
             ns_per_iteration_path = path_builder.ns_per_iteration_path()
             output_path = path_builder.vector_rate_path()
             yield {
-                'name': exe_name,
+                'name': output_path,
                 'file_dep': [exe_name, ns_per_iteration_path],
                 'actions': [(measure_vrate, [exe_name, ns_per_iteration_path, output_path])],
                 'targets': [output_path]
