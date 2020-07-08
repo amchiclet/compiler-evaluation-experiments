@@ -10,19 +10,20 @@ from stats import \
     calculate_ci_proportion, \
     create_min_max_cases, \
     create_max_spread_cases
+import os
 
 def debug(d):
     for k, v in d.items():
         print(f'{k} => {v}')
 
-import sys
-import os
+def import_patterns():
+    import sys
+    base_dir = os.getcwd()
+    sys.path = [base_dir] + sys.path
+    from patterns import patterns
+    return patterns
 
-base_dir = os.getcwd()
-sys.path = [base_dir] + sys.path
-from patterns import patterns
-
-def read_runtimes_database():
+def read_runtimes_database(patterns):
     database = {}
     for compiler, mode in iterate_compiler_modes():
         for pattern, program, mutation in iterate_mutations(patterns):
@@ -70,13 +71,15 @@ def update_dict_array(d, k, v):
 def get_normalized_runtimes(runtimes):
     best_mutations = {}
     for key, runtime in runtimes.items():
-        merge_value(best_mutations, key[:-1], runtime, min)
+        if key[1] == 'fast':
+            merge_value(best_mutations, key[:-1], runtime, min)
 
     outliers = create_min_max_cases()
     normalized = {}
     for key, runtime in runtimes.items():
-        normalized[key] = best_mutations[key[:-1]] / runtime
-        outliers.merge(key, normalized[key], runtime)
+        if key[1] == 'fast':
+            normalized[key] = best_mutations[key[:-1]] / runtime
+            outliers.merge(key, normalized[key], runtime)
 
     return normalized, outliers
 
@@ -263,9 +266,52 @@ def get_normalized_peer_ranks(runtimes):
 
     return normalized
 
-runtimes = read_runtimes_database()
-# normalized, outliers = get_normalized_runtimes(runtimes)
-# normalized, outliers = get_normalized_vec_speedups(runtimes)
+class Stats:
+    def __init__(self, name, cis, interesting_cases):
+        self.name = name
+        self.cis = cis
+        self.interesting_cases = interesting_cases
+    def pprint(self):
+        lines = [self.name]
+        for key, ci in self.cis.items():
+            lines.append(f'{key}')
+            lines.append(f'95% CI {ci[1]}')
+            interesting_case = self.interesting_cases.cases[key][0]
+            remaining_key = [part for part in interesting_case.key if part not in key]
+            lines.append(f'Interesting case: {interesting_case.raw} ({remaining_key})\n')
+        return '\n'.join(lines)
+
+def get_runtime_stats(runtimes):
+    cis = {}
+    normalized, outliers = get_normalized_runtimes(runtimes)
+
+    interesting_cases = create_max_spread_cases()
+    for (compiler, mode, *rest), [min_outlier, max_outlier] in outliers.cases.items():
+        normalized_pair = (min_outlier.normalized, max_outlier.normalized)
+        # max normalized means min raw runtime
+        raw_pair = (max_outlier.raw, min_outlier.raw)
+        interesting_cases.merge((compiler, mode, rest), normalized_pair, raw_pair)
+
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in normalized.items():
+        update_dict_array(grouped, (compiler, mode), runtime)
+    for key, runtimes in grouped.items():
+        cis[key] = calculate_ci_geometric(runtimes)
+
+    debug(interesting_cases.cases)
+    return Stats('Runtime stability', cis, interesting_cases)
+
+def generate_report():
+    patterns = import_patterns()
+
+    runtimes = read_runtimes_database(patterns)
+
+    runtime_stats = get_runtime_stats(runtimes)
+    print(runtime_stats.pprint())
+
+
+generate_report()
+    # normalized, outliers = get_normalized_vec_speedups(runtimes)
 
 # Example CI for mean
 # normalized, outliers = get_normalized_peer_speedups(runtimes)
@@ -277,11 +323,11 @@ runtimes = read_runtimes_database()
 #     print(calculate_ci_geometric(speedups))
 
 # Example CI for proportion
-normalized = get_normalized_vectorizables(runtimes)
-debug(normalized)
-for key, (occurrences, total) in normalized.items():
-    print(key)
-    print(calculate_ci_proportion(occurrences, total))
+# normalized = get_normalized_vectorizables(runtimes)
+# debug(normalized)
+# for key, (occurrences, total) in normalized.items():
+#     print(key)
+#     print(calculate_ci_proportion(occurrences, total))
 # x4 = get_normalized_peer_ranks(runtimes)
 # x5 = get_normalized_cost_model_performance(runtimes)
 

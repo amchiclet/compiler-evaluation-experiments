@@ -60,20 +60,6 @@ def find_outliers(values, keys):
             outliers.append((val, key))
     return distribution, outliers
 
-class InterestingCase:
-    def __init__(self, merge_predicate):
-        self.normalized = None
-        self.raw = None
-        self.key = None
-        self.merge_predicate = merge_predicate
-    def merge(self, key, normalized, raw):
-        if self.normalized is None or self.merge_predicate(self.normalized, normalized):
-            self.normalized = normalized
-            self.key = key
-            self.raw = raw
-    def __repr__(self):
-        return f'{self.raw}({self.key})({self.normalized})'
-
 def negate(f):
     def not_f(x, y):
         return not f(x, y)
@@ -97,15 +83,25 @@ is_narrower = negate(is_wider)
 def create_max_spread_cases():
     return InterestingCases([is_narrower])
 
+class InterestingCase:
+    def __init__(self, merge_predicate):
+        self.normalized = None
+        self.raw = None
+        self.key = None
+        self.merge_predicate = merge_predicate
+    def merge(self, key, normalized, raw):
+        if self.normalized is None or self.merge_predicate(self.normalized, normalized):
+            self.normalized = normalized
+            self.key = key
+            self.raw = raw
+
 class InterestingCases:
     def __init__(self, merge_predicates):
-        self.outliers = {}
+        self.cases = {}
         self.merge_predicates = merge_predicates
     def merge(self, key, new_value, raw):
-        outliers_key = key[:-1]
-        if outliers_key not in self.outliers:
-            self.outliers[outliers_key] = [InterestingCase(p) for p in self.merge_predicates]
-        for outlier in self.outliers[outliers_key]:
+        cases_key = key[:-1]
+        if cases_key not in self.cases:
+            self.cases[cases_key] = [InterestingCase(p) for p in self.merge_predicates]
+        for outlier in self.cases[cases_key]:
             outlier.merge(key, new_value, raw)
-    def debug(self):
-        debug(self.outliers)

@@ -1,8 +1,8 @@
 compilers = [
     'gcc',
-    'icc',
+    # 'icc',
     # 'pgi',
-    # 'clang',
+    'clang',
 ]
 
 base_command = {
@@ -20,8 +20,8 @@ novec_flags = {
 }
 
 nopredict_flags = {
-    # 'pgi': '-Mnovect',
-    'gcc': ['-fno-vect-cost-model'],
+    'pgi': ['-Mvect=nosizelimit'],
+    'gcc': ['-fvect-cost-model=unlimited'],
     'icc': ['-vec-threshold0'],
-    'clang': ['-mllvm -force-vector-width=16'],
+    'clang': ['-mllvm', '-force-vector-width=8'],
 }
