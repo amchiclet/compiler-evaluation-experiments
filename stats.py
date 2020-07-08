@@ -105,3 +105,22 @@ class InterestingCases:
             self.cases[cases_key] = [InterestingCase(p) for p in self.merge_predicates]
         for outlier in self.cases[cases_key]:
             outlier.merge(key, new_value, raw)
+
+class Stats:
+    def __init__(self, name, cis, interesting_cases):
+        self.name = name
+        self.cis = cis
+        self.interesting_cases = interesting_cases
+    def pprint(self):
+        lines = [self.name]
+        for key, ci in self.cis.items():
+            lines.append(f'{key}')
+            lines.append(f'95% CI {ci[1]}')
+            if self.interesting_cases is not None:
+                if key in self.interesting_cases.cases:
+                    interesting_case = self.interesting_cases.cases[key][0]
+                    remaining_key = [part for part in interesting_case.key if part not in key]
+                    lines.append(f'Interesting case: {interesting_case.raw} ({remaining_key})')
+                else:
+                    lines.append(f'No interesting cases')
+        return '\n'.join(lines)
