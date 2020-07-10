@@ -3,7 +3,8 @@ from lark import Lark, Transformer
 grammar = '''
     start: declaration+ statement+
 
-    declaration: "declare" array ("[" size "]")* ";"
+    declaration: "declare" array (dimension)* ";"
+    dimension: "[" "]"
     size: affine_index
     abstract_loop: "for" "[" loop_vars "]" "{" statement+ "}"
     loop_vars: scalar ("," scalar)*
@@ -50,7 +51,12 @@ class TreeSimplifier(Transformer):
         self.current_node_id += 1
         return self.current_node_id
     def declaration(self, args):
-        return Declaration(args[0], args[1:])
+        print(args)
+        n_dimensions = len(args) - 1
+        return Declaration(args[0], n_dimensions)
+    # def dimension(self, args):
+    #     print(args)
+    #     return args
     def size(self, args):
         return args[0]
     def array(self, args):

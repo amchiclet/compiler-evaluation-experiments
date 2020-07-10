@@ -17,25 +17,25 @@ class CodeGen:
         self.patterns_map = {}
 
     def generate_wrapper(self, pattern_str, program_str,
-                         ast, var_map, array_sizes):
+                         ast, var_map):
         if pattern_str not in self.patterns_map:
             self.patterns_map[pattern_str] = {}
         if program_str not in self.patterns_map[pattern_str]:
             self.patterns_map[pattern_str][program_str] = []
         pb = PathBuilder(pattern=pattern_str, program=program_str)
-        sf = SimpleFormatter(ast, var_map, array_sizes)
+        sf = SimpleFormatter(ast, var_map)
         wrapper = pb.wrapper_path()
         sf.write_kernel_wrapper(f'{self.output_dir}/{wrapper}')
 
     def generate_code(self, pattern_str, program_str, mutation_str,
-                      ast, var_map, array_sizes):
+                      ast, var_map):
         if pattern_str not in self.patterns_map:
             self.patterns_map[pattern_str] = {}
         if program_str not in self.patterns_map[pattern_str]:
             self.patterns_map[pattern_str][program_str] = []
         self.patterns_map[pattern_str][program_str].append(mutation_str)
         pb = PathBuilder(pattern=pattern_str, program=program_str, mutation=mutation_str)
-        sf = SimpleFormatter(ast, var_map, array_sizes)
+        sf = SimpleFormatter(ast, var_map)
         core = pb.core_path()
         sf.write_core(f'{self.output_dir}/{core}')
         # TODO copy main

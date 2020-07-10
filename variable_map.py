@@ -1,4 +1,4 @@
-from abstract_ast import get_accesses
+from abstract_ast import get_accesses, get_loops
 from random import randint, choice, shuffle
 from loguru import logger
 
@@ -6,6 +6,17 @@ class Limit:
     def __init__(self, min_val=None, max_val=None):
         self.min_val = min_val
         self.max_val = max_val
+    def update_min_val(self, new_min_val):
+        if new_min_val is None:
+            return
+        if self.min_val is None or new_min_val < self.min_val:
+            self.min_val = new_min_val
+    def update_max_val(self, new_max_val):
+        if new_max_val is None:
+            return
+        if self.max_val is None or new_max_val > self.max_val:
+            print('new max val', new_max_val)
+            self.max_val = new_max_val
     def clone(self):
         return Limit(self.min_val, self.max_val)
 
@@ -18,14 +29,14 @@ class VariableMap:
         return var in self.limits and not self.limits[var].min_val is None
     def has_max(self, var):
         return var in self.limits and not self.limits[var].max_val is None
-    def set_min(self, var, min_val):
+    def update_min_val(self, var, min_val):
         if var not in self.limits:
             self.limits[var] = Limit()
-        self.limits[var].min_val = min_val
-    def set_max(self, var, max_val):
+        self.limits[var].update_min_val(min_val)
+    def update_max_val(self, var, max_val):
         if var not in self.limits:
             self.limits[var] = Limit()
-        self.limits[var].max_val = max_val
+        self.limits[var].update_max_val(max_val)
     def get_min(self, var):
         if var not in self.limits:
             return self.default_min
@@ -55,166 +66,93 @@ def affine_to_cexpr(affine, cvars):
         return affine.offset
     return affine.coeff * cvars[affine.var] + affine.offset
 
-def find_min_max(constraints, i):
-    min_optimize = Optimize()
-    min_optimize.assert_exprs(*constraints)
-    min_optimize.minimize(i)
-    min_val = None
-    if sat == min_optimize.check():
-        min_val = min_optimize.model().eval(i).as_long()
-
+def find_max(constraints, expr):
     max_optimize = Optimize()
     max_optimize.assert_exprs(*constraints)
-    max_optimize.maximize(i)
+    max_optimize.maximize(expr)
     max_val = None
     if sat == max_optimize.check():
-        max_val = max_optimize.model().eval(i).as_long()
+        max_val = max_optimize.model().eval(expr).as_long()
+    return max_val
 
-    return (min_val, max_val)
+def find_min(constraints, expr):
+    min_optimize = Optimize()
+    min_optimize.assert_exprs(*constraints)
+    min_optimize.minimize(expr)
+    min_val = None
+    if sat == min_optimize.check():
+        min_val = min_optimize.model().eval(expr).as_long()
+    return min_val
 
-def calculate_array_sizes(decls, var_map):
-    # maps name to [size]
-    array_sizes = {}
-    decl_vars = set()
-    for decl in decls:
-        array_sizes[decl.name] = []
-        for affine in decl.sizes:
-            if affine.var:
-                decl_vars.add(affine.var)
-    constraints = []
-    cvars = {}
-    for var in decl_vars:
-        cvar = Int(var)
-        cvars[var] = cvar
-        constraints += [
-            var_map.get_min(var) <= cvar,
-            0 < cvar,
-            cvar <= var_map.get_max(var)
-        ]
+def find_min_max(constraints, i):
+    return [f(constraints, i) for f in [find_min, find_max]]
 
-    for decl in decls:
-        for dimension, size in enumerate(decl.sizes):
-            index = Int(f'{decl.name}[{dimension}]')
-            new_constraints = constraints + [index == affine_to_cexpr(size, cvars)]
-            min_val, max_val = find_min_max(new_constraints, index)
-            array_sizes[decl.name].append(max_val)
-    logger.info('Array sizes:')
-    for array, size in array_sizes.items():
-        logger.info(f'{array} {size}')
-    return array_sizes
+def dimension_var(var, dimension):
+    return f'{var}{"[]"*(dimension+1)}'
 
-def restrict_var_map(program, var_map):
-    # constraints relating array indices
-    # for A[M]
-    # (1) M >= 0 >= M_min
-    # (2) for all i in A[i], i < M < M_max
-    # 
-    # If the maximum i leads to an maximum M less than the original maximum M,
-    # then use the tigher maximum M
-    # As for each of the indices, figure out the maximum possible
-
-    # Algorithm:
-    # (1) collect all variables (loop_vars, sizes)
-    # (2) for each access to array X, for each index ai+c in dimension d
-    # (3) ai+c >= 0 & ai+c < M
-    # (4) find min and max for all loop_vars and sizes
-
-    all_vars = set()
-    decl_vars = set()
-    ref_vars = set()
-    for decl in program.decls:
-        for affine in decl.sizes:
-            if affine.var:
-                decl_vars.add(affine.var)
-
+def validate_var_map(program, var_map):
     accesses = get_accesses(program)
+
+    cvars = {}
     for access in accesses:
         for index in access.indices:
-            if index.var:
-                ref_vars.add(index.var)
-    all_vars = decl_vars.union(ref_vars)
+            var = index.var
+            if var is not None and var not in cvars:
+                cvars[var] = Int(var)
 
-    cvars = {}
-    for var in all_vars:
-        cvars[var] = Int(var)
-    
-    # both of these dicts map (array name, dimension) to expressions
-    decls = {}
-    uses = {}
-
-    # TODO: type check to prevent simple errors
     constraints = []
-    for decl in program.decls:
-        for dimension, size in enumerate(decl.sizes):
-            key = (decl.name, dimension)
-            decls[key] = size
-            uses[key] = []
-
     for access in accesses:
-        for dimension, index in enumerate(access.indices):
-            uses[(access.var, dimension)].append(index)
-    for (array, dimension), indices in uses.items():
-        if (array, dimension) not in decls:
-            raise RuntimeError(
-                f'Could not find declaration for array[dimension] {array}[{dimension}]')
-        size = decls[(array, dimension)]
-
-        csize = affine_to_cexpr(size, cvars)
-
-        for index in indices:
+        for index in access.indices:
             cexpr = affine_to_cexpr(index, cvars)
-            # constraints induced by array size
             constraints.append(0 <= cexpr)
-            constraints.append(cexpr < csize)
 
     restricted_var_map = var_map.clone()
-
-    for var in all_vars:
+    # figure out maximum array sizes if any of their limits are not set
+    for var, cvar in cvars.items():
         current_min = var_map.get_min(var)
         current_max = var_map.get_max(var)
-        logger.debug('restrict', var, current_min, current_max)
-        constraints.append(cvars[var] >= current_min)
-        constraints.append(cvars[var] <= current_max)
-        if var in decl_vars:
-            constraints.append(cvars[var] > 0)
-    for var in all_vars:
+        constraints.append(cvar >= current_min)
+        constraints.append(cvar <= current_max)
+
+    for var, cvar in cvars.items():
         min_val, max_val = find_min_max(constraints, cvars[var])
         assert(min_val is not None)
         assert(max_val is not None)
-        restricted_var_map.set_min(var, min_val)
-        restricted_var_map.set_max(var, max_val)
+        restricted_var_map.update_min_val(var, min_val)
+        restricted_var_map.update_max_val(var, max_val)
 
-    def randomize_map(current_map, current_constraints):
-        randomized_var_map = current_map.clone()
-        constraints = list(current_constraints)
-        order = [decl_vars, ref_vars]
-        shuffle(order)
+    for access in accesses:
+        for dimension, index in enumerate(access.indices):
+            cexpr = affine_to_cexpr(index, cvars)
+            max_val = find_max(constraints, cexpr)
+            print(access.pprint(), access.var)
+            assert(max_val is not None)
+            var = dimension_var(access.var, dimension)
+            limits = restricted_var_map.limits
+            if var not in limits:
+                # min array size must be large enough to
+                # hold the max index possible
+                limits[var] = Limit(min_val=max_val)
+            else:
+                if max_val > limits[var].min_val:
+                    limits[var].min_val = max_val
 
-        for variables in order:
-            # for var in choice([decl_vars, ref_vars]):
-            for var in variables:
-                current_min = current_map.get_min(var)
-                current_max = current_map.get_max(var)
-                x = randint(current_min, current_max)
-                y = randint(current_min, current_max)
-                new_min = min(x, y)
-                new_max = max(x, y)
-                logger.debug('random', var, new_min, new_max)
-                constraints.append(cvars[var] >= new_min)
-                constraints.append(cvars[var] <= new_max)
+    return restricted_var_map
 
-            for var in all_vars:
-                min_val, max_val = find_min_max(constraints, cvars[var])
-                if min_val is None or max_val is None:
-                    return None
-                randomized_var_map.set_min(var, min_val)
-                randomized_var_map.set_max(var, max_val)
-        return randomized_var_map
-
-    while True:
-    # for n_attempt in range(10):
-        randomized = randomize_map(restricted_var_map, constraints)
-        if randomized:
-            return randomized
-    raise RuntimeError('Unable to find a proper variable map')
-
+def randomize_iteration_vars(program, var_map):
+    cloned = var_map.clone()
+    loops = get_loops(program)
+    loop_vars = set()
+    for loop in loops.values():
+        loop_vars.update(loop.loop_vars)
+    for var in loop_vars:
+        current_min = var_map.get_min(var)
+        current_max = var_map.get_max(var)
+        # tighten it
+        x = randint(current_min, current_max)
+        y = randint(current_min, current_max)
+        new_min = min(x, y)
+        new_max = max(x, y)
+        cloned.update_min_val(var, new_min)
+        cloned.update_max_val(var, new_max)
+    return cloned

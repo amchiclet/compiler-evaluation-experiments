@@ -18,27 +18,22 @@ class Node:
         raise NotImplementedError
 
 class Declaration(Node):
-    def __init__(self, name, sizes=None, node_id=0):
+    def __init__(self, name, n_dimensions, node_id=0):
         self.name = name
-        self.sizes = sizes if sizes else []
+        self.n_dimensions = n_dimensions
         self.node_id = node_id
         self.surrounding_loop = None
     def cprint(self, var_map, indent=0):
         raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        list_of_pprint = [f'[{size.pprint()}]' for size in self.sizes]
-        return f'{ws}Array: {self.name}{"".join(list_of_pprint)}'
+        return f'{ws}Array: {self.name}{"[]"*self.n_dimensions}'
     def cprint(self, var_map, indent=0):
         pass
     def clone(self):
-        cloned_sizes = list(self.sizes)
-        return Declaration(self.name, cloned_sizes, self.node_id)
+        return Declaration(self.name, self.n_dimensions, self.node_id)
     def is_syntactically_equal(self, other):
-        for my_size, other_size in zip(self.sizes, other.sizes):
-            if my_size != other_size:
-                return False
-        return self.name == other.name
+        return self.name == other.name and self.n_dimensions == other.n_dimensions
 
 class Assignment(Node):
     def __init__(self, lhs, rhs, node_id=0):

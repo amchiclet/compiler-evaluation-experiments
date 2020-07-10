@@ -1,6 +1,7 @@
 from math import floor
 from abstract_ast import Assignment, AffineIndex, Access, BinOp, AbstractLoop, Declaration, Program, get_program_info
 
+from variable_map import dimension_var
 def loop_header(indent, loop_var, begin, end):
     return '  ' * indent + \
         (f'for (int {loop_var} = {begin}; '
@@ -34,16 +35,18 @@ def spaces(indent):
 
 # TODO: test program needs to be a different program
 class SimpleFormatter:
-    def __init__(self, test_program, var_map, array_sizes):
-        self.array_sizes = array_sizes
+    def __init__(self, test_program, var_map):
+        self.array_sizes = {}
         self.var_map = var_map
         self.indent = 0
         self.test_program = test_program
 
-        # # concretize
-        # self.c_test_program = SimpleConcretizer(test_program,
-        #                                         var_map,
-        #                                         array_sizes).concretize_program()
+        for decl in test_program.decls:
+            array_size = []
+            for dimension in range(decl.n_dimensions):
+                size_var = dimension_var(decl.name, dimension)
+                array_size.append(var_map.get_min(size_var))
+            self.array_sizes[decl.name] = array_size
 
     def array_param(self, ty, name, sizes):
         return f'{ty} {name}' + (''.join([f'[{size}]' for size in sizes]))
