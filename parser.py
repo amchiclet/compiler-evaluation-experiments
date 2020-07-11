@@ -30,7 +30,7 @@ grammar = '''
     offset: scalar AFFINE_OP INT
 
     scalar: CNAME
-    array: UCASE_LETTER+
+    array: CNAME
     AFFINE_OP: "+" | "-"
     BIN_OP: "*" | "+" | "-"
     %import common.WS
@@ -51,9 +51,8 @@ class TreeSimplifier(Transformer):
         self.current_node_id += 1
         return self.current_node_id
     def declaration(self, args):
-        print(args)
         n_dimensions = len(args) - 1
-        return Declaration(args[0], n_dimensions)
+        return Declaration(args[0], n_dimensions, self.next_node_id())
     # def dimension(self, args):
     #     print(args)
     #     return args
@@ -68,22 +67,22 @@ class TreeSimplifier(Transformer):
     def affine_index(self, args):
         return args[0]
     def constant(self, args):
-        return AffineIndex(None, 0, int(args[0]))
+        return AffineIndex(None, 0, int(args[0]), self.next_node_id())
     def offset(self, args):
         var = args[0]
         offset = int(args[2]) if args[1] == '+' else -int(args[2])
-        return AffineIndex(var, 1, offset)
+        return AffineIndex(var, 1, offset, self.next_node_id())
     def var(self, args):
-        return AffineIndex(args[0], 1, 0)
+        return AffineIndex(args[0], 1, 0, self.next_node_id())
     def linear(self, args):
         var = args[1]
         coeff = int(args[0])
-        return AffineIndex(var, coeff, 0)
+        return AffineIndex(var, coeff, 0, self.next_node_id())
     def simple_affine(self, args):
         coeff = int(args[0])
         var = args[1]
         offset = int(args[3]) if args[2] == '+' else -int(args[3])
-        return AffineIndex(var, coeff, offset)
+        return AffineIndex(var, coeff, offset, self.next_node_id())
     def abstract_index(self, args):
         if isinstance(args[0], AbstractIndex):
             return args[0]
@@ -141,15 +140,15 @@ class TreeSimplifier(Transformer):
         #     raise RuntimeError('Only single loops are supported now.')
         return Program(decls, loops, self.next_node_id())
 
-def parse_str(code):
+def parse_str(code, node_id=0):
     parser = Lark(grammar)
     lark_ast = parser.parse(code)
-    tree_simplifier = TreeSimplifier()
+    tree_simplifier = TreeSimplifier(node_id)
     abstract_ast = tree_simplifier.transform(lark_ast)
     return abstract_ast, tree_simplifier.next_node_id()
 
-def parse_file(path):
+def parse_file(path, node_id=0):
     with open(path) as f:
-        return parse_str(f.read())
+        return parse_str(f.read(), node_id)
 
 # TODO write dependence analysis to get dependence matrix

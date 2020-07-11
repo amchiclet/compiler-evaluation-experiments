@@ -6,17 +6,6 @@ class Limit:
     def __init__(self, min_val=None, max_val=None):
         self.min_val = min_val
         self.max_val = max_val
-    def update_min_val(self, new_min_val):
-        if new_min_val is None:
-            return
-        if self.min_val is None or new_min_val < self.min_val:
-            self.min_val = new_min_val
-    def update_max_val(self, new_max_val):
-        if new_max_val is None:
-            return
-        if self.max_val is None or new_max_val > self.max_val:
-            print('new max val', new_max_val)
-            self.max_val = new_max_val
     def clone(self):
         return Limit(self.min_val, self.max_val)
 
@@ -29,14 +18,14 @@ class VariableMap:
         return var in self.limits and not self.limits[var].min_val is None
     def has_max(self, var):
         return var in self.limits and not self.limits[var].max_val is None
-    def update_min_val(self, var, min_val):
+    def set_min(self, var, min_val):
         if var not in self.limits:
             self.limits[var] = Limit()
-        self.limits[var].update_min_val(min_val)
-    def update_max_val(self, var, max_val):
+        self.limits[var].min_val = min_val
+    def set_max(self, var, max_val):
         if var not in self.limits:
             self.limits[var] = Limit()
-        self.limits[var].update_max_val(max_val)
+        self.limits[var].max_val = max_val
     def get_min(self, var):
         if var not in self.limits:
             return self.default_min
@@ -67,6 +56,8 @@ def affine_to_cexpr(affine, cvars):
     return affine.coeff * cvars[affine.var] + affine.offset
 
 def find_max(constraints, expr):
+    if type(expr) == int:
+        return expr
     max_optimize = Optimize()
     max_optimize.assert_exprs(*constraints)
     max_optimize.maximize(expr)
@@ -118,8 +109,8 @@ def validate_var_map(program, var_map):
         min_val, max_val = find_min_max(constraints, cvars[var])
         assert(min_val is not None)
         assert(max_val is not None)
-        restricted_var_map.update_min_val(var, min_val)
-        restricted_var_map.update_max_val(var, max_val)
+        restricted_var_map.set_min(var, min_val)
+        restricted_var_map.set_max(var, max_val)
 
     for access in accesses:
         for dimension, index in enumerate(access.indices):
@@ -128,14 +119,14 @@ def validate_var_map(program, var_map):
             print(access.pprint(), access.var)
             assert(max_val is not None)
             var = dimension_var(access.var, dimension)
-            limits = restricted_var_map.limits
-            if var not in limits:
-                # min array size must be large enough to
-                # hold the max index possible
-                limits[var] = Limit(min_val=max_val)
+            # Update the min value for the array size.
+            # Min array size must be large enough to
+            # hold the max index.
+            if restricted_var_map.has_min(var):
+                if max_val > restricted_var_map.get_min(var):
+                    restricted_var_map.set_min(var, max_val)
             else:
-                if max_val > limits[var].min_val:
-                    limits[var].min_val = max_val
+                restricted_var_map.set_min(var, max_val)
 
     return restricted_var_map
 
@@ -148,11 +139,13 @@ def randomize_iteration_vars(program, var_map):
     for var in loop_vars:
         current_min = var_map.get_min(var)
         current_max = var_map.get_max(var)
+        print(var, current_min, current_max)
         # tighten it
         x = randint(current_min, current_max)
         y = randint(current_min, current_max)
         new_min = min(x, y)
         new_max = max(x, y)
-        cloned.update_min_val(var, new_min)
-        cloned.update_max_val(var, new_max)
+        print(var, new_min, new_max)
+        cloned.set_min(var, new_min)
+        cloned.set_max(var, new_max)
     return cloned

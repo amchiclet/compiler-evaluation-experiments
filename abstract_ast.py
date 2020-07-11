@@ -214,7 +214,7 @@ class Program:
         self.decls = decls
         self.loops = loops
         self.surrounding_loop = None
-        self.loop_vars = []
+        # self.loop_vars = []
         for loop in loops:
             loop.surrounding_loop = self
 
@@ -236,6 +236,23 @@ class Program:
     def is_syntactically_equal(self, other):
         return is_list_syntactically_equal(self.decls, other.decls) and \
             is_list_syntactically_equal(self.loops, other.loops)
+    def merge(self, other):
+        cloned = other.clone()
+
+        var_shapes = {}
+        for decl in self.decls:
+            var_shapes[decl.name] = decl.n_dimensions
+        # check array shapes match
+        for decl in cloned.decls:
+            if decl.name in var_shapes:
+                if decl.n_dimensions != var_shapes[decl.name]:
+                    print('Cannot use this program')
+                    return
+        # merge declarations
+        for decl in cloned.decls:
+            if decl.name not in var_shapes:
+                self.decls.append(decl)
+        self.loops += cloned.loops
 
 def get_accesses(node):
     accesses = set()
