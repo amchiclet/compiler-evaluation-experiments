@@ -1,0 +1,9 @@
+declare A1[];
+declare B2[][];
+declare C2[][];
+declare D1[];
+
+for [i, j] {
+  A1[0] = B2[i][j] - C2[i][j];
+  D1[0] = D1[0] + A1[0] * A1[0];
+}

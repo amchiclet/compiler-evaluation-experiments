@@ -5,15 +5,17 @@ from stats import \
     create_max_spread_cases, \
     Stats
 from util import merge_value, update_dict_dict
-from compilers import compilers
 from scipy import log
 
 def get_normalized_peer_ranks(runtimes):
+    compiler_set = set()
     grouped = {}
     for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
         if mode == 'fast':
+            compiler_set.add(compiler)
             key = (pattern, program, mutation)
             update_dict_dict(grouped, key, compiler, runtime)
+    compilers = list(compiler_set)
 
     keys_to_consider = []
     overall_runtime = {}

@@ -116,7 +116,6 @@ def validate_var_map(program, var_map):
         for dimension, index in enumerate(access.indices):
             cexpr = affine_to_cexpr(index, cvars)
             max_val = find_max(constraints, cexpr)
-            print(access.pprint(), access.var)
             assert(max_val is not None)
             var = dimension_var(access.var, dimension)
             # Update the min value for the array size.
@@ -139,13 +138,13 @@ def randomize_iteration_vars(program, var_map):
     for var in loop_vars:
         current_min = var_map.get_min(var)
         current_max = var_map.get_max(var)
-        print(var, current_min, current_max)
+
         # tighten it
         x = randint(current_min, current_max)
         y = randint(current_min, current_max)
         new_min = min(x, y)
         new_max = max(x, y)
-        print(var, new_min, new_max)
+
         cloned.set_min(var, new_min)
         cloned.set_max(var, new_max)
     return cloned

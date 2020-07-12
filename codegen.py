@@ -14,14 +14,8 @@ class CodeGen:
         if not os.path.exists(main_c_path):
             os.symlink('../main.c', main_c_path)
 
-        self.patterns_map = {}
-
     def generate_wrapper(self, pattern_str, program_str,
                          ast, var_map):
-        if pattern_str not in self.patterns_map:
-            self.patterns_map[pattern_str] = {}
-        if program_str not in self.patterns_map[pattern_str]:
-            self.patterns_map[pattern_str][program_str] = []
         pb = PathBuilder(pattern=pattern_str, program=program_str)
         sf = SimpleFormatter(ast, var_map)
         wrapper = pb.wrapper_path()
@@ -29,23 +23,18 @@ class CodeGen:
 
     def generate_code(self, pattern_str, program_str, mutation_str,
                       ast, var_map):
-        if pattern_str not in self.patterns_map:
-            self.patterns_map[pattern_str] = {}
-        if program_str not in self.patterns_map[pattern_str]:
-            self.patterns_map[pattern_str][program_str] = []
-        self.patterns_map[pattern_str][program_str].append(mutation_str)
         pb = PathBuilder(pattern=pattern_str, program=program_str, mutation=mutation_str)
         sf = SimpleFormatter(ast, var_map)
         core = pb.core_path()
         sf.write_core(f'{self.output_dir}/{core}')
         # TODO copy main
 
-    def generate_pattern_file(self):
+    def generate_pattern_file(self, patterns_map):
         patterns = []
-        for pattern in sorted(self.patterns_map.keys()):
+        for pattern in sorted(patterns_map.keys()):
             programs = []
-            for program in sorted(self.patterns_map[pattern].keys()):
-                mutations = sorted(self.patterns_map[pattern][program])
+            for program in sorted(patterns_map[pattern].keys()):
+                mutations = sorted(patterns_map[pattern][program])
                 programs.append((program, mutations))
             patterns.append((pattern, programs))
 

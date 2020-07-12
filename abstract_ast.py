@@ -214,7 +214,7 @@ class Program:
         self.decls = decls
         self.loops = loops
         self.surrounding_loop = None
-        # self.loop_vars = []
+        self.loop_vars = []
         for loop in loops:
             loop.surrounding_loop = self
 
@@ -253,6 +253,8 @@ class Program:
             if decl.name not in var_shapes:
                 self.decls.append(decl)
         self.loops += cloned.loops
+        for loop in cloned.loops:
+            loop.surrounding_loop = self
 
 def get_accesses(node):
     accesses = set()

@@ -25,7 +25,8 @@ def get_normalized_vec_speedups(runtimes):
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
-        outliers.merge(key, normalized[key], speedup)
+        rest_key = key[-1]
+        outliers.merge(key, normalized[key], (speedup, rest_key))
 
     return normalized, outliers
 

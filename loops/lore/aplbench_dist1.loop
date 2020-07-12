@@ -1,0 +1,7 @@
+declare A1[];
+declare B2[][];
+declare C2[][];
+
+for [i, j] {
+  A1[0] = A1[0] + B2[i][j] - C2[i][j];
+}

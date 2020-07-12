@@ -5,15 +5,18 @@ from stats import \
     create_max_spread_cases, \
     Stats
 from util import merge_value, update_dict_dict, update_dict_array
-from compilers import compilers
+# from compilers import compilers
 from scipy import log
 
 def get_normalized_peer_speedups(runtimes):
+    compiler_set = set()
     grouped = {}
     for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
         if mode == 'fast':
+            compiler_set.add(compiler)
             key = (pattern, program, mutation)
             update_dict_dict(grouped, key, compiler, runtime)
+    compilers = list(compiler_set)
 
     keys_to_consider = []
     overall_runtime = {}
@@ -46,7 +49,8 @@ def get_normalized_peer_speedups(runtimes):
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
-        outliers.merge(key, normalized[key], speedup)
+        rest_key = key[-1]
+        outliers.merge(key, normalized[key], (speedup, rest_key))
 
     return normalized, outliers
 

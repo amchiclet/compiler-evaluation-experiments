@@ -1,0 +1,6 @@
+declare A[][];
+declare B[][];
+
+for [i, j] {
+  A[i][j] = B[i][j] + B[i][1] + B[i][j + b] + B[i][j + b + 1];
+}

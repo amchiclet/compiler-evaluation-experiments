@@ -5,12 +5,13 @@ from stats import \
     create_max_spread_cases, \
     Stats
 from util import merge_value, update_dict_dict
-from compilers import compilers
 
 vectorizable_threshold = 1.00
 def get_normalized_vectorizables(runtimes):
+    compilers = set()
     grouped = {}
     for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        compilers.add(compiler)
         key = (compiler, pattern, program, mutation)
         update_dict_dict(grouped, key, mode, runtime)
 

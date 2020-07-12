@@ -1,0 +1,6 @@
+declare A2[][];
+declare B2[][];
+
+for [i, j] {
+  A2[i][j] = B2[j][i];
+}
