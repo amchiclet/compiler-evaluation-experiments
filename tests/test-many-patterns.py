@@ -6,6 +6,19 @@ from variable_map import VariableMap, validate_var_map, randomize_iteration_vars
 from codegen import CodeGen
 from multiprocessing import Pool
 
+output_dir = 'interchange-experiment'
+from loguru import logger
+import sys
+logger.remove()
+logger.add(sys.stdout, level='INFO')
+logger.add(sink = f'{output_dir}/many-patterns.log',
+           level = 'DEBUG',
+           format = ('{process.name} | '
+                     '{time:YYYYMMDD_HH:mm:ss.SSS} | '
+                     '{file}:{function}:{line} | '
+                     '{message}'),
+           enqueue = True)
+
 def get_patterns(root_dir):
     patterns = []
     for pattern in os.listdir(root_dir):
@@ -22,13 +35,11 @@ def get_random_pattern(pattern_dir):
     node_id = 0
     for rel_path in chosen:
         pattern_path = os.path.join(pattern_dir, rel_path)
-        print('parsing', pattern_path, node_id)
         program, node_id = parse_file(pattern_path, node_id)
         if merged:
             merged.merge(program)
         else:
             merged = program
-    print(merged.pprint())
     return merged
 
 from functools import partial
@@ -57,7 +68,8 @@ def generate_mutations(pattern_dir, output_dir, var_map, n_patterns, n_instances
         loop_interchange = LoopInterchange()
         valid_var_map = validate_var_map(pattern, var_map)
         pattern_str = f'p{ith_pattern:04d}'
-
+        logger.info(f'Pattern {pattern_str}:\n'
+                    f'{pattern.pprint()}')
         pool = Pool()
         f = partial(generate_instance, pattern, pattern_str, valid_var_map, codegen, loop_interchange)
         patterns_map[pattern_str] = {}
@@ -67,19 +79,6 @@ def generate_mutations(pattern_dir, output_dir, var_map, n_patterns, n_instances
 
     print(patterns_map)
     codegen.generate_pattern_file(patterns_map)
-
-output_dir = 'interchange-experiment'
-from loguru import logger
-import sys
-logger.remove()
-logger.add(sys.stdout, level='INFO')
-logger.add(sink = f'{output_dir}/many-patterns.log',
-           level = 'DEBUG',
-           format = ('{process.name} | '
-                     '{time:YYYYMMDD_HH:mm:ss.SSS} | '
-                     '{file}:{function}:{line} | '
-                     '{message}'),
-           enqueue = True)
 
 pattern_dir = os.path.abspath('loops/lore')
 

@@ -32,10 +32,7 @@ class LoopInterchange:
         if not var_map:
             var_map = VariableMap()
 
-        print('begin analyze_dependence')
         dependence_graph = analyze_dependence(program, var_map)
-        print('end analyze_dependence')
-        logger.info('heyyy')
         dependence_graph.debug()
 
         def is_permutable(loop, new_order):
@@ -52,7 +49,6 @@ class LoopInterchange:
         # which is keeping the original loop.
         loops = get_loops(program)
         while True:
-            print('next!')
             permutations = []
             is_valid = True
             for loop in loops.values():
