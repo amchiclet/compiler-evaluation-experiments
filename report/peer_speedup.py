@@ -4,8 +4,8 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats
-from util import merge_value, update_dict_dict, update_dict_array
-# from compilers import compilers
+from util import merge_value, update_dict_dict, update_dict_array, get_paths_for_pair, format_spread_pair
+
 from scipy import log
 
 def get_normalized_peer_speedups(runtimes):
@@ -49,12 +49,12 @@ def get_normalized_peer_speedups(runtimes):
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
-        rest_key = key[-1]
-        outliers.merge(key, normalized[key], (speedup, rest_key))
+        mutation_id = key[-3:]
+        outliers.merge(key, normalized[key], (speedup, mutation_id))
 
     return normalized, outliers
 
-def get_peer_speedup_stats(runtimes):
+def get_stats(runtimes):
     normalized, outliers = get_normalized_peer_speedups(runtimes)
 
     grouped = {}
@@ -71,3 +71,9 @@ def get_peer_speedup_stats(runtimes):
         raw_pair = (min_outlier.raw, max_outlier.raw)
         interesting_cases.merge((c1, c2, rest), normalized_pair, raw_pair)
     return Stats('Peer speedup stability', cis, interesting_cases)
+
+def get_paths(stats):
+    return get_paths_for_pair(stats)
+
+def format_raw(raw):
+    return format_spread_pair(raw)

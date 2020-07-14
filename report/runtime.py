@@ -4,7 +4,7 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats
-from util import merge_value, update_dict_array
+from util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair
 
 def get_normalized_runtimes(runtimes):
     best_mutations = {}
@@ -19,11 +19,11 @@ def get_normalized_runtimes(runtimes):
         if mode == 'fast':
             key = (compiler, pattern, program, mutation)
             normalized[key] = best_mutations[key[:-1]] / runtime
-            outliers.merge(key, normalized[key], (runtime, mutation))
+            outliers.merge(key, normalized[key], (runtime, key[-3:]))
 
     return normalized, outliers
 
-def get_runtime_stats(runtimes):
+def get_stats(runtimes):
     normalized, outliers = get_normalized_runtimes(runtimes)
 
     grouped = {}
@@ -41,3 +41,9 @@ def get_runtime_stats(runtimes):
         raw_pair = (max_outlier.raw, min_outlier.raw)
         interesting_cases.merge((compiler, rest), normalized_pair, raw_pair)
     return Stats('Runtime stability', cis, interesting_cases)
+
+def get_paths(stats):
+    return get_paths_for_pair(stats)
+
+def format_raw(raw):
+    return format_spread_pair(raw)

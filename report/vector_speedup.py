@@ -4,7 +4,7 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats
-from util import update_dict_dict, merge_value, update_dict_array
+from util import update_dict_dict, merge_value, update_dict_array, get_paths_for_pair, format_spread_pair
 
 def get_normalized_vec_speedups(runtimes):
     grouped = {}
@@ -25,12 +25,11 @@ def get_normalized_vec_speedups(runtimes):
     normalized = {}
     for key, speedup in speedups.items():
         normalized[key] = speedup / best_speedups[key[:-1]]
-        rest_key = key[-1]
-        outliers.merge(key, normalized[key], (speedup, rest_key))
+        outliers.merge(key, normalized[key], (speedup, key[-3:]))
 
     return normalized, outliers
 
-def get_vec_speedup_stats(runtimes):
+def get_stats(runtimes):
     normalized, outliers = get_normalized_vec_speedups(runtimes)
 
     grouped = {}
@@ -47,3 +46,9 @@ def get_vec_speedup_stats(runtimes):
         raw_pair = (min_outlier.raw, max_outlier.raw)
         interesting_cases.merge((compiler, rest), normalized_pair, raw_pair)
     return Stats('Vec speedup stability', cis, interesting_cases)
+
+def get_paths(stats):
+    return get_paths_for_pair(stats)
+
+def format_raw(raw):
+    return format_spread_pair(raw)

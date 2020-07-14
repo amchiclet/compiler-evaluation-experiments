@@ -118,6 +118,7 @@ def validate_var_map(program, var_map):
             max_val = find_max(constraints, cexpr)
             assert(max_val is not None)
             var = dimension_var(access.var, dimension)
+
             # Update the min value for the array size.
             # Min array size must be large enough to
             # hold the max index.

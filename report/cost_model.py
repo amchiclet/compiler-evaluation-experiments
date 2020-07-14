@@ -4,7 +4,7 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats
-from util import update_dict_dict, merge_value
+from util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation
 
 def get_normalized_cost_model_performance(runtimes):
     grouped = {}
@@ -37,7 +37,7 @@ def get_normalized_cost_model_performance(runtimes):
                 best = best_nopredict[(compiler, *rest[:-1])]
                 normalized = (best/with_cost_model, best/without_cost_model)
                 raw = (without_cost_model, with_cost_model)
-                outliers.merge((compiler, rest), normalized, raw)
+                outliers.merge((compiler, rest), normalized, (raw, tuple(rest[-3:])))
             n_total_mutations[compiler] += 1
 
     normalized = {}
@@ -47,7 +47,7 @@ def get_normalized_cost_model_performance(runtimes):
 
     return normalized, outliers
 
-def get_cost_model_stats(runtimes):
+def get_stats(runtimes):
     normalized, outliers = get_normalized_cost_model_performance(runtimes)
 
     cis = {}
@@ -55,3 +55,9 @@ def get_cost_model_stats(runtimes):
         cis[(compiler,)] = calculate_ci_proportion(occurrences, total)
 
     return Stats('Cost model stability', cis, outliers)
+
+def get_paths(stats):
+    return get_paths_for_single(stats)
+
+def format_raw(raw):
+    return format_pair_raw_single_mutation(raw)

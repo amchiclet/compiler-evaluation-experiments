@@ -45,7 +45,7 @@ def get_normalized_vectorizables(runtimes):
 
     return normalized
 
-def get_vectorizable_stats(runtimes):
+def get_stats(runtimes):
     normalized = get_normalized_vectorizables(runtimes)
     cis = {}
     for key, (occurrences, total) in normalized.items():

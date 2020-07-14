@@ -12,7 +12,7 @@ import sys
 logger.remove()
 logger.add(sys.stdout, level='INFO')
 logger.add(sink = f'{output_dir}/many-patterns.log',
-           level = 'DEBUG',
+           level = 'INFO',
            format = ('{process.name} | '
                      '{time:YYYYMMDD_HH:mm:ss.SSS} | '
                      '{file}:{function}:{line} | '
@@ -77,17 +77,16 @@ def generate_mutations(pattern_dir, output_dir, var_map, n_patterns, n_instances
         for (instance, mutations) in instances:
             patterns_map[pattern_str][instance] = mutations
 
-    print(patterns_map)
     codegen.generate_pattern_file(patterns_map)
 
 pattern_dir = os.path.abspath('loops/lore')
 
-n_patterns = 3
-n_instances = 3
+n_patterns = 10
+n_instances = 10
 n_mutations = 10
 
 default_min = 0
-default_max = 64
+default_max = 255
 var_map = VariableMap(default_min, default_max)
 
 generate_mutations(pattern_dir, output_dir, var_map, n_patterns, n_instances, n_mutations)

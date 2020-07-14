@@ -45,7 +45,10 @@ class SimpleFormatter:
             array_size = []
             for dimension in range(decl.n_dimensions):
                 size_var = dimension_var(decl.name, dimension)
-                array_size.append(var_map.get_min(size_var))
+                # The value in the var map is the highest possible index
+                # To cover that index, the array size for that dimension
+                # needs an extra 1 element.
+                array_size.append(var_map.get_min(size_var) + 1)
             self.array_sizes[decl.name] = array_size
 
     def array_param(self, ty, name, sizes):

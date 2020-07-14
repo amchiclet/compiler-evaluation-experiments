@@ -50,7 +50,7 @@ def get_normalized_peer_ranks(runtimes):
 
     return normalized
 
-def get_peer_rank_stats(runtimes):
+def get_stats(runtimes):
     normalized = get_normalized_peer_ranks(runtimes)
     cis = {}
     for key, (occurrences, total) in normalized.items():

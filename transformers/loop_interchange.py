@@ -64,7 +64,4 @@ class LoopInterchange:
                 cloned_loops = get_loops(clone)
                 for loop, permutation in zip(cloned_loops.values(), permutations):
                     reorder(permutation, loop.loop_vars)
-                logger.info(f'valid clone\n'
-                            f'{permutations}\n'
-                            f'{clone.pprint()}')
                 yield clone

@@ -1,5 +1,6 @@
 from build import PathBuilder
 from simple_formatter import SimpleFormatter
+from loguru import logger
 
 class CodeGen:
     def __init__(self, output_dir):
@@ -18,6 +19,8 @@ class CodeGen:
                          ast, var_map):
         pb = PathBuilder(pattern=pattern_str, program=program_str)
         sf = SimpleFormatter(ast, var_map)
+        logger.info(f'Generating wrapper for {pattern_str}.{program_str}\n'
+                    f'{var_map.pprint()}')
         wrapper = pb.wrapper_path()
         sf.write_kernel_wrapper(f'{self.output_dir}/{wrapper}')
 
@@ -25,6 +28,8 @@ class CodeGen:
                       ast, var_map):
         pb = PathBuilder(pattern=pattern_str, program=program_str, mutation=mutation_str)
         sf = SimpleFormatter(ast, var_map)
+        logger.info(f'Generating code for {pattern_str}.{program_str}.{mutation_str}\n'
+                    f'{ast.pprint()}')
         core = pb.core_path()
         sf.write_core(f'{self.output_dir}/{core}')
         # TODO copy main

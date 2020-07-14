@@ -99,6 +99,8 @@ class InterestingCases:
     def __init__(self, merge_predicates):
         self.cases = {}
         self.merge_predicates = merge_predicates
+    def iterate(self):
+        return iter(self.cases.items())
     def merge(self, key, new_value, raw):
         cases_key = key[:-1]
         if cases_key not in self.cases:
@@ -118,9 +120,33 @@ class Stats:
             lines.append(f'95% CI {ci[1]}')
             if self.interesting_cases is not None:
                 if key in self.interesting_cases.cases:
-                    interesting_case = self.interesting_cases.cases[key][0]
-                    remaining_key = [part for part in interesting_case.key if part not in key]
-                    lines.append(f'Interesting case: {interesting_case.raw} ({remaining_key})')
+                    for case in self.interesting_cases.cases[key]:
+                        lines.append(f'Interesting case: {case.raw}')
                 else:
                     lines.append(f'No interesting cases')
         return '\n'.join(lines)
+    def keys(self):
+        return self.cis.keys()
+    def format_ci_row(self, name, order):
+        row = [name]
+        for ci_key in order:
+            if ci_key in self.cis:
+                ci = self.cis[ci_key]
+                row.append(f'[{ci[1][0]:.2f}, {ci[1][1]:.2f}]')
+            else:
+                row.append('N/A')
+        return row
+    def format_interesting_case_row(self, name, order, format_raw):
+        row = [name]
+        for key in order:
+            if self.interesting_cases is None:
+                row.append('N/A')
+            else:
+                if key not in self.interesting_cases.cases:
+                    row.append('N/A')
+                else:
+                    lines = []
+                    for case in self.interesting_cases.cases[key]:
+                        lines.append(format_raw(case.raw))
+                    row.append('\n'.join(lines))
+        return row

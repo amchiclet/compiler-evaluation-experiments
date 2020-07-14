@@ -1,6 +1,6 @@
 compilers = [
     'gcc',
-    # 'icc',
+    'icc',
     # 'pgi',
     'clang',
 ]
@@ -23,5 +23,5 @@ nopredict_flags = {
     'pgi': ['-Mvect=nosizelimit'],
     'gcc': ['-fvect-cost-model=unlimited'],
     'icc': ['-vec-threshold0'],
-    'clang': ['-mllvm', '-force-vector-width=8'],
+    'clang': ['-mllvm', '-force-vector-width=16'],
 }
