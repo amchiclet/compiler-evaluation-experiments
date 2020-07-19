@@ -2,6 +2,14 @@ from loguru import logger
 
 space_per_indent = 2
 
+def get_precedence(op=None):
+    if op in ['+', '-']:
+        return 3
+    elif op in ['*', '/']:
+        return 4
+    else:
+        return 5
+
 def is_list_syntactically_equal(list1, list2):
     if len(list1) != len(list2):
         return False
@@ -10,30 +18,73 @@ def is_list_syntactically_equal(list1, list2):
             return False
     return True
 
+class Replacer:
+    def should_replace(self, node):
+        raise NotImplementedError(type(self))
+    def replace(self, node):
+        raise NotImplementedError(type(self))
+
 class Node:
     # clone the node including the node ids
     def clone(self):
-        raise NotImplementedError
+        raise NotImplementedError(type(self))
     def is_syntactically_equal(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(type(self))
+    def precedence(self):
+        return get_precedence()
+    def replace(self, replacer):
+        raise NotImplementedError(type(self))
+
+class Const(Node):
+    def __init__(self, name, node_id=0):
+        self.name = name
+        self.node_id = node_id
+        # self.surrounding_loop = None
+    def cprint(self, var_map, indent=0):
+        raise RuntimeError('This function should not be called')
+    def pprint(self, indent=0):
+        ws = space_per_indent * indent * ' '
+        return f'{ws}const {self.name};'
+    # def cprint(self, var_map, indent=0):
+    #     pass
+    def clone(self):
+        return Declaration(self.name, self.node_id)
+    def is_syntactically_equal(self, other):
+        return self.name == other.name
 
 class Declaration(Node):
     def __init__(self, name, n_dimensions, node_id=0):
         self.name = name
         self.n_dimensions = n_dimensions
         self.node_id = node_id
-        self.surrounding_loop = None
+        # self.surrounding_loop = None
     def cprint(self, var_map, indent=0):
         raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        return f'{ws}Array: {self.name}{"[]"*self.n_dimensions}'
-    def cprint(self, var_map, indent=0):
-        pass
+        return f'{ws}declare {self.name}{"[]"*self.n_dimensions};'
+    # def cprint(self, var_map, indent=0):
+    #     pass
     def clone(self):
         return Declaration(self.name, self.n_dimensions, self.node_id)
     def is_syntactically_equal(self, other):
         return self.name == other.name and self.n_dimensions == other.n_dimensions
+
+class Literal(Node):
+    def __init__(self, ty, val, node_id=0):
+        self.ty = ty
+        self.val = val
+        self.node_id = node_id
+    def cprint(self, var_map, indent=0):
+        return f'{self.val}'
+    def pprint(self, indent=0):
+        return f'{self.val}'
+    def clone(self):
+        return Literal(self.ty, self.val, self.node_id)
+    def is_syntactically_equal(self, other):
+        return self.ty == other.ty and self.val == other.val
+    def replace(self, replacer):
+        pass
 
 class Assignment(Node):
     def __init__(self, lhs, rhs, node_id=0):
@@ -60,6 +111,22 @@ class Assignment(Node):
     def is_syntactically_equal(self, other):
         return self.lhs.is_syntactically_equal(other.lhs) and \
             self.rhs.is_syntactically_equal(other.rhs)
+    def replace(self, replacer):
+        self.lhs, self.rhs = replace_each([self.lhs, self.rhs], replacer)
+        for access in get_accesses(self):
+            access.parent_stmt = self
+            for index in access.indices:
+                index.parent_stmt = self
+
+def replace(i, replacer):
+    if replacer.should_replace(i):
+        return replacer.replace(i)
+    else:
+        i.replace(replacer)
+        return i
+
+def replace_each(l, replacer):
+    return [replace(i, replacer) for i in l]
 
 class AffineIndex(Node):
     def __init__(self, var, coeff, offset, node_id=0):
@@ -111,7 +178,7 @@ class Access(Node):
         self.node_id = node_id
         self.var = var
         self.indices = indices if indices else []
-        for dimension, index in enumerate(indices):
+        for dimension, index in enumerate(self.indices):
             index.array = var
             index.dimension = dimension
         self.is_write = False
@@ -139,6 +206,8 @@ class Access(Node):
     def is_syntactically_equal(self, other):
         return self.var == other.var and \
             is_list_syntactically_equal(self.indices, other.indices)
+    def replace(self, replacer):
+        pass
 
 class AbstractLoop(Node):
     def __init__(self, loop_vars, body, node_id=0):
@@ -188,6 +257,10 @@ class AbstractLoop(Node):
         if self.loop_vars != other.loop_vars:
             return False
         return is_list_syntactically_equal(self.body, other.body)
+    def replace(self, replacer):
+        self.body = replace_each(self.body, replacer)
+        for stmt in self.body:
+            stmt.surrounding_loop = self
 
 class BinOp(Node):
     def __init__(self, op, left, right, node_id=0):
@@ -198,7 +271,13 @@ class BinOp(Node):
     def cprint(self, var_map, indent=0):
         return f'{self.left.cprint(var_map)} {self.op} {self.right.cprint(var_map)}'
     def pprint(self, indent=0):
-        return f'{self.left.pprint()} {self.op} {self.right.pprint()}'
+        left_str = self.left.pprint()
+        if self.precedence() >= self.left.precedence():
+            left_str = f'({left_str})'
+        right_str = self.right.pprint()
+        if self.precedence() >= self.right.precedence():
+            right_str = f'({right_str})'
+        return f'{left_str} {self.op} {right_str}'
     def dep_print(self, refs):
         return f'{self.left.dep_print(refs)} {self.op} {self.right.dep_print(refs)}'
     def clone(self):
@@ -207,12 +286,17 @@ class BinOp(Node):
         return self.left.op == self.right.op and \
             self.left.is_syntactically_equal(other.left) and \
             self.right.is_syntactically_equal(other.right)
+    def precedence(self):
+        return get_precedence(self.op)
+    def replace(self, replacer):
+        self.left, self.right = replace_each([self.left, self.right], replacer)
 
 class Program:
-    def __init__(self, decls, loops, node_id=0):
+    def __init__(self, decls, loops, consts, node_id=0):
         self.node_id = node_id
         self.decls = decls
         self.loops = loops
+        self.consts = consts
         self.surrounding_loop = None
         self.loop_vars = []
         for loop in loops:
@@ -227,6 +311,7 @@ class Program:
     def pprint(self, indent=0):
         body = []
         body += [f'{decl.pprint(indent)}' for decl in self.decls]
+        body += [f'{const.pprint(indent)}' for const in self.consts]
         body += [f'{loop.pprint(indent)}' for loop in self.loops]
         return '\n'.join(body)
     def clone(self):
@@ -255,6 +340,10 @@ class Program:
         self.loops += cloned.loops
         for loop in cloned.loops:
             loop.surrounding_loop = self
+    def replace(self, replacer):
+        self.loops = replace_each(self.loops, replacer)
+        for loop in self.loops:
+            loop.surrounding_loop = self
 
 def get_accesses(node):
     accesses = set()
@@ -276,6 +365,8 @@ def get_accesses(node):
     elif isinstance(node, Program):
         for loop in node.loops:
             accesses.update(get_accesses(loop))
+        return accesses
+    elif isinstance(node, Literal):
         return accesses
     else:
         print(node)

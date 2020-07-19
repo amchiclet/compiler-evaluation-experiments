@@ -14,7 +14,7 @@ def analyze_dependence(program, var_map):
             for ref1_then_ref2_dv in iterate_execution_order_direction_vector(ref1, ref2):
                 logger.debug(f'Testing:\n'
                              f'{ref1.pprint()} -> {ref2.pprint()}:, '
-                             f'{dependence_dv} {ref1_then_ref2_dv}')
+                             f'dep({dependence_dv}) exe_order({ref1_then_ref2_dv})')
                 dv1 = calculate_valid_direction_vector(dependence_dv,
                                                        ref1_then_ref2_dv)
                 if dv1 is not None:
@@ -25,7 +25,7 @@ def analyze_dependence(program, var_map):
             for ref2_then_ref1_dv in iterate_execution_order_direction_vector(ref2, ref1):
                 logger.debug(f'Testing:\n'
                              f'{ref2.pprint()} -> {ref2.pprint()}:, '
-                             f'{dependence_dv_inv} {ref2_then_ref1_dv}')
+                             f'dep({dependence_dv_inv}) exe_order({ref2_then_ref1_dv})')
                 dv2 = calculate_valid_direction_vector(dependence_dv_inv,
                                                        ref2_then_ref1_dv)
                 if dv2 is not None:
@@ -128,7 +128,6 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
                                                    var_map)
     constraints += generate_subscript_equality_constraints(source_ref, source_cvars,
                                                            sink_ref, sink_cvars)
-
     def iterate_recursive(constraints, remaining_loop_vars, accumulated_dv):
         n_dimensions_left = len(remaining_loop_vars)
 
@@ -180,10 +179,15 @@ def affine_to_cexpr(affine, cvars):
 
 def generate_subscript_equality_constraints(source_ref, source_cvars, sink_ref, sink_cvars):
     constraints = []
-    for (source_affine, sink_affine) in zip(source_ref.indices, sink_ref.indices):
-        source_cexpr = affine_to_cexpr(source_affine, source_cvars)
-        sink_cexpr = affine_to_cexpr(sink_affine, sink_cvars)
-        constraints += [source_cexpr == sink_cexpr]
+    assert(len(source_ref.indices) == len(sink_ref.indices))
+    if len(source_ref.indices) == 0:
+        dummy = Int('scalar')
+        constraints += [dummy == dummy]
+    else:
+        for (source_affine, sink_affine) in zip(source_ref.indices, sink_ref.indices):
+            source_cexpr = affine_to_cexpr(source_affine, source_cvars)
+            sink_cexpr = affine_to_cexpr(sink_affine, sink_cvars)
+            constraints += [source_cexpr == sink_cexpr]
     return constraints
 
 def solve(constraints):
