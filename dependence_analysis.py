@@ -1,7 +1,7 @@
 from parser import parse_file
 from z3 import Solver, Ints, unsat, Optimize, sat, Int
 from loguru import logger
-from abstract_ast import get_accesses, Program, AbstractLoop
+from abstract_ast import get_accesses, Program, AbstractLoop, Access, BinOp, Literal
 from dependence_graph import Dependence, DependenceGraph
 
 def is_ordered(l, v1, v2):
@@ -177,17 +177,47 @@ def affine_to_cexpr(affine, cvars):
         return affine.offset
     return affine.coeff * cvars[affine.var] + affine.offset
 
+def expr_to_cexpr(expr, cvars):
+    if type(expr) == BinOp:
+        left = expr_to_cexpr(expr.left, cvars)
+        right = expr_to_cexpr(expr.right, cvars)
+        op = expr.op
+        if left is not None and right is not None:
+            if op == '+':
+                return left + right
+            elif op == '*':
+                return left * right
+            elif op == '-':
+                return left - right
+            elif op == '/':
+                return left / right
+    elif type(expr) == Literal:
+        logger.info(expr.ty)
+        if expr.ty == int:
+            return expr.val
+    elif type(expr) == Access:
+        if expr.is_scalar() and expr.var in cvars:
+            return cvars[expr.var]
+    return None
+
 def generate_subscript_equality_constraints(source_ref, source_cvars, sink_ref, sink_cvars):
     constraints = []
     assert(len(source_ref.indices) == len(sink_ref.indices))
     if len(source_ref.indices) == 0:
-        dummy = Int('scalar')
-        constraints += [dummy == dummy]
+        # Not adding anything means that the constraints will vacuously be satisfied
+        # This is true because scalar variables always share the same memory in
+        # all iterations.
+        pass
     else:
         for (source_affine, sink_affine) in zip(source_ref.indices, sink_ref.indices):
-            source_cexpr = affine_to_cexpr(source_affine, source_cvars)
-            sink_cexpr = affine_to_cexpr(sink_affine, sink_cvars)
-            constraints += [source_cexpr == sink_cexpr]
+            source_cexpr = expr_to_cexpr(source_affine, source_cvars)
+            sink_cexpr = expr_to_cexpr(sink_affine, sink_cvars)
+            # If either is None, it means that we won't be able to determine whether
+            # the indices overlap or not. For example, A[A[i]] or A[1.5] vs anything.
+            # Since we don't know their intersection, we conservatively assume they
+            # overlap by not adding any constraints. (It will be treated as true.)
+            if source_cexpr is not None and sink_cexpr is not None:
+                constraints += [source_cexpr == sink_cexpr]
     return constraints
 
 def solve(constraints):

@@ -1,6 +1,7 @@
-from abstract_ast import get_accesses, get_loops
+from abstract_ast import get_accesses, get_loops, Access, BinOp
 from random import randint, choice, shuffle
 from loguru import logger
+from dependence_analysis import expr_to_cexpr
 
 class Limit:
     def __init__(self, min_val=None, max_val=None):
@@ -85,17 +86,24 @@ def validate_var_map(program, var_map):
     accesses = get_accesses(program)
 
     cvars = {}
+    def add_cvar(expr):
+        if type(expr) == Access:
+            if expr.is_scalar() and expr.var not in cvars:
+                cvars[expr.var] = Int(expr.var)
+        elif type(expr) == BinOp:
+            add_cvar(expr.left)
+            add_cvar(expr.right)
+
     for access in accesses:
         for index in access.indices:
-            var = index.var
-            if var is not None and var not in cvars:
-                cvars[var] = Int(var)
+            add_cvar(index)
 
     constraints = []
     for access in accesses:
         for index in access.indices:
-            cexpr = affine_to_cexpr(index, cvars)
-            constraints.append(0 <= cexpr)
+            cexpr = expr_to_cexpr(index, cvars)
+            if cexpr is not None:
+                constraints.append(0 <= cexpr)
 
     restricted_var_map = var_map.clone()
     # figure out maximum array sizes if any of their limits are not set
@@ -114,10 +122,13 @@ def validate_var_map(program, var_map):
 
     for access in accesses:
         for dimension, index in enumerate(access.indices):
-            cexpr = affine_to_cexpr(index, cvars)
-            max_val = find_max(constraints, cexpr)
-            assert(max_val is not None)
-            var = dimension_var(access.var, dimension)
+            cexpr = expr_to_cexpr(index, cvars)
+            if cexpr is None:
+                logger.warning(f'Unable to analyze the max value of {index.pprint()} in {access.pprint()}')
+            else:
+                max_val = find_max(constraints, cexpr)
+                assert(max_val is not None)
+                var = dimension_var(access.var, dimension)
 
             # Update the min value for the array size.
             # Min array size must be large enough to

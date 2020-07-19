@@ -85,6 +85,8 @@ class Literal(Node):
         return self.ty == other.ty and self.val == other.val
     def replace(self, replacer):
         pass
+    def dep_print(self, refs):
+        return f'{self.val}'
 
 class Assignment(Node):
     def __init__(self, lhs, rhs, node_id=0):
@@ -183,6 +185,8 @@ class Access(Node):
             index.dimension = dimension
         self.is_write = False
         self.parent_stmt = None
+    def is_scalar(self):
+        return len(self.indices) == 0
     def cprint(self, var_map, indent=0):
         list_of_pprint = [f'[{index.cprint(var_map)}]' for index in self.indices]
         return f'{self.var}{"".join(list_of_pprint)}'
@@ -317,12 +321,18 @@ class Program:
     def clone(self):
         cloned_decls = [decl.clone() for decl in self.decls]
         cloned_loops = [loop.clone() for loop in self.loops]
-        return Program(cloned_decls, cloned_loops, self.node_id)
+        cloned_consts = [const.clone() for const in self.consts]
+        return Program(cloned_decls, cloned_loops, cloned_consts, self.node_id)
     def is_syntactically_equal(self, other):
         return is_list_syntactically_equal(self.decls, other.decls) and \
-            is_list_syntactically_equal(self.loops, other.loops)
+            is_list_syntactically_equal(self.loops, other.loops) and \
+            is_list_syntactically_equal(self.consts, other.consts)
     def merge(self, other):
         cloned = other.clone()
+
+        consts = set()
+        for const in self.consts:
+            consts.add(const.name)
 
         var_shapes = {}
         for decl in self.decls:
@@ -337,6 +347,11 @@ class Program:
         for decl in cloned.decls:
             if decl.name not in var_shapes:
                 self.decls.append(decl)
+        # merge constants
+        for const in cloned.consts:
+            if const.name not in consts:
+                self.consts.append(const)
+        # merge loops
         self.loops += cloned.loops
         for loop in cloned.loops:
             loop.surrounding_loop = self

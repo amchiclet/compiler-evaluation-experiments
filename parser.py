@@ -20,10 +20,11 @@ grammar = '''
 
     access: scalar_access | array_access | literal
     scalar_access: scalar
-    array_access: array ("[" index "]")+
+    array_access: array ("[" expr "]")+
     literal: float_literal | int_literal
     float_literal: FLOAT
     int_literal: INT
+
     index: affine_index
     affine_index: simple_affine | var | linear | constant | offset
     simple_affine: INT "*" scalar AFFINE_OP INT
@@ -98,7 +99,7 @@ class TreeSimplifier(Transformer):
     def float_literal(self, args):
         return Literal(float, float(args[0]), self.next_node_id())
     def int_literal(self, args):
-        return Literal(float, int(args[0]), self.next_node_id())
+        return Literal(int, int(args[0]), self.next_node_id())
     def scalar_access(self, args):
         logger.info(args)
         return Access(args[0], node_id=self.next_node_id())
