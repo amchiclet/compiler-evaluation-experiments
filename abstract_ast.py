@@ -246,7 +246,8 @@ class Op(Node):
         args = []
         for arg in self.args:
             arg_str = formatter(arg)
-            if self.precedence() >= arg.precedence():
+            is_atom = type(arg) in [Access, Literal]
+            if not is_atom and self.precedence() >= arg.precedence():
                 arg_str = f'({arg_str})'
             args.append(arg_str)
         if len(args) == 1:
@@ -333,7 +334,6 @@ class Program:
         for decl in cloned.decls:
             if decl.name in var_shapes:
                 if decl.n_dimensions != var_shapes[decl.name]:
-                    print('Cannot use this program')
                     return
         # merge declarations
         for decl in cloned.decls:

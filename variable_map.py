@@ -118,9 +118,16 @@ def generate_bound_constraints(cvars, var_map):
         constraints.append(cvar <= current_max)
     return constraints
 
-def tighten_array_sizes(accesses, cvars, constraints, var_map):
-    logger.info('constraints:\n' + '\n'.join(map(str, constraints)))
+def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
     cloned = var_map.clone()
+    for decl in decls:
+        for dimension in range(decl.n_dimensions):
+            var = dimension_var(decl.name, dimension)
+            if cloned.has_min(var):
+                cloned.set_min(var, max(1, cloned.get_min(var)))
+            else:
+                cloned.set_min(var, 1)
+
     for access in accesses:
         for dimension, index in enumerate(access.indices):
             cexpr = expr_to_cexpr(index, cvars)
@@ -138,12 +145,7 @@ def tighten_array_sizes(accesses, cvars, constraints, var_map):
             # Update the min value for the array size.
             # Min array size must be large enough to
             # hold the max index.
-            if cloned.has_min(var):
-                logger.info(f'current min is {cloned.get_min(var)}')
-                if max_val > cloned.get_min(var):
-                    cloned.set_min(var, max_val)
-            else:
-                logger.info(f'set min to {max_val}')
+            if max_val > cloned.get_min(var):
                 cloned.set_min(var, max_val)
     return cloned
 
@@ -187,8 +189,8 @@ def validate_var_map(program, var_map):
         new_max = max(x, y)
         cloned.set_min(var, new_min)
         cloned.set_max(var, new_max)
-    logger.info(cloned.pprint())
+
     new_bound_constraints = generate_bound_constraints(cvars, cloned)
     new_constraints = index_constraints + new_bound_constraints
-    cloned = tighten_array_sizes(accesses, cvars, new_constraints, cloned)
+    cloned = determine_array_sizes(program.decls, accesses, cvars, new_constraints, cloned)
     return cloned

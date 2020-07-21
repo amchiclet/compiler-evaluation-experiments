@@ -44,14 +44,20 @@ class SimpleFormatter:
             array_size = []
             for dimension in range(decl.n_dimensions):
                 size_var = dimension_var(decl.name, dimension)
-                # The value in the var map is the highest possible index
-                # To cover that index, the array size for that dimension
-                # needs an extra 1 element.
-                array_size.append(var_map.get_min(size_var) + 1)
+
+                array_size.append(var_map.get_min(size_var))
             self.array_sizes[decl.name] = array_size
 
     def array_param(self, ty, name, sizes):
-        return f'{ty} {name}' + (''.join([f'[{size}]' for size in sizes]))
+        brackets = ''
+        is_first = True
+        for size in sizes:
+            if is_first:
+                brackets += f'[restrict {size}]'
+                is_first = False
+            else:
+                brackets += f'[{size}]'
+        return f'{ty} {name}{brackets}'
 
     def array_decl(self, ty, name, sizes):
         ws = spaces(self.indent)
@@ -147,7 +153,10 @@ class SimpleFormatter:
         ws = spaces(self.indent)
         
         # malloc
-        total_size_str = ' * '.join([f'{size}' for size in sizes])
+        if len(sizes) == 0:
+            total_size_str = '1'
+        else:
+            total_size_str = ' * '.join([f'{size}' for size in sizes])
         for array in arrays:
             lines.append(f'{ws}{array} = malloc(sizeof({ty}) * {total_size_str});')
         return '\n'.join(lines)
@@ -159,8 +168,12 @@ class SimpleFormatter:
         n_dimensions = len(loop_vars)
 
         # loop headers
-        for dimension, loop_var in enumerate(loop_vars):
-            lines.append(loop_header(self.indent, loop_var, 0, sizes[dimension]))
+        if n_dimensions > 0:
+            for dimension, loop_var in enumerate(loop_vars):
+                lines.append(loop_header(self.indent, loop_var, 0, sizes[dimension]))
+                self.indent += 1
+        else:
+            lines.append(f'{ws}{{')
             self.indent += 1
 
         # loop body
@@ -173,7 +186,11 @@ class SimpleFormatter:
             lines.append(f'{ws}{array}{indices_str} = {init_var};')
 
         # close brackets
-        for _ in range(n_dimensions):
+        if n_dimensions > 0:
+            for _ in range(n_dimensions):
+                self.indent -= 1
+                lines.append('  ' * self.indent + '}')
+        else:
             self.indent -= 1
             lines.append('  ' * self.indent + '}')
 

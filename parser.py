@@ -1,5 +1,9 @@
 from lark import Lark, Transformer
 
+# Note:
+# Operator precedence is based on
+# https://docs.microsoft.com/en-us/cpp/c-language/precedence-and-order-of-evaluation?view=vs-2019
+
 grammar = '''
     start: (declaration | const)+ statement+
 
