@@ -71,7 +71,7 @@ def iterate_execution_order_direction_vector(source_ref, sink_ref):
     sink_first_diff = sink_trace[n_common_parents]
 
     if isinstance(common_ancestor, Program):
-        if not is_ordered(common_ancestor.loops,
+        if not is_ordered(common_ancestor.body,
                           source_first_diff,
                           sink_first_diff):
             yield None
@@ -169,7 +169,7 @@ def generate_loop_bound_constraints(loop_vars, constraint_vars, var_map):
         min_val = var_map.get_min(v)
         max_val = var_map.get_max(v)
         cvar = constraint_vars[v]
-        constraints += [min_val <= cvar, cvar < max_val]
+        constraints += [min_val <= cvar, cvar <= max_val]
     return constraints
 
 def affine_to_cexpr(affine, cvars):

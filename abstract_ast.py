@@ -289,36 +289,36 @@ class Op(Node):
         self.args = replace_each(self.args, replacer)
 
 class Program:
-    def __init__(self, decls, loops, consts, node_id=0):
+    def __init__(self, decls, body, consts, node_id=0):
         self.node_id = node_id
         self.decls = decls
-        self.loops = loops
+        self.body = body
         self.consts = consts
         self.surrounding_loop = None
         self.loop_vars = []
-        for loop in loops:
-            loop.surrounding_loop = self
+        for stmt in body:
+            stmt.surrounding_loop = self
 
     def cprint(self, var_map, indent=0):
         lines = []
-        for loop in self.loops:
-            lines.append(loop.cprint(var_map, indent))
+        for stmt in self.body:
+            lines.append(stmt.cprint(var_map, indent))
         return '\n'.join(lines)
 
     def pprint(self, indent=0):
         body = []
         body += [f'{decl.pprint(indent)}' for decl in self.decls]
         body += [f'{const.pprint(indent)}' for const in self.consts]
-        body += [f'{loop.pprint(indent)}' for loop in self.loops]
+        body += [f'{stmt.pprint(indent)}' for stmt in self.body]
         return '\n'.join(body)
     def clone(self):
         cloned_decls = [decl.clone() for decl in self.decls]
-        cloned_loops = [loop.clone() for loop in self.loops]
+        cloned_body = [stmt.clone() for stmt in self.body]
         cloned_consts = [const.clone() for const in self.consts]
-        return Program(cloned_decls, cloned_loops, cloned_consts, self.node_id)
+        return Program(cloned_decls, cloned_body, cloned_consts, self.node_id)
     def is_syntactically_equal(self, other):
         return is_list_syntactically_equal(self.decls, other.decls) and \
-            is_list_syntactically_equal(self.loops, other.loops) and \
+            is_list_syntactically_equal(self.body, other.body) and \
             is_list_syntactically_equal(self.consts, other.consts)
     def merge(self, other):
         cloned = other.clone()
@@ -343,14 +343,14 @@ class Program:
         for const in cloned.consts:
             if const.name not in consts:
                 self.consts.append(const)
-        # merge loops
-        self.loops += cloned.loops
-        for loop in cloned.loops:
-            loop.surrounding_loop = self
+        # merge body
+        self.body += cloned.body
+        for stmt in cloned.body:
+            stmt.surrounding_loop = self
     def replace(self, replacer):
-        self.loops = replace_each(self.loops, replacer)
-        for loop in self.loops:
-            loop.surrounding_loop = self
+        self.body = replace_each(self.body, replacer)
+        for stmt in self.body:
+            stmt.surrounding_loop = self
 
 def get_accesses(node):
     accesses = set()
@@ -370,8 +370,8 @@ def get_accesses(node):
             accesses.update(get_accesses(stmt))
         return accesses
     elif isinstance(node, Program):
-        for loop in node.loops:
-            accesses.update(get_accesses(loop))
+        for stmt in node.body:
+            accesses.update(get_accesses(stmt))
         return accesses
     elif isinstance(node, Literal):
         return accesses
@@ -387,8 +387,8 @@ def get_loops(node):
         return loops
     elif isinstance(node, Program):
         loops = {}
-        for loop in node.loops:
-            loops.update(get_loops(loop))
+        for stmt in node.body:
+            loops.update(get_loops(stmt))
         return loops
     elif isinstance(node, Assignment):
         return {}

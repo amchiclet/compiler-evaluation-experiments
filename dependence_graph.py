@@ -49,3 +49,10 @@ class DependenceGraph:
         for dep_list in self.graph.values():
             for dep in dep_list:
                 logger.debug(dep.pprint())
+
+    def pprint(self):
+        lines = []
+        for dep_list in self.graph.values():
+            for dep in dep_list:
+                lines.append(dep.pprint())
+        return '\n'.join(lines)

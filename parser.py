@@ -140,18 +140,18 @@ class TreeSimplifier(Transformer):
         return loop
     def start(self, args):
         decls = []
-        loops = []
+        body = []
         consts = []
         for arg in args:
             if type(arg) == Declaration:
                 decls.append(arg)
-            elif type(arg) == AbstractLoop:
-                loops.append(arg)
+            elif type(arg) in [AbstractLoop, Assignment]:
+                body.append(arg)
             elif type(arg) == Const:
                 consts.append(arg)
             else:
                 raise RuntimeError('Unsupported syntax in main program')
-        return Program(decls, loops, consts, self.next_node_id())
+        return Program(decls, body, consts, self.next_node_id())
 
 def parse_str(code, node_id=0):
     parser = Lark(grammar)

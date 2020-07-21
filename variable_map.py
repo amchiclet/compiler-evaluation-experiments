@@ -136,7 +136,6 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
                 max_val = cloned.default_max
             else:
                 max_val = find_max(constraints, cexpr)
-                logger.info(f'max val is {max_val}')
                 assert(max_val is not None)
                 max_val = min(max_val + 1, cloned.default_max)
 
