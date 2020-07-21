@@ -6,17 +6,22 @@ grammar = '''
     declaration: "declare" array (dimension)* ";"
     const: "const" scalar ";"
     dimension: "[" "]"
-    size: affine_index
     abstract_loop: "for" "[" loop_vars "]" "{" statement+ "}"
     loop_vars: scalar ("," scalar)*
 
     statement: assignment | abstract_loop
     assignment: access "=" expr ";"
 
-    expr: expr ADDSUB term | term
-    term: term MULDIV factor | factor
-    factor: access | "(" expr ")" | "-" factor
-    binop: expr BIN_OP expr
+    expr: conditional
+    conditional: logical_or "?" logical_or ":" conditional | logical_or
+    logical_or: logical_or "||" logical_and | logical_and
+    logical_and: logical_and "&&" equality | equality
+    equality: equality EQUAL relational | relational
+    relational: relational RELATION additive | additive
+    additive: additive ADDITIVE multiplicative | multiplicative
+    multiplicative: multiplicative MULTIPLICATIVE unary | unary
+    unary: UNARY unary | atom
+    atom: access | "(" expr ")"
 
     access: scalar_access | array_access | literal
     scalar_access: scalar
@@ -25,21 +30,15 @@ grammar = '''
     float_literal: FLOAT
     int_literal: INT
 
-    index: affine_index
-    affine_index: simple_affine | var | linear | constant | offset
-    simple_affine: INT "*" scalar AFFINE_OP INT
-    linear: INT "*" scalar
-    constant: INT
-    var: scalar
-    single: scalar | INT
-    offset: scalar AFFINE_OP INT
-
     scalar: CNAME
     array: CNAME
-    AFFINE_OP: "+" | "-"
-    BIN_OP: "*" | "+" | "-"
-    ADDSUB: "+" | "-"
-    MULDIV: "*" | "/"
+
+    EQUAL: "==" | "!="
+    RELATION: "<=" | ">=" | "<" | ">"
+    ADDITIVE: "+" | "-"
+    MULTIPLICATIVE: "*" | "/"
+    UNARY: "+" | "-" | "!"
+
     %import common.WS
     %import common.LCASE_LETTER
     %import common.UCASE_LETTER
@@ -50,7 +49,7 @@ grammar = '''
 
 '''
 
-from abstract_ast import Assignment, Access, AbstractLoop, BinOp, Program, get_accesses, AffineIndex, Declaration, Const, Literal
+from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op
 from loguru import logger
 
 class TreeSimplifier(Transformer):
@@ -62,8 +61,6 @@ class TreeSimplifier(Transformer):
     def declaration(self, args):
         n_dimensions = len(args) - 1
         return Declaration(args[0], n_dimensions, self.next_node_id())
-    def size(self, args):
-        return args[0]
     def array(self, args):
         return ''.join(args)
     def const(self, args):
@@ -72,28 +69,6 @@ class TreeSimplifier(Transformer):
         return ''.join(args)
     def index(self, args):
         return args[0]
-    def affine_index(self, args):
-        return args[0]
-    def constant(self, args):
-        return AffineIndex(None, 0, int(args[0]), self.next_node_id())
-    def offset(self, args):
-        var = args[0]
-        offset = int(args[2]) if args[1] == '+' else -int(args[2])
-        return AffineIndex(var, 1, offset, self.next_node_id())
-    def var(self, args):
-        return AffineIndex(args[0], 1, 0, self.next_node_id())
-    def linear(self, args):
-        var = args[1]
-        coeff = int(args[0])
-        return AffineIndex(var, coeff, 0, self.next_node_id())
-    def simple_affine(self, args):
-        coeff = int(args[0])
-        var = args[1]
-        offset = int(args[3]) if args[2] == '+' else -int(args[3])
-        return AffineIndex(var, coeff, offset, self.next_node_id())
-    # literal: float_literal | int_literal
-    # float_literal: FLOAT
-    # int_literal: INT
     def literal(self, args):
         return args[0]
     def float_literal(self, args):
@@ -101,26 +76,49 @@ class TreeSimplifier(Transformer):
     def int_literal(self, args):
         return Literal(int, int(args[0]), self.next_node_id())
     def scalar_access(self, args):
-        logger.info(args)
         return Access(args[0], node_id=self.next_node_id())
     def array_access(self, args):
         return Access(args[0], args[1:], self.next_node_id())
     def access(self, args):
         return args[0]
-    def binop(self, args):
-        return BinOp(args[1], args[0], args[2], self.next_node_id())
+
     def expr(self, args):
-        if len(args) == 3:
-            return BinOp(args[1], args[0], args[2], self.next_node_id())
-        else:
-            return args[0]
-    def term(self, args):
-        if len(args) == 3:
-            return BinOp(args[1], args[0], args[2], self.next_node_id())
-        else:
-            return args[0]
-    def factor(self, args):
         return args[0]
+    def conditional(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op('?:', args, self.next_node_id())
+    def logical_or(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op('||', args, self.next_node_id())
+    def logical_and(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op('&&', args, self.next_node_id())
+    def equality(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op(args[1], [args[0], args[2]], self.next_node_id())
+    def relational(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op(args[1], [args[0], args[2]], self.next_node_id())
+    def additive(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op(args[1], [args[0], args[2]], self.next_node_id())
+    def multiplicative(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op(args[1], [args[0], args[2]], self.next_node_id())
+    def unary(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op(args[0], [args[1]], self.next_node_id())
+    def atom(self, args):
+        return args[0]
+
     def assignment(self, args):
         lhs = args[0]
         assert(isinstance(lhs, Access))

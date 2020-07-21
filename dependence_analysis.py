@@ -1,7 +1,7 @@
 from parser import parse_file
 from z3 import Solver, Ints, unsat, Optimize, sat, Int
 from loguru import logger
-from abstract_ast import get_accesses, Program, AbstractLoop, Access, BinOp, Literal
+from abstract_ast import get_accesses, Program, AbstractLoop, Access, Op, Literal
 from dependence_graph import Dependence, DependenceGraph
 
 def is_ordered(l, v1, v2):
@@ -178,21 +178,28 @@ def affine_to_cexpr(affine, cvars):
     return affine.coeff * cvars[affine.var] + affine.offset
 
 def expr_to_cexpr(expr, cvars):
-    if type(expr) == BinOp:
-        left = expr_to_cexpr(expr.left, cvars)
-        right = expr_to_cexpr(expr.right, cvars)
+    if type(expr) == Op:
+        args = expr.args
         op = expr.op
-        if left is not None and right is not None:
-            if op == '+':
-                return left + right
-            elif op == '*':
-                return left * right
-            elif op == '-':
-                return left - right
-            elif op == '/':
-                return left / right
+        if len(args) == 1:
+            cexpr = expr_to_cexpr(args[0])
+            if expr.op == '+':
+                return cexpr
+            elif expr.op == '-':
+                return -cexpr
+        elif len(args) == 2:
+            left = expr_to_cexpr(args[0], cvars)
+            right = expr_to_cexpr(args[1], cvars)
+            if left is not None and right is not None:
+                if op == '+':
+                    return left + right
+                elif op == '*':
+                    return left * right
+                elif op == '-':
+                    return left - right
+                elif op == '/':
+                    return left / right
     elif type(expr) == Literal:
-        logger.info(expr.ty)
         if expr.ty == int:
             return expr.val
     elif type(expr) == Access:

@@ -1,4 +1,4 @@
-from abstract_ast import get_accesses, get_loops, Access, BinOp
+from abstract_ast import get_accesses, get_loops, Access, Op
 from random import randint, choice, shuffle
 from loguru import logger
 from dependence_analysis import expr_to_cexpr
@@ -90,9 +90,9 @@ def validate_var_map(program, var_map):
         if type(expr) == Access:
             if expr.is_scalar() and expr.var not in cvars:
                 cvars[expr.var] = Int(expr.var)
-        elif type(expr) == BinOp:
-            add_cvar(expr.left)
-            add_cvar(expr.right)
+        elif type(expr) == Op:
+            for arg in expr.args:
+                add_cvar(arg)
 
     for access in accesses:
         for index in access.indices:

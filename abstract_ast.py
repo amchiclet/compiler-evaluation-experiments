@@ -45,8 +45,6 @@ class Const(Node):
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}const {self.name};'
-    # def cprint(self, var_map, indent=0):
-    #     pass
     def clone(self):
         return Declaration(self.name, self.node_id)
     def is_syntactically_equal(self, other):
@@ -63,8 +61,6 @@ class Declaration(Node):
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}declare {self.name}{"[]"*self.n_dimensions};'
-    # def cprint(self, var_map, indent=0):
-    #     pass
     def clone(self):
         return Declaration(self.name, self.n_dimensions, self.node_id)
     def is_syntactically_equal(self, other):
@@ -130,49 +126,6 @@ def replace(i, replacer):
 def replace_each(l, replacer):
     return [replace(i, replacer) for i in l]
 
-class AffineIndex(Node):
-    def __init__(self, var, coeff, offset, node_id=0):
-        self.node_id = node_id
-        self.var = var
-        self.coeff = coeff
-        self.offset = offset
-        self.array = None
-        self.dimension = None
-        self.parent_stmt = None
-    def cprint(self, var_map, indent=0):
-        if self.var:
-            linear = f'{self.var}' if self.coeff == 1 else f'{self.coeff}*{self.var}'
-            if self.offset > 0:
-                return f'{linear}+{self.offset}'
-            elif self.offset < 0:
-                return f'{linear}{self.offset}'
-            else:
-                return f'{linear}'
-        else:
-            return f'{self.offset}'
-
-    def pprint(self, indent=0):
-        if self.var:
-            linear = f'{self.var}' if self.coeff == 1 else f'{self.coeff}*{self.var}'
-            if self.offset > 0:
-                return f'{linear}+{self.offset}'
-            elif self.offset < 0:
-                return f'{linear}{self.offset}'
-            else:
-                return f'{linear}'
-        else:
-            return f'{self.offset}'
-    def clone(self):
-        cloned = AffineIndex(self.var, self.coeff, self.offset, self.node_id)
-        cloned.array = self.array
-        cloned.dimension = self.dimension
-        return cloned
-    def is_syntactically_equal(self, other):
-        return self.var == other.var and \
-            self.coeff == other.coeff and \
-            self.offset == other.offset
-
-# TODO: create expr class
 from termcolor import colored
 
 class Access(Node):
@@ -266,34 +219,73 @@ class AbstractLoop(Node):
         for stmt in self.body:
             stmt.surrounding_loop = self
 
-class BinOp(Node):
-    def __init__(self, op, left, right, node_id=0):
-        self.node_id = node_id
+class Op(Node):
+    def __init__(self, op, args, node_id=0):
         self.op = op
-        self.left = left
-        self.right = right
-    def cprint(self, var_map, indent=0):
-        return f'{self.left.cprint(var_map)} {self.op} {self.right.cprint(var_map)}'
-    def pprint(self, indent=0):
-        left_str = self.left.pprint()
-        if self.precedence() >= self.left.precedence():
-            left_str = f'({left_str})'
-        right_str = self.right.pprint()
-        if self.precedence() >= self.right.precedence():
-            right_str = f'({right_str})'
-        return f'{left_str} {self.op} {right_str}'
-    def dep_print(self, refs):
-        return f'{self.left.dep_print(refs)} {self.op} {self.right.dep_print(refs)}'
-    def clone(self):
-        return BinOp(self.op, self.left.clone(), self.right.clone(), self.node_id)
-    def is_syntactically_equal(self, other):
-        return self.left.op == self.right.op and \
-            self.left.is_syntactically_equal(other.left) and \
-            self.right.is_syntactically_equal(other.right)
+        self.args = args
+        self.node_id = 0
     def precedence(self):
-        return get_precedence(self.op)
+        if len(self.args) == 1:
+            return 100
+        if self.op in ['*', '/']:
+            return 99
+        if self.op in ['+', '-']:
+            return 98
+        if self.op in ['<', '>', '<=', '>=']:
+            return 97
+        if self.op in ['==', '!=']:
+            return 96
+        if self.op == '&&':
+            return 95
+        if self.op == '||':
+            return 94
+        if self.op == '?:':
+            return 93
+        raise RuntimeError(f'Unsupported op {self.op}')
+    def generic_print(self, formatter):
+        args = []
+        for arg in self.args:
+            arg_str = formatter(arg)
+            if self.precedence() >= arg.precedence():
+                arg_str = f'({arg_str})'
+            args.append(arg_str)
+        if len(args) == 1:
+            return f'{self.op}{args[0]}'
+        elif len(args) == 2:
+            return f'{args[0]} {self.op} {args[1]}'
+        elif len(args) == 3:
+            assert(self.op == '?:')
+            return f'{args[0]} ? {args[1]} : {args[2]}'
+        raise RuntimeError('Unsuppored argument length: {args}')
+
+    def pprint(self, indent=0):
+        def formatter(arg):
+            return arg.pprint(indent)
+        return self.generic_print(formatter)
+
+    # TODO: refactor pprint and cprint
+    def cprint(self, var_map, indent=0):
+        def formatter(arg):
+            return arg.cprint(var_map, indent)
+        return self.generic_print(formatter)
+    def dep_print(self, refs):
+        def formatter(arg):
+            return arg.dep_print(refs)
+        return self.generic_print(formatter)
+    def clone(self):
+        cloned_args = [arg.clone() for arg in self.args]
+        return Op(self.op, cloned_args, self.node_id)
+    def is_syntactically_equal(self, other):
+        if self.op != other.op:
+            return False
+        if len(self.args) != len(other.args):
+            return False
+        for arg, other_arg in zip(self.args, other.args):
+            if not arg.is_syntactically_equal(other_arg):
+                return False
+        return True
     def replace(self, replacer):
-        self.left, self.right = replace_each([self.left, self.right], replacer)
+        self.args = replace_each(self.args, replacer)
 
 class Program:
     def __init__(self, decls, loops, consts, node_id=0):
@@ -369,9 +361,9 @@ def get_accesses(node):
     elif isinstance(node, Access):
         accesses.add(node)
         return accesses
-    elif isinstance(node, BinOp):
-        accesses.update(get_accesses(node.left))
-        accesses.update(get_accesses(node.right))
+    elif isinstance(node, Op):
+        for arg in node.args:
+            accesses.update(get_accesses(arg))
         return accesses
     elif isinstance(node, AbstractLoop):
         for stmt in node.body:
@@ -414,50 +406,3 @@ def get_arrays(program):
         else:
             assert(arrays[array_name] == n_dimensions)
     return arrays
-    
-# gather array dimensions and loop accesses
-def get_program_info(program):
-    # maps array name to [loop var name]
-    arrays = {}
-    # maps loop var name to (lower, upper)
-    loop_vars = {}
-    for access in get_accesses(program):
-        array_name = access.var
-        n_dimensions = len(access.indices)
-        if n_dimensions == 0:
-            continue
-        if not array_name in arrays:
-            arrays[array_name] = [None] * n_dimensions
-        for i, abstract_index in enumerate(access.indices):
-            loop_var = abstract_index.var
-
-            # update arrays
-            if not arrays[array_name][i]:
-                arrays[array_name][i] = loop_var
-            else:
-                assert(arrays[array_name][i] == loop_var)
-
-            # update loop_vars
-            if not loop_var in loop_vars:
-                loop_vars[loop_var] = [0, 0]
-            loop_vars[loop_var][0] = min(loop_vars[loop_var][0],
-                                         abstract_index.relationship)
-            loop_vars[loop_var][1] = max(loop_vars[loop_var][1],
-                                         abstract_index.relationship)
-    return arrays, loop_vars
-
-def is_same_memory(access1, access2):
-    return access1.var == access2.var
-
-def is_in_same_loop(stmt1, stmt2):
-    return stmt1.surrounding_loop.node_id == stmt2.surrounding_loop.node_id
-
-def all_pairs(s):
-    l = list(s)
-    for index, e1 in enumerate(l[:-1]):
-        for e2 in l[index+1:]:
-            yield (e1, e2)
-
-def get_all_access_pairs(node):
-    return all_pairs(get_accesses(node))
-

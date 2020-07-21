@@ -1,7 +1,6 @@
 from math import floor
-from abstract_ast import Assignment, AffineIndex, Access, BinOp, AbstractLoop, Declaration, Program, get_program_info
-
 from variable_map import dimension_var
+
 def loop_header(indent, loop_var, begin, end):
     return '  ' * indent + \
         (f'for (int {loop_var} = {begin}; '
