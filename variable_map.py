@@ -82,9 +82,7 @@ def find_min_max(constraints, i):
 def dimension_var(var, dimension):
     return f'{var}{"[]"*(dimension+1)}'
 
-def validate_var_map(program, var_map):
-    accesses = get_accesses(program)
-
+def generate_cvars(accesses):
     cvars = {}
     def add_cvar(expr):
         if type(expr) == Access:
@@ -97,49 +95,57 @@ def validate_var_map(program, var_map):
     for access in accesses:
         for index in access.indices:
             add_cvar(index)
+    return cvars
 
+def generate_index_constraints(accesses, cvars, var_map):
     constraints = []
     for access in accesses:
-        for index in access.indices:
+        for dimension, index in enumerate(access.indices):
             cexpr = expr_to_cexpr(index, cvars)
             if cexpr is not None:
                 constraints.append(0 <= cexpr)
+                dim_var = dimension_var(access.var, dimension)
+                dim_size = var_map.get_max(dim_var)
+                constraints.append(cexpr < dim_size)
+    return constraints
 
-    restricted_var_map = var_map.clone()
-    # figure out maximum array sizes if any of their limits are not set
+def generate_bound_constraints(cvars, var_map):
+    constraints = []
     for var, cvar in cvars.items():
         current_min = var_map.get_min(var)
         current_max = var_map.get_max(var)
         constraints.append(cvar >= current_min)
         constraints.append(cvar <= current_max)
+    return constraints
 
-    for var, cvar in cvars.items():
-        min_val, max_val = find_min_max(constraints, cvars[var])
-        assert(min_val is not None)
-        assert(max_val is not None)
-        restricted_var_map.set_min(var, min_val)
-        restricted_var_map.set_max(var, max_val)
-
+def tighten_array_sizes(accesses, cvars, constraints, var_map):
+    logger.info('constraints:\n' + '\n'.join(map(str, constraints)))
+    cloned = var_map.clone()
     for access in accesses:
         for dimension, index in enumerate(access.indices):
             cexpr = expr_to_cexpr(index, cvars)
             if cexpr is None:
                 logger.warning(f'Unable to analyze the max value of {index.pprint()} in {access.pprint()}')
+                max_val = cloned.default_max
             else:
                 max_val = find_max(constraints, cexpr)
+                logger.info(f'max val is {max_val}')
                 assert(max_val is not None)
-                var = dimension_var(access.var, dimension)
+                max_val = min(max_val + 1, cloned.default_max)
+
+            var = dimension_var(access.var, dimension)
 
             # Update the min value for the array size.
             # Min array size must be large enough to
             # hold the max index.
-            if restricted_var_map.has_min(var):
-                if max_val > restricted_var_map.get_min(var):
-                    restricted_var_map.set_min(var, max_val)
+            if cloned.has_min(var):
+                logger.info(f'current min is {cloned.get_min(var)}')
+                if max_val > cloned.get_min(var):
+                    cloned.set_min(var, max_val)
             else:
-                restricted_var_map.set_min(var, max_val)
-
-    return restricted_var_map
+                logger.info(f'set min to {max_val}')
+                cloned.set_min(var, max_val)
+    return cloned
 
 def randomize_iteration_vars(program, var_map):
     cloned = var_map.clone()
@@ -159,4 +165,30 @@ def randomize_iteration_vars(program, var_map):
 
         cloned.set_min(var, new_min)
         cloned.set_max(var, new_max)
+    return cloned
+
+def validate_var_map(program, var_map):
+    cloned = var_map.clone()
+
+    accesses = get_accesses(program)
+
+    cvars = generate_cvars(accesses)
+
+    index_constraints = generate_index_constraints(accesses, cvars, cloned)
+    bound_constraints = generate_bound_constraints(cvars, cloned)
+    constraints = index_constraints + bound_constraints
+    for var, cvar in cvars.items():
+        min_val, max_val = find_min_max(constraints, cvars[var])
+        assert(min_val is not None)
+        assert(max_val is not None)
+        x = randint(min_val, max_val)
+        y = randint(min_val, max_val)
+        new_min = min(x, y)
+        new_max = max(x, y)
+        cloned.set_min(var, new_min)
+        cloned.set_max(var, new_max)
+    logger.info(cloned.pprint())
+    new_bound_constraints = generate_bound_constraints(cvars, cloned)
+    new_constraints = index_constraints + new_bound_constraints
+    cloned = tighten_array_sizes(accesses, cvars, new_constraints, cloned)
     return cloned
