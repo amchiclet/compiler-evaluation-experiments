@@ -46,9 +46,11 @@ class Const(Node):
         ws = space_per_indent * indent * ' '
         return f'{ws}const {self.name};'
     def clone(self):
-        return Declaration(self.name, self.node_id)
+        return Const(self.name, self.node_id)
     def is_syntactically_equal(self, other):
         return self.name == other.name
+    def replace(self, replacer):
+        self.name = replace(self.name, replacer)
 
 class Declaration(Node):
     def __init__(self, name, n_dimensions, node_id=0):
@@ -65,6 +67,8 @@ class Declaration(Node):
         return Declaration(self.name, self.n_dimensions, self.node_id)
     def is_syntactically_equal(self, other):
         return self.name == other.name and self.n_dimensions == other.n_dimensions
+    def replace(self, replacer):
+        self.name = replace(self.name, replacer)
 
 class Literal(Node):
     def __init__(self, ty, val, node_id=0):
@@ -80,7 +84,8 @@ class Literal(Node):
     def is_syntactically_equal(self, other):
         return self.ty == other.ty and self.val == other.val
     def replace(self, replacer):
-        pass
+        self.ty = replace(self.ty, replacer)
+        self.val = replace(self.val, replacer)
     def dep_print(self, refs):
         return f'{self.val}'
 
@@ -120,7 +125,8 @@ def replace(i, replacer):
     if replacer.should_replace(i):
         return replacer.replace(i)
     else:
-        i.replace(replacer)
+        if isinstance(i, Node):
+            i.replace(replacer)
         return i
 
 def replace_each(l, replacer):
@@ -133,9 +139,9 @@ class Access(Node):
         self.node_id = node_id
         self.var = var
         self.indices = indices if indices else []
-        for dimension, index in enumerate(self.indices):
-            index.array = var
-            index.dimension = dimension
+        # for dimension, index in enumerate(self.indices):
+        #     index.array = var
+        #     index.dimension = dimension
         self.is_write = False
         self.parent_stmt = None
     def is_scalar(self):
@@ -155,16 +161,20 @@ class Access(Node):
     def clone(self):
         cloned_indices = [i.clone() for i in self.indices]
         cloned = Access(self.var, cloned_indices, self.node_id)
-        for dimension, index in enumerate(cloned_indices):
-            index.array = self.var
-            index.dimension = dimension
+        # for dimension, index in enumerate(cloned_indices):
+        #     index.array = self.var
+        #     index.dimension = dimension
         cloned.is_write = self.is_write
         return cloned
     def is_syntactically_equal(self, other):
         return self.var == other.var and \
             is_list_syntactically_equal(self.indices, other.indices)
     def replace(self, replacer):
-        pass
+        self.var = replace(self.var, replacer)
+        self.indices = replace_each(self.indices, replacer)
+        # for dimension, index in enumerate(self.indices):
+        #     index.array = var
+        #     index.dimension = dimension
 
 class AbstractLoop(Node):
     def __init__(self, loop_vars, body, node_id=0):
@@ -215,6 +225,7 @@ class AbstractLoop(Node):
             return False
         return is_list_syntactically_equal(self.body, other.body)
     def replace(self, replacer):
+        self.loop_vars = replace_each(self.loop_vars, replacer)
         self.body = replace_each(self.body, replacer)
         for stmt in self.body:
             stmt.surrounding_loop = self
@@ -348,6 +359,9 @@ class Program:
         for stmt in cloned.body:
             stmt.surrounding_loop = self
     def replace(self, replacer):
+        self.decls = replace_each(self.decls, replacer)
+        self.consts = replace_each(self.consts, replacer)
+        self.loop_vars = replace_each(self.loop_vars, replacer)
         self.body = replace_each(self.body, replacer)
         for stmt in self.body:
             stmt.surrounding_loop = self
@@ -406,3 +420,19 @@ def get_arrays(program):
         else:
             assert(arrays[array_name] == n_dimensions)
     return arrays
+
+class ConstReplacer(Replacer):
+    def __init__(self, replace_map):
+        self.replace_map = replace_map
+    def should_replace(self, node):
+        return type(node) == Access and node.var in self.replace_map
+    def replace(self, node):
+        return Literal(int, self.replace_map[node.var], node.node_id)
+
+class VarRenamer(Replacer):
+    def __init__(self, replace_map):
+        self.replace_map = replace_map
+    def should_replace(self, node):
+        return type(node) == str and node in self.replace_map
+    def replace(self, node):
+        return self.replace_map[node]
