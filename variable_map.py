@@ -178,6 +178,23 @@ def validate_var_map(program, var_map):
     index_constraints = generate_index_constraints(accesses, cvars, cloned)
     bound_constraints = generate_bound_constraints(cvars, cloned)
     constraints = index_constraints + bound_constraints
+
+    import pprint
+    logger.info(f'\n'.join(map(str,constraints)))
+
+    solver = Solver()
+    solver.add(constraints)
+    status = solver.check()
+
+    if status == unsat:
+        raise RuntimeError(f'Variable map not possible for constraints:\n'
+                           f'{pprint.pprint(constraints)}')
+    else:
+        return True
+
+def randomize_var_map(program, var_map):
+    # replace the constants with literals
+
     for var, cvar in cvars.items():
         min_val, max_val = find_min_max(constraints, cvars[var])
         assert(min_val is not None)

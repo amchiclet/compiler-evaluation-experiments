@@ -1,6 +1,7 @@
 from abstract_ast import Op, Access, Declaration, Assignment, AbstractLoop, Const, Program, ConstReplacer, get_loops, VarRenamer
-from parser import parse_file
+from pattern_normalizer import normalize_pattern
 import random
+from loguru import logger
 
 class IdGenerator:
     def __init__(self, current=0):
@@ -119,10 +120,10 @@ class ProgramGenerator(Generator):
     def __init__(self, loop_gen, next_id=None):
         super(ProgramGenerator, self).__init__(next_id)
         self.loop_gen = loop_gen
-    def generate(self, n_loops, n_depth, n_stmts, n_ops, loop_vars):
+    def generate(self, n_loops, n_depth, loop_vars, n_stmts, n_ops):
         all_consts = set()
 
-        access_gen = self.loop_gen.assignment_gen.access_gen
+        access_gen = self.loop_gen.assignment_gen.op_gen.access_gen
         index_gen = access_gen.index_gen
         all_consts.update(access_gen.float_consts,
                           index_gen.mul_consts,
@@ -140,80 +141,72 @@ class ProgramGenerator(Generator):
             loop = self.loop_gen.generate(n_depth, n_stmts, n_ops, loop_vars)
             gen_loops.append(loop)
         program = Program(gen_decls, gen_loops, gen_consts, self.next_id())
-
-        ordered_loop_vars = []
-        def populate_loop_vars(node):
-            if isinstance(node, AbstractLoop):
-                for loop_var in node.loop_vars:
-                    if loop_var not in ordered_loop_vars:
-                        ordered_loop_vars.append(loop_var)
-                for stmt in node.body:
-                    populate_loop_vars(stmt)
-            elif isinstance(node, Program):
-                for stmt in node.body:
-                    populate_loop_vars(stmt)
-            elif isinstance(node, Assignment):
-                pass
-            else:
-                raise RuntimeError('get_loops: Unhandled type of node ' + str(type(node)))
-        populate_loop_vars(program)
-
-        replace_map_1 = {}
-        for i, loop_var in enumerate(ordered_loop_vars):
-            replace_map_1[loop_var] = '__' + str(i)
-        renamer_1 = VarRenamer(replace_map_1)
-        program.replace(renamer_1)
-
-        replace_map_2 = {}
-        sorted_loop_vars = sorted(loop_vars)
-        for i, loop_var in enumerate(sorted_loop_vars):
-            replace_map_2['__' + str(i)] = loop_var
-        renamer_2 = VarRenamer(replace_map_2)
-        program.replace(renamer_2)
-
         return program
 
-def generate():
-    id_gen = IdGenerator()
-    mul_consts = ['a', 'b']
-    add_consts = ['x', 'y']
-    float_consts = ['f', 'g']
-    loop_vars = ['i', 'j', 'k', 'l', 'm']
-    decls = [
-        Declaration('A', 1),
-        Declaration('B', 1),
-        Declaration('C', 1),
-    ]
-    ops = ['+', '*', '-']
-    n_loops = 1
-    n_depth = 3
-    n_stmts = 3
-    n_ops = 0
-    # node = generate_program(n_loops, n_depth, n_stmts, n_ops, ops, decls, constants, loop_vars, id_gen.next_id)
+class PatternInfo:
+    def __init__(self, decls=None, mul_consts=None, add_consts=None,
+                 data_consts=None, ops=None, loop_vars=None,
+                 n_loops=0, n_depth=0, n_stmts=0, n_ops=0):
+        self.decls = decls if decls else []
+        self.mul_consts = mul_consts if mul_consts else []
+        self.add_consts = add_consts if add_consts else []
+        self.data_consts = data_consts if data_consts else []
+        self.loop_vars = loop_vars if loop_vars else []
+        self.ops = ops if ops else []
+        self.n_loops = n_loops
+        self.n_depth = n_depth
+        self.n_stmts = n_stmts
+        self.n_ops = n_ops
+    def pprint(self):
+        from pprint import PrettyPrinter
+        pp = PrettyPrinter(indent=2)
+        lines = []
+        decl_pairs = [(decl.name, decl.n_dimensions) for decl in self.decls]
+        lines.append(f'decls = {pp.pformat(decl_pairs)}')
+        lines.append(f'mul_consts = {pp.pformat(self.mul_consts)}')
+        lines.append(f'add_consts = {pp.pformat(self.add_consts)}')
+        lines.append(f'data_consts = {pp.pformat(self.data_consts)}')
+        lines.append(f'loop_vars = {pp.pformat(self.loop_vars)}')
+        lines.append(f'n_loops = {self.n_loops}')
+        lines.append(f'n_depth = {self.n_depth}')
+        lines.append(f'n_stmts = {self.n_stmts}')
+        lines.append(f'n_ops = {self.n_ops}')
+        return '\n'.join(lines)
 
-    index_gen = IndexGenerator(mul_consts, add_consts, id_gen.next_id)
-    access_gen = AccessGenerator(decls, float_consts, index_gen, id_gen.next_id)
-    op_gen = OpGenerator(ops, access_gen, id_gen.next_id)
-    access_gen_lhs = AccessGenerator(decls, [], index_gen, id_gen.next_id)
-    assign_gen = AssignmentGenerator(access_gen_lhs, op_gen, id_gen.next_id)
+def generate(pattern_info):
+    id_gen = IdGenerator()
+    index_gen = IndexGenerator(pattern_info.mul_consts,
+                               pattern_info.add_consts, id_gen.next_id)
+    access_gen = AccessGenerator(pattern_info.decls,
+                                 pattern_info.data_consts, index_gen,
+                                 id_gen.next_id)
+    op_gen = OpGenerator(pattern_info.ops, access_gen, id_gen.next_id)
+    access_gen_lhs = AccessGenerator(pattern_info.decls, [],
+                                     index_gen, id_gen.next_id)
+    assign_gen = AssignmentGenerator(access_gen_lhs, op_gen,
+                                     id_gen.next_id)
     loop_gen = LoopGenerator(assign_gen, id_gen.next_id)
     program_gen = ProgramGenerator(loop_gen, id_gen.next_id)
-    node = program_gen.generate(n_loops, n_depth, n_stmts, n_ops, loop_vars)
-    return node
+    node = program_gen.generate(pattern_info.n_loops,
+                                pattern_info.n_depth,
+                                pattern_info.loop_vars,
+                                pattern_info.n_stmts,
+                                pattern_info.n_ops)
+    normalize_pattern(node, pattern_info.decls,
+                      pattern_info.mul_consts,
+                      pattern_info.add_consts,
+                      pattern_info.data_consts,
+                      pattern_info.loop_vars)
+    return node, id_gen.current
 
-# print(node.pprint())
-from pathlib import Path
-output_dir = 'generated-patterns'
-Path(output_dir).mkdir(parents=True, exist_ok=True)
-
-import os
-n_patterns = 10
-for pattern_id in range(n_patterns):
-    program = generate()
-    pattern_filename = f'p{pattern_id:04d}.pattern'
-    output_path = os.path.join(output_dir, pattern_filename)
-    with open(output_path, 'w') as f:
-        f.write(program.pprint())
+# import os
+# n_patterns = 10
+# for pattern_id in range(n_patterns):
+#     program = generate()
+#     pattern_filename = f'p{pattern_id:04d}.pattern'
+#     output_path = os.path.join(output_dir, pattern_filename)
+#     with open(output_path, 'w') as f:
+#         f.write(program.pprint())
 
 # replace_map = {}
 # for c in constants:
