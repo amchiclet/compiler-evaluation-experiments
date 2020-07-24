@@ -1,4 +1,4 @@
-from abstract_ast import get_accesses, get_loops, Access, Op
+from abstract_ast import get_accesses, get_loops, Access, Op, ConstReplacer
 from random import randint, choice, shuffle
 from loguru import logger
 from dependence_analysis import expr_to_cexpr
@@ -15,6 +15,9 @@ class VariableMap:
         self.default_min = default_min
         self.default_max = default_max
         self.limits = {}
+    def remove_var(self, var):
+        if var in self.limits:
+            self.limits.pop(var)
     def has_min(self, var):
         return var in self.limits and not self.limits[var].min_val is None
     def has_max(self, var):
@@ -179,9 +182,6 @@ def validate_var_map(program, var_map):
     bound_constraints = generate_bound_constraints(cvars, cloned)
     constraints = index_constraints + bound_constraints
 
-    import pprint
-    logger.info(f'\n'.join(map(str,constraints)))
-
     solver = Solver()
     solver.add(constraints)
     status = solver.check()
@@ -189,24 +189,55 @@ def validate_var_map(program, var_map):
     if status == unsat:
         raise RuntimeError(f'Variable map not possible for constraints:\n'
                            f'{pprint.pprint(constraints)}')
-    else:
-        return True
 
-def randomize_var_map(program, var_map):
-    # replace the constants with literals
+def create_instance(program, var_map):
+    # while True:
+    def try_once():
+        cloned_pattern = program.clone()
+        replace_map = {}
+        for const in cloned_pattern.consts:
+            var = const.name
+            min_val = var_map.get_min(var)
+            max_val = var_map.get_max(var)
+            # TODO: support other types than int
+            val = randint(min_val, max_val)
+            replace_map[const.name] = val
+        replacer = ConstReplacer(replace_map)
+        cloned_pattern.replace(replacer)
+        cloned_pattern.consts = []
 
-    for var, cvar in cvars.items():
-        min_val, max_val = find_min_max(constraints, cvars[var])
-        assert(min_val is not None)
-        assert(max_val is not None)
-        x = randint(min_val, max_val)
-        y = randint(min_val, max_val)
-        new_min = min(x, y)
-        new_max = max(x, y)
-        cloned.set_min(var, new_min)
-        cloned.set_max(var, new_max)
+        accesses = get_accesses(cloned_pattern)
+        cvars = generate_cvars(accesses)
+        cloned_var_map = var_map.clone()
+        index_constraints = generate_index_constraints(accesses,
+                                                       cvars,
+                                                       cloned_var_map)
+        bound_constraints = generate_bound_constraints(cvars,
+                                                       cloned_var_map)
+        constraints = index_constraints + bound_constraints
+        for var, cvar in cvars.items():
+            min_val, max_val = find_min_max(constraints, cvars[var])
+            if min_val is None or max_val is None:
+                return None
+            x = randint(min_val, max_val)
+            y = randint(min_val, max_val)
+            new_min = min(x, y)
+            new_max = max(x, y)
+            cloned_var_map.set_min(var, new_min)
+            cloned_var_map.set_max(var, new_max)
 
-    new_bound_constraints = generate_bound_constraints(cvars, cloned)
-    new_constraints = index_constraints + new_bound_constraints
-    cloned = determine_array_sizes(program.decls, accesses, cvars, new_constraints, cloned)
-    return cloned
+        new_bound_constraints = generate_bound_constraints(cvars,
+                                                           cloned_var_map)
+        new_constraints = index_constraints + new_bound_constraints
+        cloned_var_map = determine_array_sizes(cloned_pattern.decls,
+                                               accesses, cvars,
+                                               new_constraints,
+                                               cloned_var_map)
+        return cloned_pattern, cloned_var_map
+
+    result = try_once()
+    while result is None:
+        result = try_once()
+    pattern, var_map = result
+
+    return result
