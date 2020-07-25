@@ -108,7 +108,7 @@ class LoopGenerator(Generator):
         super(LoopGenerator, self).__init__(next_id)
         self.assignment_gen = assignment_gen
     def generate(self, n_depth, n_stmts, n_ops, loop_vars):
-        assert(len(loop_vars) > n_depth)
+        assert(len(loop_vars) >= n_depth)
         chosen_loop_vars = random.sample(loop_vars, k=n_depth)
         body = []
         for _ in range(n_stmts):
