@@ -6,6 +6,7 @@ from pattern_generator import generate, PatternInfo
 from variable_map import validate_var_map, VariableMap, create_instance
 from parser import parse_file
 from codegen import CodeGen
+from transformers.loop_interchange import LoopInterchange
 
 def create_pattern_info(n_stmts, n_ops):
     mul_consts = ['a1', 'a2', 'a3']
@@ -63,9 +64,9 @@ pattern_dir_1 = os.path.join(output_root, 'pattern_1')
 
 pattern_info_2 = create_pattern_info(2, 1)
 pattern_dir_2 = os.path.join(output_root, 'pattern_2')
-generate_patterns(10,
-                  pattern_dir_2,
-                  pattern_info_2)
+# generate_patterns(10,
+#                   pattern_dir_2,
+#                   pattern_info_2)
 
 pattern_info_3 = create_pattern_info(1, 1)
 pattern_dir_3 = os.path.join(output_root, 'pattern_3')
@@ -99,14 +100,22 @@ def generate_programs(pattern_dir, pattern_info, output_dir):
         patterns_map[pattern_name] = {}
 
         for i in range(2):
-            instance, var_map = create_instance(pattern, var_map)
+            instance, instance_var_map = create_instance(pattern, var_map)
             instance_name = f'i{i:04d}'
-            codegen.generate_wrapper(pattern_name, instance_name, instance, var_map)
+            codegen.generate_wrapper(pattern_name, instance_name, instance, instance_var_map)
             patterns_map[pattern_name][instance_name] = []
 
-            mutation_name = 'mutation'
-            codegen.generate_code(pattern_name, instance_name, mutation_name, instance, var_map)
-            patterns_map[pattern_name][instance_name].append(mutation_name)
+            loop_interchange = LoopInterchange()
+            m = 0
+            for mutation in loop_interchange.transform(instance, instance_var_map):
+                mutation_name = f'm{m:04d}'
+                patterns_map[pattern_name][instance_name].append(mutation_name)
+                codegen.generate_code(pattern_name, instance_name,
+                                      mutation_name, mutation,
+                                      instance_var_map)
+                m += 1
+                if m > 2:
+                    break
     codegen.generate_pattern_file(patterns_map)
 
 output_dir = 'debug'
