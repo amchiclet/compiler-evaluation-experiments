@@ -151,26 +151,6 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
                 cloned.set_min(var, max_val)
     return cloned
 
-def randomize_iteration_vars(program, var_map):
-    cloned = var_map.clone()
-    loops = get_loops(program)
-    loop_vars = set()
-    for loop in loops.values():
-        loop_vars.update(loop.loop_vars)
-    for var in loop_vars:
-        current_min = var_map.get_min(var)
-        current_max = var_map.get_max(var)
-
-        # tighten it
-        x = randint(current_min, current_max)
-        y = randint(current_min, current_max)
-        new_min = min(x, y)
-        new_max = max(x, y)
-
-        cloned.set_min(var, new_min)
-        cloned.set_max(var, new_max)
-    return cloned
-
 def validate_var_map(program, var_map):
     cloned = var_map.clone()
 
@@ -190,7 +170,7 @@ def validate_var_map(program, var_map):
         return False
     return True
 
-def create_instance(program, var_map):
+def create_instance(program, var_map, max_tries=10000):
     # while True:
     def try_once():
         cloned_pattern = program.clone()
@@ -235,9 +215,10 @@ def create_instance(program, var_map):
                                                cloned_var_map)
         return cloned_pattern, cloned_var_map
 
-    result = try_once()
-    while result is None:
+    result = None
+    for _ in range(max_tries):
         result = try_once()
-    pattern, var_map = result
+        if result is not None:
+            return result
 
     return result

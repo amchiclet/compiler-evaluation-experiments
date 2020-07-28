@@ -2,11 +2,11 @@ import os
 import random
 from parser import parse_file
 from transformers.loop_interchange import LoopInterchange
-from variable_map import VariableMap, validate_var_map, randomize_iteration_vars
+from variable_map import VariableMap, validate_var_map, create_instance
 from codegen import CodeGen
 from multiprocessing import Pool
 
-output_dir = 'interchange-experiment'
+output_dir = 'delete-me'
 from loguru import logger
 import sys
 logger.remove()
@@ -44,21 +44,24 @@ def get_random_pattern(pattern_dir):
 
 from functools import partial
 
-def generate_instance(pattern, pattern_str, valid_var_map, codegen, transformer, ith_instance):
-    instance_var_map = randomize_iteration_vars(pattern, valid_var_map)
+def generate_instance(pattern, pattern_str, var_map, codegen, transformer, ith_instance):
+    result = create_instance(pattern, var_map)
+    if result is None:
+        return None
+    instance, instance_var_map = result
     instance_str = f'i{ith_instance:04d}'
-    instance = (instance_str, [])    
+    mutation_strs = []
     codegen.generate_wrapper(pattern_str, instance_str, pattern, instance_var_map)
     ith_mutation = 0
     for mutation in transformer.transform(pattern, instance_var_map):
         mutation_str = f'm{ith_mutation:04d}'
-        instance[1].append(mutation_str)
+        mutation_strs.append(mutation_str)
         codegen.generate_code(pattern_str, instance_str, mutation_str,
                               mutation, instance_var_map)
         ith_mutation += 1
         if ith_mutation == n_mutations:
             break
-    return instance
+    return (instance_str, mutation_strs)
 
 def generate_mutations(pattern_dir, output_dir, var_map, n_patterns, n_instances, n_mutations):
     patterns_map = {}
@@ -66,15 +69,15 @@ def generate_mutations(pattern_dir, output_dir, var_map, n_patterns, n_instances
     for ith_pattern in range(n_patterns):
         pattern = get_random_pattern(pattern_dir)
         loop_interchange = LoopInterchange()
-        valid_var_map = validate_var_map(pattern, var_map)
         pattern_str = f'p{ith_pattern:04d}'
         logger.info(f'Pattern {pattern_str}:\n'
                     f'{pattern.pprint()}')
         pool = Pool()
-        f = partial(generate_instance, pattern, pattern_str, valid_var_map, codegen, loop_interchange)
+        f = partial(generate_instance, pattern, pattern_str, var_map, codegen, loop_interchange)
         patterns_map[pattern_str] = {}
         instances = pool.map(f, range(n_instances))
-        for (instance, mutations) in instances:
+        instances[:] = [i for i in instances if i is not None]
+        for instance, mutations in instances:
             patterns_map[pattern_str][instance] = mutations
 
     codegen.generate_pattern_file(patterns_map)
