@@ -187,8 +187,8 @@ def validate_var_map(program, var_map):
     status = solver.check()
 
     if status == unsat:
-        raise RuntimeError(f'Variable map not possible for constraints:\n'
-                           f'{pprint.pprint(constraints)}')
+        return False
+    return True
 
 def create_instance(program, var_map):
     # while True:
