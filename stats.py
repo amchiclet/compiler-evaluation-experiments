@@ -71,7 +71,10 @@ def is_greater(x, y):
 is_less = negate(is_greater)
 
 def create_min_max_cases():
-    return InterestingCases([is_greater, is_less])
+    return InterestingCases([is_less, is_greater])
+
+def create_max_cases():
+    return InterestingCases([is_greater])
 
 def is_wider(pair1, pair2):
     width1 = pair1[1] - pair1[0]
@@ -81,10 +84,7 @@ def is_wider(pair1, pair2):
 is_narrower = negate(is_wider)
 
 def create_max_spread_cases():
-    return InterestingCases([is_narrower])
-
-def create_max_spread_min_max_cases():
-    return InterestingCases([is_narrower, is_greater, is_less])
+    return InterestingCases([is_wider])
 
 class InterestingCase:
     def __init__(self, merge_predicate):
@@ -93,7 +93,7 @@ class InterestingCase:
         self.key = None
         self.merge_predicate = merge_predicate
     def merge(self, key, normalized, raw):
-        if self.normalized is None or self.merge_predicate(self.normalized, normalized):
+        if self.normalized is None or self.merge_predicate(normalized, self.normalized):
             self.normalized = normalized
             self.key = key
             self.raw = raw
