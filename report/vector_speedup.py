@@ -49,7 +49,7 @@ def get_stats(runtimes):
 
     grouped = {}
     for (compiler, pattern, program, mutation), runtime in normalized.items():
-        update_dict_array(grouped, (compiler,), runtime)
+        update_dict_array(grouped, compiler, runtime)
 
     cis = {}
     for key, runtimes in grouped.items():

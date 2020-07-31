@@ -8,8 +8,41 @@ from util import \
 def x_faster_than_y_key(x, y):
     return f'{x}>{y}'
 
+def x_approximates_y_key(x, y):
+    if x < y:
+        return f'{x}~{y}'
+    else:
+        return f'{y}~{x}'
+
+def is_approximate_key(key):
+    return '~' in key
+
+def is_faster_than_key(key):
+    return '>' in key
+
 def x_faster_than_y_pair(key):
-    return key.split('>')
+    if is_faster_than_key(key):
+        return key.split('>')
+    else:
+        return None
+
+def x_approximates_y_pair(key):
+    if is_approximate_key(key):
+        return key.split('~')
+    else:
+        return None
+
+def is_approximate(r1, r2):
+    shorter = min(r1, r2)
+    longer = max(r1, r2)
+    speedup = longer / shorter
+    return speedup < 1.05
+
+def normalized_key_pair(key):
+    diff_pair = x_faster_than_y_pair(key)
+    eq_pair = x_approximates_y_pair(key)
+    pair = diff_pair if diff_pair is not None else eq_pair
+    return tuple(sorted(pair))
 
 def get_compiler_pairs_and_pims(runtimes):
     compiler_set = set()

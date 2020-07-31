@@ -28,7 +28,8 @@ def confidence_interval_mean(samples, level):
 def confidence_interval_proportion(proportion, n_samples, level):
     z_value = norm.ppf((1+level)/2)
     error = z_value * sqrt((proportion * (1-proportion)) / n_samples)
-    return (proportion - error, proportion + error)
+    return (max(proportion - error, 0.0),
+            min(proportion + error, 1.0))
 
 def calculate_ci_geometric(samples):
     log_samples = list(map(log, samples))
@@ -108,6 +109,8 @@ class InterestingCases:
         return iter(self.cases.items())
     def merge(self, key, new_value, raw):
         cases_key = key[:-1]
+        if len(cases_key) == 1:
+            cases_key = cases_key[0]
         if cases_key not in self.cases:
             self.cases[cases_key] = [InterestingCase(p) for p in self.merge_predicates]
         for outlier in self.cases[cases_key]:

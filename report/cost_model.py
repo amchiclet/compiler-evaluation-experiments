@@ -52,7 +52,7 @@ def get_stats(runtimes):
 
     cis = {}
     for compiler, (occurrences, total) in normalized.items():
-        cis[(compiler,)] = calculate_ci_proportion(occurrences, total)
+        cis[compiler] = calculate_ci_proportion(occurrences, total)
 
     return Stats('Cost model stability', cis, outliers)
 

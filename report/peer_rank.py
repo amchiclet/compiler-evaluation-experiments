@@ -6,7 +6,7 @@ from stats import \
     Stats
 from util import merge_value, update_dict_dict
 from scipy import log
-from peer_metrics import iterate_compiler_runtime_pairs, x_faster_than_y_key, x_faster_than_y_pair
+from peer_metrics import iterate_compiler_runtime_pairs, x_faster_than_y_key, x_faster_than_y_pair, normalized_key_pair, is_approximate, x_approximates_y_key
 from loguru import logger
 
 def add(x, y):
@@ -16,15 +16,15 @@ def get_rank_counts(runtimes):
     rank_counts = {}
 
     for (c1, r1), (c2, r2), _ in iterate_compiler_runtime_pairs(runtimes):
-        if r1 < r2:
-            merge_value(rank_counts, x_faster_than_y_key(c1, c2), 1, add)
+        if is_approximate(r1, r2):
+            merge_value(rank_counts, x_approximates_y_key(c1, c2), 1, add)
         else:
-            merge_value(rank_counts, x_faster_than_y_key(c2, c1), 1, add)
+            if r1 < r2:
+                merge_value(rank_counts, x_faster_than_y_key(c1, c2), 1, add)
+            else:
+                merge_value(rank_counts, x_faster_than_y_key(c2, c1), 1, add)
 
     return rank_counts
-
-def normalized_key_pair(key):
-    return tuple(sorted(x_faster_than_y_pair(key)))
 
 def get_total_counts(rank_counts):
     total_counts = {}

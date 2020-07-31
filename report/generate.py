@@ -13,6 +13,7 @@ import vectorizable
 import peer_speedup
 import peer_rank
 
+from peer_metrics import is_approximate_key, x_approximates_y_key
 from vector_rate import get_vector_rate_stats
 
 from build import PathBuilder
@@ -87,8 +88,6 @@ def generate_report():
     interesting_mutations.update(runtime.get_paths(runtime_stats))
 
     vec_speedup_stats = vector_speedup.get_stats(runtimes)
-    raw_outliers = vector_speedup.get_raw_outliers(runtimes)
-    print(raw_outliers.pprint())
 
     ci_table_1.append(
         vec_speedup_stats.format_ci_row('vec speedup stability',
@@ -102,7 +101,7 @@ def generate_report():
     vectorizable_stats = vectorizable.get_stats(runtimes)
     ci_table_1.append(
         vectorizable_stats.format_ci_row('vectorizability stability',
-                                         [c for (c,) in compiler_order]))
+                                         [c for c in compiler_order]))
 
     cost_model_stats = cost_model.get_stats(runtimes)
     ci_table_1.append(cost_model_stats.format_ci_row('cost model stability', compiler_order))
@@ -113,32 +112,66 @@ def generate_report():
 
     interesting_mutations.update(cost_model.get_paths(cost_model_stats))
 
-    ci_table_2 = []
-    cases_table_2 = []
+    peer_table_map = {}
+    peer_cases_map = {}
+
     peer_speedup_stats = peer_speedup.get_stats(runtimes)
-    compiler_pair_order = sorted(peer_speedup_stats.keys())
-    ci_table_2.append(peer_speedup_stats.format_ci_row('peer speedup',
-                                                       compiler_pair_order))
-    cases_table_2.append(
-        peer_speedup_stats.format_interesting_case_row('peer speedup',
-                                                       compiler_pair_order,
-                                                       peer_speedup.format_raw))
+    peer_rank_stats = peer_rank.get_stats(runtimes)
+    compiler_pair_keys = {*peer_speedup_stats.keys(),
+                          *peer_rank_stats.keys()}
+
+    compiler_pair_order = sorted(list(compiler_pair_keys))
+    for compiler in compilers:
+        peer_table = []
+        pair_order = [key for key in compiler_pair_order
+                      if key.startswith(compiler) and not is_approximate_key(key)]
+        peer_table.append(peer_speedup_stats.format_ci_row('peer speedup',
+                                                            pair_order))
+        peer_table.append(peer_rank_stats.format_ci_row('peer proportion',
+                                                         pair_order))
+        peer_table_map[compiler] = (peer_table, pair_order)
+
+        peer_case = peer_speedup_stats.format_interesting_case_row(
+            'peer speedup',
+            pair_order,
+            peer_speedup.format_raw)
+        peer_cases_map[compiler] = (peer_case, pair_order)
+
     interesting_mutations.update(peer_speedup.get_paths(peer_speedup_stats))
 
-    peer_rank_stats = peer_rank.get_stats(runtimes)
-    compiler_pair_order = sorted(peer_rank_stats.keys())
-    ci_table_2.append(peer_rank_stats.format_ci_row('peer proportion',
-                                                    compiler_pair_order))
+    approximates_table = []
+    approximate_keys = [key for key in compiler_pair_order
+                        if is_approximate_key(key)]
+    approximates_table.append(peer_speedup_stats.format_ci_row('peer speedup',
+                                                                approximate_keys))
+    approximates_table.append(
+        peer_rank_stats.format_ci_row('peer proportion',
+                                      approximate_keys))
 
-    table_1_header = ['', *[c for (c,) in compiler_order]]
-    table_2_header = ['', *compiler_pair_order]
-    print('Confidence intervals')
+
+    table_1_header = ['', *[c for c in compiler_order]]
+
+    print('Confidence intervals\n')
     print(tabulate(ci_table_1, headers=table_1_header))
-    print(tabulate(ci_table_2, headers=table_2_header))
+    print()
+    for compiler in compilers:
+        peer_table, pair_order = peer_table_map[compiler]
+        header = ['', *pair_order]
+        print(tabulate(peer_table, headers=header))
+        print()
+    approximate_header = ['', *approximate_keys]
+    print(tabulate(approximates_table, headers=approximate_header))
+    print()
 
     print('Interesting cases')
+    print()
     print(tabulate(cases_table_1, headers=table_1_header))
-    print(tabulate(cases_table_2, headers=table_2_header))
+    print()
+    for compiler in compilers:
+        peer_case, pair_order = peer_cases_map[compiler]
+        header = ['', *pair_order]
+        print(tabulate([peer_case], headers=header))
+        print()
 
     print('Raw runtimes')
     rows = []
