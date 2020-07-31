@@ -51,3 +51,8 @@ def format_pair_raw_single_mutation(single):
     (raw_1, raw_2), (pattern, program, mutation) = single
     return (f'{raw_1:.2f} vs {raw_2:.2f}\n'
             f'({pattern}.{program}.{mutation})')
+
+def format_raw_single_mutation(single):
+    raw, (pattern, program, mutation) = single
+    return (f'{raw:.2f}\n'
+            f'({pattern}.{program}.{mutation})')

@@ -87,6 +87,9 @@ def generate_report():
     interesting_mutations.update(runtime.get_paths(runtime_stats))
 
     vec_speedup_stats = vector_speedup.get_stats(runtimes)
+    raw_outliers = vector_speedup.get_raw_outliers(runtimes)
+    print(raw_outliers.pprint())
+
     ci_table_1.append(
         vec_speedup_stats.format_ci_row('vec speedup stability',
                                         compiler_order))
@@ -114,7 +117,7 @@ def generate_report():
     cases_table_2 = []
     peer_speedup_stats = peer_speedup.get_stats(runtimes)
     compiler_pair_order = sorted(peer_speedup_stats.keys())
-    ci_table_2.append(peer_speedup_stats.format_ci_row('peer speedup stability',
+    ci_table_2.append(peer_speedup_stats.format_ci_row('peer speedup',
                                                        compiler_pair_order))
     cases_table_2.append(
         peer_speedup_stats.format_interesting_case_row('peer speedup',
@@ -123,11 +126,12 @@ def generate_report():
     interesting_mutations.update(peer_speedup.get_paths(peer_speedup_stats))
 
     peer_rank_stats = peer_rank.get_stats(runtimes)
-    ci_table_2.append(peer_rank_stats.format_ci_row('peer rank stability',
+    compiler_pair_order = sorted(peer_rank_stats.keys())
+    ci_table_2.append(peer_rank_stats.format_ci_row('peer proportion',
                                                     compiler_pair_order))
 
     table_1_header = ['', *[c for (c,) in compiler_order]]
-    table_2_header = ['', *[f'{c1} < {c2}' for (c1, c2) in compiler_pair_order]]
+    table_2_header = ['', *compiler_pair_order]
     print('Confidence intervals')
     print(tabulate(ci_table_1, headers=table_1_header))
     print(tabulate(ci_table_2, headers=table_2_header))

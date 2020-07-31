@@ -29,6 +29,21 @@ def get_normalized_vec_speedups(runtimes):
 
     return normalized, outliers
 
+def get_raw_outliers(runtimes):
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        key = (compiler, pattern, program, mutation)
+        update_dict_dict(grouped, key, mode, runtime)
+
+    outliers = create_min_max_cases()
+    for key, mode_runtimes in grouped.items():
+        if 'novec' in mode_runtimes and 'fast' in mode_runtimes:
+            speedup = mode_runtimes['novec'] / mode_runtimes['fast']
+            compiler, *rest = key
+            outliers.merge((compiler, rest), speedup, rest)
+
+    return outliers
+
 def get_stats(runtimes):
     normalized, outliers = get_normalized_vec_speedups(runtimes)
 

@@ -83,6 +83,9 @@ is_narrower = negate(is_wider)
 def create_max_spread_cases():
     return InterestingCases([is_narrower])
 
+def create_max_spread_min_max_cases():
+    return InterestingCases([is_narrower, is_greater, is_less])
+
 class InterestingCase:
     def __init__(self, merge_predicate):
         self.normalized = None
@@ -94,6 +97,8 @@ class InterestingCase:
             self.normalized = normalized
             self.key = key
             self.raw = raw
+    def pprint(self):
+        return f'{self.key} {self.normalized} ({self.raw})'
 
 class InterestingCases:
     def __init__(self, merge_predicates):
@@ -107,6 +112,14 @@ class InterestingCases:
             self.cases[cases_key] = [InterestingCase(p) for p in self.merge_predicates]
         for outlier in self.cases[cases_key]:
             outlier.merge(key, new_value, raw)
+    def pprint(self, keys=None):
+        lines = []
+        keys = keys if keys is not None else self.cases.keys()
+        for key in keys:
+            if key in self.cases:
+                for case in self.cases[key]:
+                    lines.append(f'Interesting case: {case.pprint()}')
+        return '\n'.join(lines)
 
 class Stats:
     def __init__(self, name, cis, interesting_cases):

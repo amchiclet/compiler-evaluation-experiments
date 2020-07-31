@@ -6,53 +6,37 @@ from stats import \
     Stats
 from util import merge_value, update_dict_dict
 from scipy import log
+from peer_metrics import iterate_compiler_runtime_pairs, x_faster_than_y_key, x_faster_than_y_pair
+from loguru import logger
 
-def get_normalized_peer_ranks(runtimes):
-    compiler_set = set()
-    grouped = {}
-    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
-        if mode == 'fast':
-            compiler_set.add(compiler)
-            key = (pattern, program, mutation)
-            update_dict_dict(grouped, key, compiler, runtime)
-    compilers = list(compiler_set)
+def add(x, y):
+    return x + y
 
-    keys_to_consider = []
-    overall_runtime = {}
-    for key, compiler_runtimes in grouped.items():
-        if all([compiler in compiler_runtimes for compiler in compilers]):
-            keys_to_consider.append(key)
-            for compiler, runtime in compiler_runtimes.items():
-                merge_value(overall_runtime, compiler, runtime,
-                            lambda v1, v2: log(v1) + log(v2))
+def get_rank_counts(runtimes):
+    rank_counts = {}
 
-    ascend_perf_pairs = []
-    for i, c1 in enumerate(compilers[:-1]):
-        for c2 in compilers[i+1:]:
-            # lower runtime means better performance
-            ascend_perf = (c2, c1) if overall_runtime[c1] < overall_runtime[c2] else (c1, c2)
-            ascend_perf_pairs.append(ascend_perf)
+    for (c1, r1), (c2, r2), _ in iterate_compiler_runtime_pairs(runtimes):
+        if r1 < r2:
+            merge_value(rank_counts, x_faster_than_y_key(c1, c2), 1, add)
+        else:
+            merge_value(rank_counts, x_faster_than_y_key(c2, c1), 1, add)
 
-    correct_ranks = {}
-    for key in ascend_perf_pairs:
-        correct_ranks[key] = 0
-    for key in keys_to_consider:
-        for (slower, faster) in ascend_perf_pairs:
-            slower_key = (slower, 'fast', *key)
-            faster_key = (faster, 'fast', *key)
-            if runtimes[slower_key] > runtimes[faster_key]:
-                correct_ranks[(slower, faster)] += 1
+    return rank_counts
 
-    normalized = {}
-    n_mutation_count = len(keys_to_consider)
-    for key, count in correct_ranks.items():
-        normalized[key] = (count, n_mutation_count)
+def normalized_key_pair(key):
+    return tuple(sorted(x_faster_than_y_pair(key)))
 
-    return normalized
+def get_total_counts(rank_counts):
+    total_counts = {}
+    for k, v in rank_counts.items():
+        merge_value(total_counts, normalized_key_pair(k), v, add)
+    return total_counts
 
 def get_stats(runtimes):
-    normalized = get_normalized_peer_ranks(runtimes)
     cis = {}
-    for key, (occurrences, total) in normalized.items():
-        cis[key] = calculate_ci_proportion(occurrences, total)
+    rank_counts = get_rank_counts(runtimes)
+    total_counts = get_total_counts(rank_counts)
+    for rank_key, occurrences in rank_counts.items():
+        total = total_counts[normalized_key_pair(rank_key)]
+        cis[rank_key] = calculate_ci_proportion(occurrences, total)
     return Stats('Peer rank', cis, None)
