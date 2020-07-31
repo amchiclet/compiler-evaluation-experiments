@@ -1,4 +1,4 @@
-from pattern_info_factory import create_pattern_info_2
+from pattern_info_factory import create_pattern_info
 from variable_map import VariableMap, validate_var_map, create_instance
 import os
 from parser import parse_file
@@ -6,6 +6,7 @@ from codegen import CodeGen
 from transformers.loop_interchange import LoopInterchange
 from multiprocessing import Pool
 from functools import partial
+from random import shuffle
 
 def create_var_map(pattern_info):
     var_map = VariableMap(default_min=0, default_max=64)
@@ -91,14 +92,34 @@ def generate_code_pattern(patterns_and_names, var_map, n_instances, n_mutations,
 
     codegen.generate_pattern_file(patterns_map)
 
-n_patterns = 2
-n_instances = 2
+from loguru import logger
+import sys
+logger.remove()
+logger.add(sys.stdout, level='INFO')
+logger.add(sink = f'read-patterns.log',
+           level = 'INFO',
+           format = ('{process.name} | '
+                     '{time:YYYYMMDD_HH:mm:ss.SSS} | '
+                     '{file}:{function}:{line} | '
+                     '{message}'),
+           enqueue = True)
+
+n_patterns = 1
+n_instances = 1
 n_mutations = 2
-pattern_info = create_pattern_info_2()
-var_map = create_var_map(pattern_info)
-paths_and_names = get_paths_and_names('generated-patterns/pattern_2')
-patterns_and_names = validate_patterns(var_map, paths_and_names, n_patterns)
-output_dir = 'generated-output'
-codegen = CodeGen(output_dir)
-generate_code_pattern(patterns_and_names, var_map, n_instances, n_mutations, output_dir)
+
+pattern_root = 'generated-patterns'
+
+pattern_shapes = ((1, 27), (2, 5), (3, 1))
+for pattern_shape in pattern_shapes:
+    n_stmts, n_ops = pattern_shape
+    pattern_info = create_pattern_info(n_stmts, n_ops)
+    var_map = create_var_map(pattern_info)
+    pattern_dir = os.path.join(pattern_root, f'gen_{n_stmts}_{n_ops}')
+    paths_and_names = get_paths_and_names(pattern_dir)
+    shuffle(paths_and_names)
+    patterns_and_names = validate_patterns(var_map, paths_and_names, n_patterns)
+    output_dir = f'output_{n_stmts}_{n_ops}'
+    codegen = CodeGen(output_dir)
+    generate_code_pattern(patterns_and_names, var_map, n_instances, n_mutations, output_dir)
 

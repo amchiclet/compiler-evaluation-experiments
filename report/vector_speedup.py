@@ -53,7 +53,7 @@ def get_stats(runtimes):
 
     cis = {}
     for key, runtimes in grouped.items():
-        cis[key] = calculate_ci_geometric(runtimes)
+        cis[key] = calculate_ci_geometric(runtimes, 0.0, 1.0)
 
     interesting_cases = create_max_spread_cases()
     for (compiler, *rest), [min_outlier, max_outlier] in outliers.cases.items():

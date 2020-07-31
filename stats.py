@@ -16,29 +16,38 @@ def sample_std(l):
 def sample_gstd(l):
     return gstd(l)
 
-def confidence_interval_mean(samples, level):
+def confidence_interval_mean(samples, level, min_val=None, max_val=None):
     n_samples = len(samples)
     mean = arithmetic_mean(samples)
     std = sample_std(samples)
     dof = n_samples - 1
     t_value = t.ppf((1+level)/2, dof)
     error = t_value * std / sqrt(n_samples)
-    return (mean - error, mean + error)
+    return [mean - error, mean + error]
 
 def confidence_interval_proportion(proportion, n_samples, level):
     z_value = norm.ppf((1+level)/2)
     error = z_value * sqrt((proportion * (1-proportion)) / n_samples)
-    return (max(proportion - error, 0.0),
-            min(proportion + error, 1.0))
+    return [max(proportion - error, 0.0),
+            min(proportion + error, 1.0)]
 
-def calculate_ci_geometric(samples):
+def calculate_ci_geometric(samples, min_val=None, max_val=None):
     log_samples = list(map(log, samples))
-    log_ci90 = confidence_interval_mean(log_samples, 0.90)
-    log_ci95 = confidence_interval_mean(log_samples, 0.95)
-    log_ci99 = confidence_interval_mean(log_samples, 0.99)
-    ci90 = (e**log_ci95[0], e**log_ci90[1])
-    ci95 = (e**log_ci95[0], e**log_ci95[1])
-    ci99 = (e**log_ci99[0], e**log_ci99[1])
+    log_ci90 = confidence_interval_mean(log_samples, 0.90, min_val, max_val)
+    log_ci95 = confidence_interval_mean(log_samples, 0.95, min_val, max_val)
+    log_ci99 = confidence_interval_mean(log_samples, 0.99, min_val, max_val)
+
+    ci90 = [e**log_ci95[0], e**log_ci90[1]]
+    ci95 = [e**log_ci95[0], e**log_ci95[1]]
+    ci99 = [e**log_ci99[0], e**log_ci99[1]]
+    if min_val is not None:
+        ci90[0] = max(ci90[0], min_val)
+        ci95[0] = max(ci95[0], min_val)
+        ci99[0] = max(ci99[0], min_val)
+    if max_val is not None:
+        ci90[1] = min(ci90[1], max_val)
+        ci95[1] = min(ci95[1], max_val)
+        ci99[1] = min(ci99[1], max_val)
     return (ci90, ci95, ci99)
 
 def calculate_ci_proportion(occurrences, total):

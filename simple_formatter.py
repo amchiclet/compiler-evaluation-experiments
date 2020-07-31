@@ -137,7 +137,7 @@ class SimpleFormatter:
         return '\n'.join(lines)
 
     def init(self):
-        return self.wrapper('void', 'init', 'init_inner')
+        return self.wrapper('int', 'init', 'init_inner')
     def checksum(self):
         return self.wrapper('float', 'checksum', 'checksum_inner')
     def kernel(self):
@@ -221,7 +221,7 @@ class SimpleFormatter:
             params.append(self.array_param('float', array, self.array_sizes[array]))
         
         # function header
-        lines.append(f'void init_inner({", ".join(params)}) {{')
+        lines.append(f'int init_inner({", ".join(params)}) {{')
         self.indent += 1
 
         # Seed the randomizer
@@ -232,6 +232,8 @@ class SimpleFormatter:
         for array in sorted(self.array_sizes.keys()):
             loop_ends = [size - 1 for size in self.array_sizes[array]]
             lines.append(self.array_init('float', [array], loop_ends, init_value))
+
+        lines.append(f'{ws}return 0;')
 
         # close function
         self.indent -= 1

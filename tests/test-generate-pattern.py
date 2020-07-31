@@ -7,21 +7,20 @@ from variable_map import validate_var_map, VariableMap, create_instance
 from parser import parse_file
 from codegen import CodeGen
 from transformers.loop_interchange import LoopInterchange
-from pattern_info_factory import create_pattern_info_2
+from pattern_info_factory import create_pattern_info
 
 # 1 stmts * 10 ops = 12 access pairs per  loop
 # 2 stmts * 1 ops = 12 access pairs per loop
 # for n_stmts in range(2, 10):
 #     estimate = [estimate_n_access_pairs(1, n_stmts, n_ops) for n_ops in range(1, 20)]
 #     print(' '.join(map(str, estimate)))
-def estimate_n_access_pairs(n_loops, n_stmts, n_ops):
+def estimate_n_access_pairs_per_loop(n_stmts, n_ops):
     n_rhs_leaves_per_stmt = n_ops + 1
     n_leaves_per_stmt = n_rhs_leaves_per_stmt + 1
     n_leaves_per_loop = n_stmts * n_leaves_per_stmt
     n_lhs_leaves_per_loop = n_stmts
     n_access_pairs_per_loop = n_lhs_leaves_per_loop * n_leaves_per_loop
-    n_access_pairs_per_program = n_loops * n_access_pairs_per_loop
-    return n_access_pairs_per_program
+    return n_access_pairs_per_loop
 
 output_root = 'generated-patterns'
 
@@ -34,8 +33,14 @@ def generate_patterns(n_patterns, output_dir, pattern_info):
             f.write(pattern.pprint())
         # TODO: write pattern info file
 
-pattern_info_2 = create_pattern_info_2(2, 1)
-pattern_dir_2 = os.path.join(output_root, 'pattern_2')
-generate_patterns(10,
-                  pattern_dir_2,
-                  pattern_info_2)
+# 1 statement 27 ops = 27 access pairs
+# 2 statements 5 ops = 28 access pairs
+# 3 statements 1 ops = 27 access pairs
+pattern_shapes = ((1, 27), (2, 5), (3, 1))
+for pattern_shape in pattern_shapes:
+    n_stmts, n_ops = pattern_shape
+    pattern_info = create_pattern_info(n_stmts, n_ops)
+    pattern_dir = os.path.join(output_root, f'gen_{n_stmts}_{n_ops}')
+    generate_patterns(100,
+                      pattern_dir,
+                      pattern_info)

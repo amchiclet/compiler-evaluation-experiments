@@ -25,7 +25,10 @@ def create_pattern_info(n_stmts, n_ops):
     return pattern_info
 
 def create_pattern_info_1():
-    return create_pattern_info(1, 10)
+    return create_pattern_info(1, 25)
 
 def create_pattern_info_2():
-    return create_pattern_info(2, 1)
+    return create_pattern_info(2, 5)
+
+def create_pattern_info_3():
+    return create_pattern_info(2, 5)

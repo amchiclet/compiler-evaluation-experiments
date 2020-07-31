@@ -6,10 +6,10 @@ compilers = [
 ]
 
 base_command = {
-    'pgi': ['pgcc', '-Minfo=vect', '-fast'],
-    'gcc': ['gcc', '-march=native', '-Ofast', '-fopt-info-vec'],
-    'icc': ['icc', '-xCORE-AVX512', '-qopt-zmm-usage=high', '-Ofast', '-qopt-report-file=stderr', '-qopt-report-phase=vec'],
-    'clang': ['clang', '-march=native', '-Ofast', '-Rpass=loop-vectorize']
+    'pgi': ['pgcc', '-fast'],
+    'gcc': ['gcc', '-march=native', '-Ofast'],
+    'icc': ['icc', '-xCORE-AVX512', '-qopt-zmm-usage=high', '-Ofast'],
+    'clang': ['clang', '-march=native', '-Ofast']
 }
 
 novec_flags = {
@@ -24,4 +24,11 @@ nopredict_flags = {
     'gcc': ['-fvect-cost-model=unlimited'],
     'icc': ['-vec-threshold0'],
     'clang': ['-mllvm', '-force-vector-width=16'],
+}
+
+report_flags = {
+    'pgi': ['-Minfo=vect'],
+    'gcc': ['-fopt-info-vec'],
+    'icc': ['-qopt-report-file=stderr', '-qopt-report-phase=vec'],
+    'clang': ['-Rpass=loop-vectorize'],
 }
