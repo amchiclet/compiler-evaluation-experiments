@@ -49,12 +49,12 @@ def calculate_ci_proportion(occurrences, total):
 
 def find_outliers(values, keys):
     outliers = []
-    q1 = quantile(values, 0.25)
-    q3 = quantile(values, 0.75)
-    iqr = q3 - q1
-    max_val = q3 + 1.5 * iqr
-    min_val = q1 - 1.5 * iqr
-    distribution = (min_val, q1, q3, max_val)
+
+    avg = tmean(values)
+    bound = 0.0001 * avg
+    max_val = avg + bound
+    min_val = avg - bound
+    distribution = (min_val, avg, max_val)
     for val, key in zip(values, keys):
         if val < min_val or max_val < val:
             outliers.append((val, key))

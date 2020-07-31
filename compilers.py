@@ -1,15 +1,15 @@
 compilers = [
     'gcc',
     'icc',
-    # 'pgi',
+    'pgi',
     'clang',
 ]
 
 base_command = {
-    'pgi': ['pgcc', '-Minfo', '-fast'],
-    'gcc': ['gcc', '-march=native', '-Ofast'],
-    'icc': ['icc', '-xCORE-AVX512', '-qopt-zmm-usage=high', '-Ofast'],
-    'clang': ['clang', '-march=native', '-Ofast']
+    'pgi': ['pgcc', '-Minfo=vect', '-fast'],
+    'gcc': ['gcc', '-march=native', '-Ofast', '-fopt-info-vec'],
+    'icc': ['icc', '-xCORE-AVX512', '-qopt-zmm-usage=high', '-Ofast', '-qopt-report-file=stderr', '-qopt-report-phase=vec'],
+    'clang': ['clang', '-march=native', '-Ofast', '-Rpass=loop-vectorize']
 }
 
 novec_flags = {

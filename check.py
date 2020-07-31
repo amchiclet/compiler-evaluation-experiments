@@ -34,8 +34,8 @@ def read_checksum_database():
     return database
 
 checksums_db = read_checksum_database()
-debug(checksums_db)
 for (pattern, program), checksums in checksums_db.items():
     distribution, outliers = find_outliers(checksums.vals, checksums.keys)
-    print(distribution)
-    print(outliers)
+    if len(outliers) > 0:
+        print(distribution)
+        print(outliers)
