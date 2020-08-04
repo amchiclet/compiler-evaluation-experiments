@@ -60,10 +60,25 @@ def calculate_ci_proportion(occurrences, total):
 def find_outliers(values, keys):
     outliers = []
 
+    import numpy
+
+    numpy.seterr(all='raise')
+
     avg = tmean(values)
-    bound = 0.0001 * avg
-    max_val = avg + bound
-    min_val = avg - bound
+    bound = 0.01 * avg
+    try:
+        max_val = avg + bound
+    except FloatingPointError as fpe:
+        return None, None
+    try:
+        min_val = avg - bound
+    except FloatingPointError as fpe:
+        return None, None
+
+    if max_val < min_val:
+        temp = max_val
+        max_val = min_val
+        min_val = temp
     distribution = (min_val, avg, max_val)
     for val, key in zip(values, keys):
         if val < min_val or max_val < val:

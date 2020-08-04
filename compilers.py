@@ -32,3 +32,10 @@ report_flags = {
     'icc': ['-qopt-report-file=stderr', '-qopt-report-phase=vec'],
     'clang': ['-Rpass=loop-vectorize'],
 }
+
+math_lib = {
+    'pgi': ['-lm'],
+    'gcc': ['-lm'],
+    'icc': ['-lm'],
+    'clang': ['-lm'],
+}

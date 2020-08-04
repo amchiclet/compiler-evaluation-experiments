@@ -86,8 +86,8 @@ class PathBuilder:
         return f'{self.prefix(mutation=mutation)}.checksum'
 
 class CommandBuilder:
-    def link_objects(self, compiler, mode, objects, output):
-        return compiler_command_map[mode][compiler] + ['-o', output] + objects
+    def link_objects(self, compiler, mode, objects, libs, output):
+        return compiler_command_map[mode][compiler] + ['-o', output] + objects + libs
     def build_object(self, compiler, mode, source, output):
         return compiler_command_map[mode][compiler] + ['-c', '-o', output, source]
     def build_assembly(self, compiler, mode, source, output):
@@ -108,6 +108,11 @@ def create_compiler_command_map():
             if c in nopredict_flags:
                 m['nopredict'][c] = fast + nopredict_flags[c]
     return m
+
+def iterate_modes():
+    yield 'fast'
+    yield 'novec'
+    yield 'nopredict'
 
 compiler_command_map = create_compiler_command_map()
 

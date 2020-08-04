@@ -27,6 +27,7 @@ def include():
 #include <time.h>
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <string.h>"""
 
 def spaces(indent):
@@ -108,7 +109,12 @@ class SimpleFormatter:
         for array, sizes in self.array_sizes.items():
             loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
             indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
-            body_lines = [f'total += {array}{indices_str};']
+            access = f'{array}{indices_str}'
+            body_lines = [
+                f'if (isnormal({access})) {{ total += {access}; }}',
+                f'else {{ total += 0.1; }}',
+            ]
+            # body_lines = [f'total += {array}{indices_str};']
             lines.append(self.nested_loop(loop_vars, sizes, body_lines))
 
         lines.append(f'{ws}return total;')

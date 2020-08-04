@@ -33,9 +33,23 @@ def read_checksum_database():
                     database[(pattern, program)].add(key, checksum)
     return database
 
+def write_blacklist_file(blacklist, path):
+    from pprint import PrettyPrinter
+    with open(path, 'w') as f:
+        f.write('blacklist =')
+        PrettyPrinter(indent=2, stream=f).pprint(blacklist)
+
 checksums_db = read_checksum_database()
+blacklist = []
 for (pattern, program), checksums in checksums_db.items():
     distribution, outliers = find_outliers(checksums.vals, checksums.keys)
-    if len(outliers) > 0:
-        print(distribution)
-        print(outliers)
+    if distribution is None:
+        print(f'FAIL: {pattern} {program} (invalid floating point operation occurred)')
+        blacklist.append((pattern, program))
+    elif len(outliers) > 0:
+        print(f'FAIL: {pattern} {program} (checksums do not match)')
+        blacklist.append((pattern, program))
+    else:
+        print(f'PASS: {pattern} {program}')
+blacklist_path = 'blacklist.py'
+write_blacklist_file(blacklist, blacklist_path)

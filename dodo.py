@@ -1,5 +1,5 @@
 from patterns import patterns
-from compilers import compilers
+from compilers import compilers, math_lib
 from doit import get_var
 from build import PathBuilder, CommandBuilder, iterate_mutations, iterate_programs, iterate_compiler_vec_novec, iterate_compiler_pair_fast, iterate_compiler_fast, iterate_compiler_modes
 from measure import calculate_ns_per_iteration, measure_runtime, calculate_checksum
@@ -125,7 +125,7 @@ def task_build():
 
             objs = [main_obj_path, wrapper_obj_path, core_obj_path]
             exe_name = pb.exe_path()
-            exe_command = CommandBuilder().link_objects(compiler, 'novec', objs, exe_name)
+            exe_command = CommandBuilder().link_objects(compiler, 'novec', objs, math_lib[compiler], exe_name)
             yield {
                 'name': exe_name,
                 'file_dep': objs,

@@ -1,7 +1,8 @@
 from build import \
     PathBuilder, \
     iterate_compiler_modes, \
-    iterate_mutations
+    iterate_mutations, \
+    iterate_modes
 from scipy.stats import tmean
 from compilers import compilers
 import os
@@ -24,6 +25,16 @@ def import_patterns():
     sys.path = [base_dir] + sys.path
     from patterns import patterns
     return patterns
+
+def import_blacklist():
+    import sys
+    base_dir = os.getcwd()
+    sys.path = [base_dir] + sys.path
+    if os.path.exists('blacklist.py'):
+        from blacklist import blacklist
+        return blacklist
+    else:
+        return []
 
 from multiprocessing import Pool, Manager
 from functools import partial
@@ -64,11 +75,55 @@ def read_function(path):
     return ''.join(core)
 
 from tabulate import tabulate
+from hashlib import md5
+from loguru import logger
+
+def compute_file_md5(path):
+    with open(path) as f:
+        m = md5()
+        m.update(f.read().encode('utf-8'))
+        return m.digest()
 
 def generate_report():
-    patterns = import_patterns()
+    n_samples = 0
+    n_ok_samples = 0
+    n_fpe_samples = 0
+    n_duplicate_mutations = 0
+    n_singleton_mutations = 0
 
-    runtimes = read_runtimes_database(patterns)
+    patterns = import_patterns()
+    blacklist = import_blacklist()
+    ok_patterns = []
+    hashes = set()
+    for p, instances in patterns:
+        ok_instances = []
+        for i, mutations in instances:
+            if (p, i) not in blacklist:
+                ok_mutations = []
+                for m in mutations:
+                    pb = PathBuilder(pattern=p, program=i, mutation=m)
+                    filehash = compute_file_md5(pb.core_path())
+                    if filehash not in hashes:
+                        hashes.add(filehash)
+                        ok_mutations.append(m)
+                    else:
+                        n_duplicate_mutations += 1
+                if len(ok_mutations) > 1:
+                    ok_instances.append((i, ok_mutations))
+                    n_ok_samples += len(ok_mutations)
+                else:
+                    n_singleton_mutations += 1
+            else:
+                n_fpe_samples += len(mutations)
+            n_samples += len(mutations)
+        ok_patterns.append((p, ok_instances))
+
+    print(f'Total generated mutations: {n_samples}\n'
+          f'Mutations that could not be validated: {n_fpe_samples}\n'
+          f'Duplicate mutations: {n_duplicate_mutations}\n'
+          f'Singleton mutations: {n_singleton_mutations}\n'
+          f'Remaining mutations included in experiment: {n_ok_samples}\n')
+    runtimes = read_runtimes_database(ok_patterns)
 
     interesting_mutations = set()
 
@@ -116,6 +171,7 @@ def generate_report():
     peer_cases_map = {}
 
     peer_speedup_stats = peer_speedup.get_stats(runtimes)
+
     peer_rank_stats = peer_rank.get_stats(runtimes)
     compiler_pair_keys = {*peer_speedup_stats.keys(),
                           *peer_rank_stats.keys()}
@@ -174,19 +230,34 @@ def generate_report():
         print()
 
     print('Raw runtimes')
-    rows = []
-    header = ['mutation-id']
-    for compiler, mode in iterate_compiler_modes():
-        header.append(f'{compiler}-{mode}')
-    sorted_mutation_ids = sorted(list(interesting_mutations))
-    for (pattern, program, mutation) in sorted_mutation_ids:
-        row = [(pattern, program, mutation)]
-        for compiler, mode in iterate_compiler_modes():
-            key = (compiler, mode, pattern, program, mutation)
-            row.append(runtimes[key])
-        rows.append(row)
+    print()
+    # rows = []
+    # header = ['mutation-id']
+    # for compiler, mode in iterate_compiler_modes():
+    #     header.append(f'{compiler}-{mode}')
+    # sorted_mutation_ids = sorted(list(interesting_mutations))
+    # for (pattern, program, mutation) in sorted_mutation_ids:
+    #     row = [(pattern, program, mutation)]
+    #     for compiler, mode in iterate_compiler_modes():
+    #         key = (compiler, mode, pattern, program, mutation)
+    #         row.append(runtimes[key])
+    #     rows.append(row)
 
-    print(tabulate(rows, headers=header, floatfmt='.2f'))
+    # print(tabulate(rows, headers=header, floatfmt='.2f'))
+
+    sorted_mutation_ids = sorted(list(interesting_mutations))
+    for compiler in compilers:
+        rows = []
+        header = ['mutation-id']
+        for (pattern, program, mutation) in sorted_mutation_ids:
+            row = [(pattern, program, mutation)]
+            for mode in iterate_modes():
+                header.append(f'{compiler}-{mode}')
+                key = (compiler, mode, pattern, program, mutation)
+                row.append(runtimes[key])
+            rows.append(row)
+        print(tabulate(rows, headers=header, floatfmt='.2f'))
+        print()
 
     # print('Source code')
     # for (pattern, program, mutation) in sorted_mutation_ids:
