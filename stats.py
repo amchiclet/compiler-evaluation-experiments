@@ -1,4 +1,4 @@
-from numpy import quantile
+from numpy import quantile, median
 from scipy import log, e
 from scipy.stats import gmean, gstd, tmean, tstd, t, norm
 from math import sqrt
@@ -64,7 +64,8 @@ def find_outliers(values, keys):
 
     numpy.seterr(all='raise')
 
-    avg = tmean(values)
+    # avg = tmean(values)
+    avg = median(values)
     bound = 0.01 * avg
     try:
         max_val = avg + bound

@@ -39,6 +39,9 @@ def write_blacklist_file(blacklist, path):
         f.write('blacklist =')
         PrettyPrinter(indent=2, stream=f).pprint(blacklist)
 
+def format_mutation(mutation):
+    return '.'.join(mutation)
+
 checksums_db = read_checksum_database()
 blacklist = []
 for (pattern, program), checksums in checksums_db.items():
@@ -47,7 +50,9 @@ for (pattern, program), checksums in checksums_db.items():
         print(f'FAIL: {pattern} {program} (invalid floating point operation occurred)')
         blacklist.append((pattern, program))
     elif len(outliers) > 0:
+        print(distribution)
         print(f'FAIL: {pattern} {program} (checksums do not match)')
+        print('\n'.join([format_mutation(m) for (_, m) in outliers]))
         blacklist.append((pattern, program))
     else:
         print(f'PASS: {pattern} {program}')
