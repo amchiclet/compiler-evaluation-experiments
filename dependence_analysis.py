@@ -116,16 +116,29 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
     source_loop_vars = gather_loop_vars(source_loops)
     sink_loops = gather_surrounding_loops(sink_ref.parent_stmt)
     sink_loop_vars = gather_loop_vars(sink_loops)
-    source_cvars, sink_cvars = generate_constraint_vars(source_loop_vars,
-                                                        sink_loop_vars)
+    source_cvars, sink_cvars, source_step_cvars, sink_step_cvars \
+        = generate_constraint_vars(source_loop_vars,
+                                   sink_loop_vars)
 
     constraints = []
     constraints += generate_loop_bound_constraints(source_loop_vars,
                                                    source_cvars,
                                                    var_map)
+    source_steps = [1] * len(source_loop_vars)
+    constraints += generate_step_constraints(source_loop_vars,
+                                             source_steps,
+                                             source_cvars,
+                                             source_step_cvars,
+                                             var_map)
     constraints += generate_loop_bound_constraints(sink_loop_vars,
                                                    sink_cvars,
                                                    var_map)
+    sink_steps = [1] * len(sink_loop_vars)
+    constraints += generate_step_constraints(sink_loop_vars,
+                                             sink_steps,
+                                             sink_cvars,
+                                             sink_step_cvars,
+                                             var_map)
     constraints += generate_subscript_equality_constraints(source_ref, source_cvars,
                                                            sink_ref, sink_cvars)
     def iterate_recursive(constraints, remaining_loop_vars, accumulated_dv):
@@ -157,11 +170,15 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
 def generate_constraint_vars(source_loop_vars, sink_loop_vars):
     source_cvars = {}
     sink_cvars = {}
+    source_step_cvars = {}
+    sink_step_cvars = {}
     for v in source_loop_vars:
         source_cvars[v] = Int(f'{v}_source')
+        source_step_cvars[v] = Int(f'{v}_step')
     for v in sink_loop_vars:
         sink_cvars[v] = Int(f'{v}_sink')
-    return (source_cvars, sink_cvars)
+        sink_step_cvars[v] = Int(f'{v}_step')
+    return (source_cvars, sink_cvars, source_step_cvars, sink_step_cvars)
 
 def generate_loop_bound_constraints(loop_vars, constraint_vars, var_map):
     constraints = []
@@ -170,6 +187,16 @@ def generate_loop_bound_constraints(loop_vars, constraint_vars, var_map):
         max_val = var_map.get_max(v)
         cvar = constraint_vars[v]
         constraints += [min_val <= cvar, cvar <= max_val]
+    return constraints
+
+def generate_step_constraints(loop_vars, steps, loop_cvars, step_cvars, var_map):
+    constraints = []
+    assert(len(loop_vars) == len(steps))
+    for v, s in zip(loop_vars, steps):
+        min_val = var_map.get_min(v)
+        cvar = loop_cvars[v]
+        step_cvar = step_cvars[v]
+        constraints += [cvar == s*step_cvar + min_val]
     return constraints
 
 def affine_to_cexpr(affine, cvars):

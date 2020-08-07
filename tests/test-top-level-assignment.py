@@ -22,17 +22,20 @@ a[3] = b[3];
 """
 
 program, node_id = parse_str(code)
-print(program.pprint())
 
-from variable_map import VariableMap, validate_var_map, randomize_iteration_vars
-var_map = validate_var_map(program, VariableMap(0, 4))
+from variable_map import VariableMap, validate_var_map, create_instance
+var_map = VariableMap(0, 4)
+assert(validate_var_map(program, var_map))
+pattern, var_map = create_instance(program, var_map)
+dep_graph = analyze_dependence(pattern, var_map)
+print(pattern.pprint())
 print(var_map.pprint())
-dep_graph = analyze_dependence(program, var_map)
 print(dep_graph.pprint())
-from codegen import CodeGen
-codegen = CodeGen('test-top-level')
+
+# from codegen import CodeGen
+# codegen = CodeGen('test-top-level')
 # codegen.generate_wrapper('p0', 'i0', program, var_map)
-codegen.generate_code('p0', 'i0', 'm0', program, var_map)
+# codegen.generate_code('p0', 'i0', 'm0', program, var_map)
 # patterns_map = {
 #     'p0': {'i0': ['m0']}
 # }
