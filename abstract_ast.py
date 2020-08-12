@@ -161,9 +161,6 @@ class Access(Node):
     def clone(self):
         cloned_indices = [i.clone() for i in self.indices]
         cloned = Access(self.var, cloned_indices, self.node_id)
-        # for dimension, index in enumerate(cloned_indices):
-        #     index.array = self.var
-        #     index.dimension = dimension
         cloned.is_write = self.is_write
         return cloned
     def is_syntactically_equal(self, other):
@@ -172,14 +169,79 @@ class Access(Node):
     def replace(self, replacer):
         self.var = replace(self.var, replacer)
         self.indices = replace_each(self.indices, replacer)
-        # for dimension, index in enumerate(self.indices):
-        #     index.array = var
-        #     index.dimension = dimension
+
+class LoopShape:
+    def __init__(self, expr, prefix=None):
+        self.loop_var = None
+        self.greater_eq = None
+        self.less_eq = None
+        self.step = None
+
+        if prefix is None:
+            self.loop_var = expr
+        elif prefix == '>=':
+            self.greater_eq = expr
+        elif prefix == '<=':
+            self.less_eq = expr
+        elif prefix == '+=':
+            self.step = expr
+        else:
+            raise RuntimeError(f'Unsupported prefix ({prefix})')
+    def merge(self, other):
+        if other.less_eq is not None:
+            assert(self.less_eq is None)
+            self.less_eq = other.less_eq
+        if other.greater_eq is not None:
+            assert(self.greater_eq is None)
+            self.greater_eq = other.greater_eq
+        if other.step is not None:
+            assert(self.step is None)
+            self.step = other.step
+        if other.loop_var is not None:
+            assert(self.loop_var is None)
+            self.loop_var = other.loop_var
+    def clone(self):
+        cloned = LoopShape()
+        if self.loop_var is not None:
+            cloned.loop_var = self.loop_var
+        if self.greater_eq is not None:
+            cloned.greater_eq = self.greater_eq
+        if self.less_eq is not None:
+            cloned.less_eq = self.less_eq
+        if self.step is not None:
+            cloned.step = self.step
+        return cloned
+    def is_syntactically_equal(self, other):
+        if self.loop_var != other.loop_var:
+            return False
+        if self.greater_eq is not None:
+            if other.greater_eq is None:
+                return False
+            elif not self.greater_eq.is_syntactically_equal(other.greater_eq):
+                return False
+        if self.less_eq is not None:
+            if other.less_eq is None:
+                return False
+            elif not self.less_eq.is_syntactically_equal(other.less_eq):
+                return False
+        if self.step is not None:
+            if other.step is None:
+                return False
+            elif not self.step.is_syntactically_equal(other.step):
+                return False
+        return True
+
+    def replace(self, replacer):
+        self.loop_var = replace(self.loop_var, replacer)
+        self.greater_eq = replace(self.greater_eq, replacer)
+        self.less_eq = replace(self.less_eq, replacer)
+        self.step = replace(self.step, replacer)
 
 class AbstractLoop(Node):
-    def __init__(self, loop_vars, body, node_id=0):
+    def __init__(self, loop_shapes, body, node_id=0):
         self.node_id = node_id
-        self.loop_vars = loop_vars
+        self.loop_shapes = loop_shapes
+        print(loop_shapes)
         self.body = body
         self.surrounding_loop = None
         for stmt in body:
@@ -189,14 +251,15 @@ class AbstractLoop(Node):
         self.partial_loop_order = []
 
     def cprint_recursive(self, depth, var_map, indent=0):
-        if depth == len(self.loop_vars):
+        if depth == len(self.loop_shapes):
             lines = []
             for stmt in self.body:
                 lines.append(stmt.cprint(var_map, indent+1))
             return '\n'.join(lines)
 
         ws = '  ' * indent
-        loop_var = self.loop_vars[depth]
+        loop_shape = self.loop_shapes[depth]
+        loop_var = loop_shape.loop_var
         begin = var_map.get_min(loop_var)
         end = var_map.get_max(loop_var)
         lines = [(f'{ws}for (int {loop_var} = {begin}; '
@@ -211,21 +274,21 @@ class AbstractLoop(Node):
 
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        header = f'{ws}for [{", ".join(self.loop_vars)}] {{'
+        loop_vars = [shape.loop_var for shape in self.loop_shapes]
+        header = f'{ws}for [{", ".join(loop_vars)}] {{'
         body = [f'{stmt.pprint(indent+1)}' for stmt in self.body]
         end = f'{ws}}}'
         return '\n'.join([header] + body + [end])
     def clone(self):
-        cloned_loop_vars = list(self.loop_vars)
+        cloned_loop_shapes = [shape.clone() for shape in self.loop_shapes]
         cloned_body = [stmt.clone() for stmt in self.body]
-        cloned_loop = AbstractLoop(cloned_loop_vars, cloned_body, self.node_id)
+        cloned_loop = AbstractLoop(cloned_loop_shapes, cloned_body, self.node_id)
         return cloned_loop
     def is_syntactically_equal(self, other):
-        if self.loop_vars != other.loop_vars:
-            return False
-        return is_list_syntactically_equal(self.body, other.body)
+        return is_list_syntactically_equal(self.loop_shapes, other.loop_shapes) and \
+            is_list_syntactically_equal(self.body, other.body)
     def replace(self, replacer):
-        self.loop_vars = replace_each(self.loop_vars, replacer)
+        self.loop_shapes = replace_each(self.loop_shapes, replacer)
         self.body = replace_each(self.body, replacer)
         for stmt in self.body:
             stmt.surrounding_loop = self
@@ -305,8 +368,11 @@ class Program:
         self.decls = decls
         self.body = body
         self.consts = consts
+
+        # These fields are defined so dependence analysis
+        # can proceed in a uniform way with loops
         self.surrounding_loop = None
-        self.loop_vars = []
+        self.loop_shapes = []
         for stmt in body:
             stmt.surrounding_loop = self
 
@@ -361,7 +427,7 @@ class Program:
     def replace(self, replacer):
         self.decls = replace_each(self.decls, replacer)
         self.consts = replace_each(self.consts, replacer)
-        self.loop_vars = replace_each(self.loop_vars, replacer)
+        self.loop_shapes = replace_each(self.loop_shapes, replacer)
         self.body = replace_each(self.body, replacer)
         for stmt in self.body:
             stmt.surrounding_loop = self

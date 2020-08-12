@@ -10,8 +10,15 @@ grammar = '''
     declaration: "declare" array (dimension)* ";"
     const: "const" scalar ";"
     dimension: "[" "]"
-    abstract_loop: "for" "[" loop_vars "]" "{" statement+ "}"
-    loop_vars: scalar ("," scalar)*
+    abstract_loop: "for" "[" loop_shapes "]" "{" statement+ "}"
+
+    loop_shapes: loop_shape ("," loop_shape)*
+    loop_shape: single_loop_shape | multi_loop_shape
+    single_loop_shape: CNAME
+    multi_loop_shape: "(" loop_shape_parts ")"
+    loop_shape_parts: loop_shape_part ("," loop_shape_part)*
+    loop_shape_part: LOOP_SHAPE_PREFIX? expr
+    LOOP_SHAPE_PREFIX: "<=" | ">=" | "+="
 
     statement: assignment | abstract_loop
     assignment: access "=" expr ";"
@@ -53,7 +60,7 @@ grammar = '''
 
 '''
 
-from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op
+from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape
 from loguru import logger
 
 class TreeSimplifier(Transformer):
@@ -131,12 +138,36 @@ class TreeSimplifier(Transformer):
     def statement(self, args):
         stmt = args[0]
         return stmt
-    def loop_vars(self, args):
+    def loop_shapes(self, args):
         return args
+    def loop_shape(self, args):
+        return args[0]
+    def single_loop_shape(self, args):
+        return LoopShape(args[0])
+    def multi_loop_shape(self, args):
+        return args[0]
+    def loop_shape_parts(self, args):
+        print('loop shape parts', args)
+        merged = None
+        for loop_shape in args:
+            if merged is None:
+                merged = loop_shape
+            else:
+                merged.merge(loop_shape)
+        assert(merged is not None)
+        return merged
+    def loop_shape_part(self, args):
+        print('loop shape part')
+        if len(args) == 1:
+            return LoopShape(args[0])
+        elif len(args) == 2:
+            return LoopShape(args[1], args[0])
+        raise RuntimeError(f'Unsupported loop shape ({args})')
+
     def abstract_loop(self, args):
-        loop_vars = args[0]
+        loop_shapes = args[0]
         body = args[1:]
-        loop = AbstractLoop(loop_vars, body, self.next_node_id())
+        loop = AbstractLoop(loop_shapes, body, self.next_node_id())
         return loop
     def start(self, args):
         decls = []
@@ -163,5 +194,3 @@ def parse_str(code, node_id=0):
 def parse_file(path, node_id=0):
     with open(path) as f:
         return parse_str(f.read(), node_id)
-
-# TODO write dependence analysis to get dependence matrix
