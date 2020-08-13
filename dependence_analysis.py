@@ -64,7 +64,7 @@ def iterate_execution_order_direction_vector(source_ref, sink_ref):
     n_common_loops = 0
     for parent in common_parents:
         if isinstance(parent, AbstractLoop):
-            n_common_loops += len(parent.loop_vars)
+            n_common_loops += len(parent.loop_shapes)
 
     common_ancestor = common_parents[-1]
     source_first_diff = source_trace[n_common_parents]
@@ -100,7 +100,9 @@ def gather_surrounding_loops(stmt):
 def gather_loop_vars(loops):
     loop_vars = []
     for loop in loops:
-        loop_vars += loop.loop_vars
+        for shape in loop.loop_shapes:
+            assert(type(shape.loop_var) == Access)
+            loop_vars.append(shape.loop_var.var)
     return loop_vars
 
 def get_common_prefix(l1, l2):
@@ -112,10 +114,12 @@ def get_common_prefix(l1, l2):
     return common
 
 def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
+    print('iterating', source_ref.pprint(), sink_ref.pprint())
     source_loops = gather_surrounding_loops(source_ref.parent_stmt)
     source_loop_vars = gather_loop_vars(source_loops)
     sink_loops = gather_surrounding_loops(sink_ref.parent_stmt)
     sink_loop_vars = gather_loop_vars(sink_loops)
+    print(source_loop_vars, sink_loop_vars)
     source_cvars, sink_cvars, source_step_cvars, sink_step_cvars \
         = generate_constraint_vars(source_loop_vars,
                                    sink_loop_vars)
@@ -141,6 +145,7 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
                                              var_map)
     constraints += generate_subscript_equality_constraints(source_ref, source_cvars,
                                                            sink_ref, sink_cvars)
+    print('\n'.join(map(str, constraints)))
     def iterate_recursive(constraints, remaining_loop_vars, accumulated_dv):
         n_dimensions_left = len(remaining_loop_vars)
 
@@ -174,10 +179,10 @@ def generate_constraint_vars(source_loop_vars, sink_loop_vars):
     sink_step_cvars = {}
     for v in source_loop_vars:
         source_cvars[v] = Int(f'{v}_source')
-        source_step_cvars[v] = Int(f'{v}_step')
+        source_step_cvars[v] = Int(f'{v}_step_source')
     for v in sink_loop_vars:
         sink_cvars[v] = Int(f'{v}_sink')
-        sink_step_cvars[v] = Int(f'{v}_step')
+        sink_step_cvars[v] = Int(f'{v}_step_sink')
     return (source_cvars, sink_cvars, source_step_cvars, sink_step_cvars)
 
 def generate_loop_bound_constraints(loop_vars, constraint_vars, var_map):

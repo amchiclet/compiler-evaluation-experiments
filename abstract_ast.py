@@ -170,13 +170,13 @@ class Access(Node):
         self.var = replace(self.var, replacer)
         self.indices = replace_each(self.indices, replacer)
 
-class LoopShape:
-    def __init__(self, expr, prefix=None):
+class LoopShapeBuilder:
+    def __init__(self):
         self.loop_var = None
         self.greater_eq = None
         self.less_eq = None
         self.step = None
-
+    def set_shape_part(self, expr, prefix=None):
         if prefix is None:
             self.loop_var = expr
         elif prefix == '>=':
@@ -188,6 +188,9 @@ class LoopShape:
         else:
             raise RuntimeError(f'Unsupported prefix ({prefix})')
     def merge(self, other):
+        if other.loop_var is not None:
+            assert(self.loop_var is None)
+            self.loop_var = other.loop_var
         if other.less_eq is not None:
             assert(self.less_eq is None)
             self.less_eq = other.less_eq
@@ -197,40 +200,34 @@ class LoopShape:
         if other.step is not None:
             assert(self.step is None)
             self.step = other.step
-        if other.loop_var is not None:
-            assert(self.loop_var is None)
-            self.loop_var = other.loop_var
-    def clone(self):
-        cloned = LoopShape()
-        if self.loop_var is not None:
-            cloned.loop_var = self.loop_var
-        if self.greater_eq is not None:
-            cloned.greater_eq = self.greater_eq
-        if self.less_eq is not None:
-            cloned.less_eq = self.less_eq
-        if self.step is not None:
-            cloned.step = self.step
-        return cloned
-    def is_syntactically_equal(self, other):
-        if self.loop_var != other.loop_var:
-            return False
-        if self.greater_eq is not None:
-            if other.greater_eq is None:
-                return False
-            elif not self.greater_eq.is_syntactically_equal(other.greater_eq):
-                return False
-        if self.less_eq is not None:
-            if other.less_eq is None:
-                return False
-            elif not self.less_eq.is_syntactically_equal(other.less_eq):
-                return False
-        if self.step is not None:
-            if other.step is None:
-                return False
-            elif not self.step.is_syntactically_equal(other.step):
-                return False
-        return True
+    def build(self, default_greater_eq, default_less_eq, default_step, node_id):
+        assert(self.loop_var is not None)
+        loop_var = self.loop_var
+        greater_eq = self.greater_eq if self.greater_eq is not None else default_greater_eq
+        less_eq = self.less_eq if self.less_eq is not None else default_less_eq
+        step = self.step if self.step is not None else default_step
+        return LoopShape(loop_var, greater_eq, less_eq, step, node_id)
 
+class LoopShape(Node):
+    def __init__(self, loop_var, greater_eq, less_eq, step, node_id=0):
+        self.node_id = node_id
+        self.loop_var = loop_var
+        self.greater_eq = greater_eq
+        self.less_eq = less_eq
+        self.step = step
+    def clone(self):
+        return LoopShape(self.loop_var.clone(),
+                         self.greater_eq.clone(),
+                         self.less_eq.clone(),
+                         self.step.clone(),
+                         self.node_id)
+    def pprint(self):
+        return f'({self.greater_eq.pprint()} <= {self.loop_var.pprint()}(+={self.step.pprint()}) <= {self.less_eq.pprint()})'
+    def is_syntactically_equal(self, other):
+        return all(self.loop_var.is_syntactically_equal(other.loop_var),
+                   self.greater_eq.is_syntactically_equal(other.greater_eq),
+                   self.less_eq.is_syntactically_equal(other.less_eq),
+                   self.step.is_syntactically_equal(other.step))
     def replace(self, replacer):
         self.loop_var = replace(self.loop_var, replacer)
         self.greater_eq = replace(self.greater_eq, replacer)
@@ -241,7 +238,6 @@ class AbstractLoop(Node):
     def __init__(self, loop_shapes, body, node_id=0):
         self.node_id = node_id
         self.loop_shapes = loop_shapes
-        print(loop_shapes)
         self.body = body
         self.surrounding_loop = None
         for stmt in body:
@@ -274,7 +270,11 @@ class AbstractLoop(Node):
 
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        loop_vars = [shape.loop_var for shape in self.loop_shapes]
+        loop_vars = []
+        for shape in self.loop_shapes:
+            print(shape.pprint())
+            assert(type(shape.loop_var) == Access)
+            loop_vars.append(shape.loop_var.var)
         header = f'{ws}for [{", ".join(loop_vars)}] {{'
         body = [f'{stmt.pprint(indent+1)}' for stmt in self.body]
         end = f'{ws}}}'
@@ -285,8 +285,8 @@ class AbstractLoop(Node):
         cloned_loop = AbstractLoop(cloned_loop_shapes, cloned_body, self.node_id)
         return cloned_loop
     def is_syntactically_equal(self, other):
-        return is_list_syntactically_equal(self.loop_shapes, other.loop_shapes) and \
-            is_list_syntactically_equal(self.body, other.body)
+        return all(is_list_syntactically_equal(self.loop_shapes, other.loop_shapes),
+                   is_list_syntactically_equal(self.body, other.body))
     def replace(self, replacer):
         self.loop_shapes = replace_each(self.loop_shapes, replacer)
         self.body = replace_each(self.body, replacer)
@@ -446,6 +446,11 @@ def get_accesses(node):
             accesses.update(get_accesses(arg))
         return accesses
     elif isinstance(node, AbstractLoop):
+        for shape in node.loop_shapes:
+            accesses.update(get_accesses(shape.loop_var))
+            accesses.update(get_accesses(shape.greater_eq))
+            accesses.update(get_accesses(shape.less_eq))
+            accesses.update(get_accesses(shape.step))
         for stmt in node.body:
             accesses.update(get_accesses(stmt))
         return accesses

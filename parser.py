@@ -5,16 +5,15 @@ from lark import Lark, Transformer
 # https://docs.microsoft.com/en-us/cpp/c-language/precedence-and-order-of-evaluation?view=vs-2019
 
 grammar = '''
-    start: (declaration | const)+ statement+
+    start: (declaration)+ statement+
 
     declaration: "declare" array (dimension)* ";"
-    const: "const" scalar ";"
     dimension: "[" "]"
     abstract_loop: "for" "[" loop_shapes "]" "{" statement+ "}"
 
     loop_shapes: loop_shape ("," loop_shape)*
     loop_shape: single_loop_shape | multi_loop_shape
-    single_loop_shape: CNAME
+    single_loop_shape: expr
     multi_loop_shape: "(" loop_shape_parts ")"
     loop_shape_parts: loop_shape_part ("," loop_shape_part)*
     loop_shape_part: LOOP_SHAPE_PREFIX? expr
@@ -60,7 +59,7 @@ grammar = '''
 
 '''
 
-from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape
+from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses
 from loguru import logger
 
 class TreeSimplifier(Transformer):
@@ -143,25 +142,40 @@ class TreeSimplifier(Transformer):
     def loop_shape(self, args):
         return args[0]
     def single_loop_shape(self, args):
-        return LoopShape(args[0])
+        loop_var = args[0].var
+        default_greater_eq = Access(f'{loop_var}_greater_eq', node_id=self.next_node_id())
+        default_less_eq = Access(f'{loop_var}_less_eq', node_id=self.next_node_id())
+        default_step = Literal(int, 1, self.next_node_id())
+        return LoopShape(args[0],
+                         default_greater_eq,
+                         default_less_eq,
+                         default_step,
+                         self.next_node_id())
     def multi_loop_shape(self, args):
         return args[0]
     def loop_shape_parts(self, args):
-        print('loop shape parts', args)
         merged = None
-        for loop_shape in args:
+        for loop_shape_builder in args:
             if merged is None:
-                merged = loop_shape
+                merged = loop_shape_builder
             else:
-                merged.merge(loop_shape)
+                merged.merge(loop_shape_builder)
         assert(merged is not None)
-        return merged
+        assert(merged.loop_var is not None)
+        loop_var = merged.loop_var
+        default_greater_eq = Access(f'{loop_var}_greater_eq', node_id=self.next_node_id())
+        default_less_eq = Access(f'{loop_var}_less_eq', node_id=self.next_node_id())
+        default_step = Literal(int, 1, self.next_node_id())
+        return merged.build(default_greater_eq,
+                            default_less_eq,
+                            default_step,
+                            self.next_node_id())
     def loop_shape_part(self, args):
-        print('loop shape part')
+        loop_shape_builder = LoopShapeBuilder()
         if len(args) == 1:
-            return LoopShape(args[0])
+            return loop_shape_builder.set_shape_part(args[0])
         elif len(args) == 2:
-            return LoopShape(args[1], args[0])
+            return loop_shape_builder.set_shape_part(args[1], args[0])
         raise RuntimeError(f'Unsupported loop shape ({args})')
 
     def abstract_loop(self, args):
@@ -172,16 +186,32 @@ class TreeSimplifier(Transformer):
     def start(self, args):
         decls = []
         body = []
-        consts = []
+        # consts = []
         for arg in args:
             if type(arg) == Declaration:
                 decls.append(arg)
             elif type(arg) in [AbstractLoop, Assignment]:
                 body.append(arg)
-            elif type(arg) == Const:
-                consts.append(arg)
+            # elif type(arg) == Const:
+            #     consts.append(arg)
             else:
                 raise RuntimeError('Unsupported syntax in main program')
+        # Add implicit constants that are created when the bounds and steps
+        # of loop vars are not explicitly stated
+        non_consts = set()
+        for decl in decls:
+            non_consts.add(decl.name)
+        for stmt in body:
+            for _, loop in get_loops(stmt).items():
+                for shape in loop.loop_shapes:
+                    non_consts.add(shape.loop_var.var)
+        consts_set = set()
+        for stmt in body:
+            for access in get_accesses(stmt):
+                if access.var not in non_consts:
+                    consts_set.add(access.var)
+        consts = [Const(name, self.next_node_id())
+                  for name in sorted(list(consts_set))]
         return Program(decls, body, consts, self.next_node_id())
 
 def parse_str(code, node_id=0):
