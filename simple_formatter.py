@@ -35,19 +35,10 @@ def spaces(indent):
 
 # TODO: test program needs to be a different program
 class SimpleFormatter:
-    def __init__(self, test_program, var_map):
-        self.array_sizes = {}
-        self.var_map = var_map
+    def __init__(self, instance):
+        self.pattern = instance.pattern
+        self.array_sizes = instance.array_sizes
         self.indent = 0
-        self.test_program = test_program
-
-        for decl in test_program.decls:
-            array_size = []
-            for dimension in range(decl.n_dimensions):
-                size_var = dimension_var(decl.name, dimension)
-
-                array_size.append(var_map.get_min(size_var))
-            self.array_sizes[decl.name] = array_size
 
     def array_param(self, ty, name, sizes):
         brackets = ''
@@ -265,7 +256,7 @@ class SimpleFormatter:
         lines.append(f'{ws}struct timespec before, after;')
         lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &before);')
         # lines.append(self.c_test_program.pprint(self.indent))
-        lines.append(self.test_program.cprint(self.var_map, self.indent))
+        lines.append(self.pattern.cprint(self.indent))
         lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &after);')
         lines.append(f'{ws}unsigned long long duration = (after.tv_sec - before.tv_sec) * 1e9;')
         lines.append(f'{ws}duration += after.tv_nsec - before.tv_nsec;')

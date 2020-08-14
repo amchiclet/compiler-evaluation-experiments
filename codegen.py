@@ -15,21 +15,18 @@ class CodeGen:
         if not os.path.exists(main_c_path):
             os.symlink('../main.c', main_c_path)
 
-    def generate_wrapper(self, pattern_str, program_str,
-                         ast, var_map):
-        pb = PathBuilder(pattern=pattern_str, program=program_str)
-        sf = SimpleFormatter(ast, var_map)
-        logger.info(f'Generating wrapper for {pattern_str}.{program_str}\n'
-                    f'{var_map.pprint()}')
+    def generate_wrapper(self, pattern_str, instance_str, instance):
+        pb = PathBuilder(pattern=pattern_str, program=instance_str)
+        sf = SimpleFormatter(instance)
+        logger.info(f'Generating wrapper for {pattern_str}.{instance_str}')
         wrapper = pb.wrapper_path()
         sf.write_kernel_wrapper(f'{self.output_dir}/{wrapper}')
 
-    def generate_code(self, pattern_str, program_str, mutation_str,
-                      ast, var_map):
-        pb = PathBuilder(pattern=pattern_str, program=program_str, mutation=mutation_str)
-        sf = SimpleFormatter(ast, var_map)
-        logger.info(f'Generating code for {pattern_str}.{program_str}.{mutation_str}\n'
-                    f'{ast.pprint()}')
+    def generate_code(self, pattern_str, instance_str, mutation_str, instance):
+        pb = PathBuilder(pattern=pattern_str, program=instance_str, mutation=mutation_str)
+        sf = SimpleFormatter(instance)
+        logger.info(f'Generating code for {pattern_str}.{instance_str}.{mutation_str}\n'
+                    f'{instance.pattern.pprint()}')
         core = pb.core_path()
         sf.write_core(f'{self.output_dir}/{core}')
         # TODO copy main

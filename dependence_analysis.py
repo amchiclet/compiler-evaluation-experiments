@@ -7,10 +7,10 @@ from dependence_graph import Dependence, DependenceGraph
 def is_ordered(l, v1, v2):
     return l.index(v1) < l.index(v2)
 
-def analyze_dependence(program, var_map):
+def analyze_dependence(program):
     graph = DependenceGraph()
     for (ref1, ref2) in iterate_unique_reference_pairs(program):
-        for dependence_dv in iterate_dependence_direction_vectors(ref1, ref2, var_map):
+        for dependence_dv in iterate_dependence_direction_vectors(ref1, ref2):
             for ref1_then_ref2_dv in iterate_execution_order_direction_vector(ref1, ref2):
                 logger.debug(f'Testing:\n'
                              f'{ref1.pprint()} -> {ref2.pprint()}:, '
@@ -126,7 +126,7 @@ def get_common_prefix(l1, l2):
         common.append(v1)
     return common
 
-def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
+def iterate_dependence_direction_vectors(source_ref, sink_ref):
     source_loops = gather_surrounding_loops(source_ref.parent_stmt)
     source_loop_shapes = gather_loop_shapes(source_loops)
     source_loop_vars = gather_loop_vars(source_loop_shapes)
@@ -140,27 +140,22 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
 
     constraints = []
 
-    constraints += generate_loop_bound_constraints(source_loop_vars,
-                                                   source_cvars,
-                                                   var_map)
+    constraints += generate_loop_bound_constraints(source_loop_shapes,
+                                                   source_cvars)
 
-    source_steps = gather_loop_steps(source_loop_shapes)
-    constraints += generate_step_constraints(source_loop_vars,
-                                             source_steps,
+    # source_steps = gather_loop_steps(source_loop_shapes)
+    constraints += generate_step_constraints(source_loop_shapes,
                                              source_cvars,
-                                             source_step_cvars,
-                                             var_map)
+                                             source_step_cvars)
 
-    constraints += generate_loop_bound_constraints(sink_loop_vars,
-                                                   sink_cvars,
-                                                   var_map)
+    constraints += generate_loop_bound_constraints(sink_loop_shapes,
+                                                   sink_cvars)
 
-    sink_steps = gather_loop_steps(sink_loop_shapes)
-    constraints += generate_step_constraints(sink_loop_vars,
-                                             sink_steps,
+    # sink_steps = gather_loop_steps(sink_loop_shapes)
+    constraints += generate_step_constraints(sink_loop_shapes,
                                              sink_cvars,
-                                             sink_step_cvars,
-                                             var_map)
+                                             sink_step_cvars)
+
     constraints += generate_subscript_equality_constraints(source_ref, source_cvars,
                                                            sink_ref, sink_cvars)
 
@@ -204,23 +199,29 @@ def generate_constraint_vars(source_loop_vars, sink_loop_vars):
         sink_step_cvars[v] = Int(f'{v}_step_sink')
     return (source_cvars, sink_cvars, source_step_cvars, sink_step_cvars)
 
-def generate_loop_bound_constraints(loop_vars, constraint_vars, var_map):
+def generate_loop_bound_constraints(loop_shapes, cvars):
     constraints = []
-    for v in loop_vars:
-        min_val = var_map.get_min(v)
-        max_val = var_map.get_max(v)
-        cvar = constraint_vars[v]
-        constraints += [min_val <= cvar, cvar <= max_val]
+    for shape in loop_shapes:
+        assert(type(shape.loop_var) == Access)
+        v = shape.loop_var.var
+        begin = expr_to_cexpr(shape.greater_eq, cvars)
+        end = expr_to_cexpr(shape.less_eq, cvars)
+        cvar = cvars[v]
+        constraints += [begin <= cvar, cvar <= end]
     return constraints
 
-def generate_step_constraints(loop_vars, steps, loop_cvars, step_cvars, var_map):
+def generate_step_constraints(loop_shapes, cvars, step_cvars):
     constraints = []
-    assert(len(loop_vars) == len(steps))
-    for v, s in zip(loop_vars, steps):
-        min_val = var_map.get_min(v)
-        cvar = loop_cvars[v]
+    for shape in loop_shapes:
+        assert(type(shape.loop_var) == Access)
+        v = shape.loop_var.var
+        assert(type(shape.step) == Literal)
+        assert(shape.step.ty == int)
+        cvar = cvars[v]
         step_cvar = step_cvars[v]
-        constraints += [cvar == s*step_cvar + min_val]
+        step = shape.step.val
+        begin = expr_to_cexpr(shape.greater_eq, cvars)
+        constraints += [cvar == step*step_cvar + begin]
     return constraints
 
 def affine_to_cexpr(affine, cvars):

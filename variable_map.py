@@ -68,6 +68,8 @@ def find_max(constraints, expr):
     max_val = None
     if sat == max_optimize.check():
         max_val = max_optimize.model().eval(expr).as_long()
+    constraint_strs = [f'{c}' for c in constraints]
+    logger.debug(f'Find max:\n' + '\n'.join(constraint_strs))
     return max_val
 
 def find_min(constraints, expr):
@@ -115,10 +117,16 @@ def generate_index_constraints(accesses, cvars, var_map):
 def generate_loop_shape_constraints(loop_shapes, cvars, var_map):
     constraints = []
     for shape in loop_shapes:
+        i = expr_to_cexpr(shape.loop_var, cvars)
+
         i_greater_eq = expr_to_cexpr(shape.greater_eq, cvars)
+        if i_greater_eq is not None:
+            constraints.append(i_greater_eq <= i)
+
         i_less_eq = expr_to_cexpr(shape.less_eq, cvars)
-        if i_greater_eq is not None and i_less_eq is not None:
-            constraints.append(i_greater_eq < i_less_eq)
+        if i_less_eq is not None:
+            constraints.append(i <= i_less_eq)
+
     return constraints
 
 def generate_bound_constraints(cvars, var_map):
@@ -131,14 +139,17 @@ def generate_bound_constraints(cvars, var_map):
     return constraints
 
 def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
+    array_sizes = {}
     cloned = var_map.clone()
     for decl in decls:
+        sizes = []
         for dimension in range(decl.n_dimensions):
             var = dimension_var(decl.name, dimension)
             if cloned.has_min(var):
-                cloned.set_min(var, max(1, cloned.get_min(var)))
+                sizes.append(max(1, cloned.get_min(var)))
             else:
-                cloned.set_min(var, 1)
+                sizes.append(1)
+        array_sizes[decl.name] = sizes
 
     for access in accesses:
         for dimension, index in enumerate(access.indices):
@@ -151,14 +162,15 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
                 assert(max_val is not None)
                 max_val = min(max_val + 1, cloned.default_max)
 
-            var = dimension_var(access.var, dimension)
+            # var = dimension_var(access.var, dimension)
 
-            # Update the min value for the array size.
-            # Min array size must be large enough to
-            # hold the max index.
-            if max_val > cloned.get_min(var):
-                cloned.set_min(var, max_val)
-    return cloned
+            # # Update the min value for the array size.
+            # # Min array size must be large enough to
+            # # hold the max index.
+            if max_val > array_sizes[access.var][dimension]:
+                array_sizes[access.var][dimension] = max_val
+
+    return array_sizes
 
 def validate_var_map(program, var_map):
     cloned = var_map.clone()
@@ -179,12 +191,22 @@ def validate_var_map(program, var_map):
         return False
     return True
 
+class Instance:
+    def __init__(self, pattern, array_sizes):
+        self.pattern = pattern
+        self.array_sizes = array_sizes
+    def pprint(self):
+        lines = []
+        lines.append(self.pattern.pprint())
+        for name in sorted(self.array_sizes.keys()):
+            lines.append(f'Array {name}: {self.array_sizes[name]}')
+        return '\n'.join(lines)
+
 def create_instance(program, var_map, max_tries=10000):
-    # while True:
-    def try_once():
-        cloned_pattern = program.clone()
+    def randomly_replace_consts():
+        cloned = program.clone()
         replace_map = {}
-        for const in cloned_pattern.consts:
+        for const in cloned.consts:
             var = const.name
             min_val = var_map.get_min(var)
             max_val = var_map.get_max(var)
@@ -192,10 +214,13 @@ def create_instance(program, var_map, max_tries=10000):
             val = randint(min_val, max_val)
             replace_map[const.name] = val
         replacer = ConstReplacer(replace_map)
-        cloned_pattern.replace(replacer)
-        cloned_pattern.consts = []
+        cloned.replace(replacer)
+        cloned.consts = []
+        return cloned
 
-        accesses = get_accesses(cloned_pattern)
+    def try_once():
+        random_pattern = randomly_replace_consts()
+        accesses = get_accesses(random_pattern)
         cvars = generate_cvars(accesses)
         cloned_var_map = var_map.clone()
         index_constraints = generate_index_constraints(accesses,
@@ -203,34 +228,24 @@ def create_instance(program, var_map, max_tries=10000):
                                                        cloned_var_map)
 
         loop_shape_constraints = []
-        for loop in get_loops(cloned_pattern).values():
+        for loop in get_loops(random_pattern).values():
             loop_shape_constraints += generate_loop_shape_constraints(loop.loop_shapes,
                                                                       cvars,
-                                                                      var_map)
+                                                                      cloned_var_map)
+        constraints = index_constraints + loop_shape_constraints
 
-        bound_constraints = generate_bound_constraints(cvars,
-                                                       cloned_var_map)
-        constraints = index_constraints + loop_shape_constraints + bound_constraints
-        for var, cvar in cvars.items():
-            min_val, max_val = find_min_max(constraints, cvars[var])
-            if min_val is None or max_val is None:
-                return None
-            x = randint(min_val, max_val)
-            y = randint(min_val, max_val)
-            new_min = min(x, y)
-            new_max = max(x, y)
-            cloned_var_map.set_min(var, new_min)
-            cloned_var_map.set_max(var, new_max)
+        solver = Solver()
+        solver.add(constraints)
+        status = solver.check()
+        if status == unsat:
+            return None
 
-        new_bound_constraints = generate_bound_constraints(cvars,
-                                                           cloned_var_map)
-        new_constraints = index_constraints + new_bound_constraints
-        cloned_var_map = determine_array_sizes(cloned_pattern.decls,
-                                               accesses, cvars,
-                                               new_constraints,
-                                               cloned_var_map)
+        array_sizes = determine_array_sizes(random_pattern.decls,
+                                            accesses, cvars,
+                                            constraints,
+                                            cloned_var_map)
 
-        return cloned_pattern, cloned_var_map
+        return Instance(random_pattern, array_sizes)
 
     result = None
     for _ in range(max_tries):

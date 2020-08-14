@@ -40,7 +40,7 @@ class Const(Node):
         self.name = name
         self.node_id = node_id
         # self.surrounding_loop = None
-    def cprint(self, var_map, indent=0):
+    def cprint(self, indent=0):
         raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
@@ -58,7 +58,7 @@ class Declaration(Node):
         self.n_dimensions = n_dimensions
         self.node_id = node_id
         # self.surrounding_loop = None
-    def cprint(self, var_map, indent=0):
+    def cprint(self, indent=0):
         raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
@@ -75,7 +75,7 @@ class Literal(Node):
         self.ty = ty
         self.val = val
         self.node_id = node_id
-    def cprint(self, var_map, indent=0):
+    def cprint(self, indent=0):
         return f'{self.val}'
     def pprint(self, indent=0):
         return f'{self.val}'
@@ -99,9 +99,9 @@ class Assignment(Node):
             access.parent_stmt = self
             for index in access.indices:
                 index.parent_stmt = self
-    def cprint(self, var_map, indent=0):
+    def cprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        return f'{ws}{self.lhs.cprint(var_map)} = {self.rhs.cprint(var_map)};'
+        return f'{ws}{self.lhs.cprint()} = {self.rhs.cprint()};'
 
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
@@ -146,8 +146,8 @@ class Access(Node):
         self.parent_stmt = None
     def is_scalar(self):
         return len(self.indices) == 0
-    def cprint(self, var_map, indent=0):
-        list_of_pprint = [f'[{index.cprint(var_map)}]' for index in self.indices]
+    def cprint(self, indent=0):
+        list_of_pprint = [f'[{index.cprint()}]' for index in self.indices]
         return f'{self.var}{"".join(list_of_pprint)}'
 
     def pprint(self, indent=0):
@@ -252,27 +252,29 @@ class AbstractLoop(Node):
         # To be used for strip mining
         self.partial_loop_order = []
 
-    def cprint_recursive(self, depth, var_map, indent=0):
+    def cprint_recursive(self, depth, indent=0):
         if depth == len(self.loop_shapes):
             lines = []
             for stmt in self.body:
-                lines.append(stmt.cprint(var_map, indent+1))
+                lines.append(stmt.cprint(indent+1))
             return '\n'.join(lines)
 
         ws = '  ' * indent
         loop_shape = self.loop_shapes[depth]
-        loop_var = loop_shape.loop_var
-        begin = var_map.get_min(loop_var)
-        end = var_map.get_max(loop_var)
+        loop_var = loop_shape.loop_var.cprint()
+        # Assuming that the loop step is positive
+        begin = loop_shape.greater_eq.cprint()
+        end = loop_shape.less_eq.cprint()
+        step = loop_shape.step.cprint()
         lines = [(f'{ws}for (int {loop_var} = {begin}; '
                   f'{loop_var} <= {end}; '
-                  f'{loop_var}+=1) {{')]
-        lines.append(self.cprint_recursive(depth+1, var_map, indent+1))
+                  f'{loop_var}+={step}) {{')]
+        lines.append(self.cprint_recursive(depth+1, indent+1))
         lines.append(f'{ws}}}')
         return '\n'.join(lines)
 
-    def cprint(self, var_map, indent=0):
-        return self.cprint_recursive(0, var_map, indent)
+    def cprint(self, indent=0):
+        return self.cprint_recursive(0, indent)
 
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
@@ -345,9 +347,9 @@ class Op(Node):
         return self.generic_print(formatter)
 
     # TODO: refactor pprint and cprint
-    def cprint(self, var_map, indent=0):
+    def cprint(self, indent=0):
         def formatter(arg):
-            return arg.cprint(var_map, indent)
+            return arg.cprint(indent)
         return self.generic_print(formatter)
     def dep_print(self, refs):
         def formatter(arg):
@@ -382,10 +384,10 @@ class Program:
         for stmt in body:
             stmt.surrounding_loop = self
 
-    def cprint(self, var_map, indent=0):
+    def cprint(self, indent=0):
         lines = []
         for stmt in self.body:
-            lines.append(stmt.cprint(var_map, indent))
+            lines.append(stmt.cprint(indent))
         return '\n'.join(lines)
 
     def pprint(self, indent=0):
