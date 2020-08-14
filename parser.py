@@ -59,7 +59,7 @@ grammar = '''
 
 '''
 
-from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses
+from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder
 from loguru import logger
 
 class TreeSimplifier(Transformer):
@@ -154,6 +154,7 @@ class TreeSimplifier(Transformer):
     def multi_loop_shape(self, args):
         return args[0]
     def loop_shape_parts(self, args):
+        logger.info(args)
         merged = None
         for loop_shape_builder in args:
             if merged is None:
@@ -162,7 +163,7 @@ class TreeSimplifier(Transformer):
                 merged.merge(loop_shape_builder)
         assert(merged is not None)
         assert(merged.loop_var is not None)
-        loop_var = merged.loop_var
+        loop_var = merged.loop_var.var
         default_greater_eq = Access(f'{loop_var}_greater_eq', node_id=self.next_node_id())
         default_less_eq = Access(f'{loop_var}_less_eq', node_id=self.next_node_id())
         default_step = Literal(int, 1, self.next_node_id())
@@ -173,10 +174,12 @@ class TreeSimplifier(Transformer):
     def loop_shape_part(self, args):
         loop_shape_builder = LoopShapeBuilder()
         if len(args) == 1:
-            return loop_shape_builder.set_shape_part(args[0])
+            loop_shape_builder.set_shape_part(args[0])
         elif len(args) == 2:
-            return loop_shape_builder.set_shape_part(args[1], args[0])
-        raise RuntimeError(f'Unsupported loop shape ({args})')
+            loop_shape_builder.set_shape_part(args[1], args[0])
+        else:
+            raise RuntimeError(f'Unsupported loop shape ({args})')
+        return loop_shape_builder
 
     def abstract_loop(self, args):
         loop_shapes = args[0]

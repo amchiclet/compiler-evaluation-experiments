@@ -112,6 +112,15 @@ def generate_index_constraints(accesses, cvars, var_map):
                 constraints.append(cexpr < dim_size)
     return constraints
 
+def generate_loop_shape_constraints(loop_shapes, cvars, var_map):
+    constraints = []
+    for shape in loop_shapes:
+        i_greater_eq = expr_to_cexpr(shape.greater_eq, cvars)
+        i_less_eq = expr_to_cexpr(shape.less_eq, cvars)
+        if i_greater_eq is not None and i_less_eq is not None:
+            constraints.append(i_greater_eq < i_less_eq)
+    return constraints
+
 def generate_bound_constraints(cvars, var_map):
     constraints = []
     for var, cvar in cvars.items():
@@ -192,9 +201,16 @@ def create_instance(program, var_map, max_tries=10000):
         index_constraints = generate_index_constraints(accesses,
                                                        cvars,
                                                        cloned_var_map)
+
+        loop_shape_constraints = []
+        for loop in get_loops(cloned_pattern).values():
+            loop_shape_constraints += generate_loop_shape_constraints(loop.loop_shapes,
+                                                                      cvars,
+                                                                      var_map)
+
         bound_constraints = generate_bound_constraints(cvars,
                                                        cloned_var_map)
-        constraints = index_constraints + bound_constraints
+        constraints = index_constraints + loop_shape_constraints + bound_constraints
         for var, cvar in cvars.items():
             min_val, max_val = find_min_max(constraints, cvars[var])
             if min_val is None or max_val is None:
@@ -213,6 +229,7 @@ def create_instance(program, var_map, max_tries=10000):
                                                accesses, cvars,
                                                new_constraints,
                                                cloned_var_map)
+
         return cloned_pattern, cloned_var_map
 
     result = None

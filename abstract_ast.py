@@ -222,7 +222,13 @@ class LoopShape(Node):
                          self.step.clone(),
                          self.node_id)
     def pprint(self):
-        return f'({self.greater_eq.pprint()} <= {self.loop_var.pprint()}(+={self.step.pprint()}) <= {self.less_eq.pprint()})'
+        return ('('
+                f'{self.loop_var.pprint()}, '
+                f'>={self.greater_eq.pprint()}, '
+                f'<={self.less_eq.pprint()}, '
+                f'+={self.step.pprint()}'
+                ')')
+
     def is_syntactically_equal(self, other):
         return all(self.loop_var.is_syntactically_equal(other.loop_var),
                    self.greater_eq.is_syntactically_equal(other.greater_eq),
@@ -271,11 +277,11 @@ class AbstractLoop(Node):
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         loop_vars = []
-        for shape in self.loop_shapes:
-            print(shape.pprint())
-            assert(type(shape.loop_var) == Access)
-            loop_vars.append(shape.loop_var.var)
-        header = f'{ws}for [{", ".join(loop_vars)}] {{'
+        # for shape in self.loop_shapes:
+        #     assert(type(shape.loop_var) == Access)
+        #     loop_vars.append(shape.loop_var.var)
+        shapes = [shape.pprint() for shape in self.loop_shapes]
+        header = f'{ws}for [{", ".join(shapes)}] {{'
         body = [f'{stmt.pprint(indent+1)}' for stmt in self.body]
         end = f'{ws}}}'
         return '\n'.join([header] + body + [end])
@@ -461,7 +467,6 @@ def get_accesses(node):
     elif isinstance(node, Literal):
         return accesses
     else:
-        print(node)
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
 
 def get_loops(node):

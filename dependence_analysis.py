@@ -97,13 +97,26 @@ def gather_surrounding_loops(stmt):
         return recurse(outer, [outer] + acc)
     return recurse(stmt, [])
 
-def gather_loop_vars(loops):
+def gather_loop_vars(loop_shapes):
     loop_vars = []
-    for loop in loops:
-        for shape in loop.loop_shapes:
-            assert(type(shape.loop_var) == Access)
-            loop_vars.append(shape.loop_var.var)
+    for shape in loop_shapes:
+        assert(type(shape.loop_var) == Access)
+        loop_vars.append(shape.loop_var.var)
     return loop_vars
+
+def gather_loop_steps(loop_shapes):
+    steps = []
+    for shape in loop_shapes:
+        assert(type(shape.step) == Literal)
+        assert(shape.step.ty == int)
+        steps.append(shape.step.val)
+    return steps
+
+def gather_loop_shapes(loops):
+    loop_shapes = []
+    for loop in loops:
+        loop_shapes += loop.loop_shapes
+    return  loop_shapes
 
 def get_common_prefix(l1, l2):
     common = []
@@ -114,30 +127,35 @@ def get_common_prefix(l1, l2):
     return common
 
 def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
-    print('iterating', source_ref.pprint(), sink_ref.pprint())
     source_loops = gather_surrounding_loops(source_ref.parent_stmt)
-    source_loop_vars = gather_loop_vars(source_loops)
+    source_loop_shapes = gather_loop_shapes(source_loops)
+    source_loop_vars = gather_loop_vars(source_loop_shapes)
     sink_loops = gather_surrounding_loops(sink_ref.parent_stmt)
-    sink_loop_vars = gather_loop_vars(sink_loops)
-    print(source_loop_vars, sink_loop_vars)
+    sink_loop_shapes = gather_loop_shapes(sink_loops)
+    sink_loop_vars = gather_loop_vars(sink_loop_shapes)
+
     source_cvars, sink_cvars, source_step_cvars, sink_step_cvars \
         = generate_constraint_vars(source_loop_vars,
                                    sink_loop_vars)
 
     constraints = []
+
     constraints += generate_loop_bound_constraints(source_loop_vars,
                                                    source_cvars,
                                                    var_map)
-    source_steps = [1] * len(source_loop_vars)
+
+    source_steps = gather_loop_steps(source_loop_shapes)
     constraints += generate_step_constraints(source_loop_vars,
                                              source_steps,
                                              source_cvars,
                                              source_step_cvars,
                                              var_map)
+
     constraints += generate_loop_bound_constraints(sink_loop_vars,
                                                    sink_cvars,
                                                    var_map)
-    sink_steps = [1] * len(sink_loop_vars)
+
+    sink_steps = gather_loop_steps(sink_loop_shapes)
     constraints += generate_step_constraints(sink_loop_vars,
                                              sink_steps,
                                              sink_cvars,
@@ -145,7 +163,7 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
                                              var_map)
     constraints += generate_subscript_equality_constraints(source_ref, source_cvars,
                                                            sink_ref, sink_cvars)
-    print('\n'.join(map(str, constraints)))
+
     def iterate_recursive(constraints, remaining_loop_vars, accumulated_dv):
         n_dimensions_left = len(remaining_loop_vars)
 
@@ -169,7 +187,8 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, var_map):
                                              remaining_loop_vars[1:],
                                              accumulated_dv + ['>'])
     common_loops = get_common_prefix(source_loops, sink_loops)
-    common_loop_vars = gather_loop_vars(common_loops)
+    common_loop_shapes = gather_loop_shapes(common_loops)
+    common_loop_vars = gather_loop_vars(common_loop_shapes)
     yield from iterate_recursive(constraints, common_loop_vars, [])
 
 def generate_constraint_vars(source_loop_vars, sink_loop_vars):
