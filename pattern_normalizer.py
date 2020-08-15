@@ -1,5 +1,10 @@
 from abstract_ast import Op, Access, Declaration, Assignment, AbstractLoop, Const, Program, VarRenamer
 
+def greater_eq_const_name(loop_var):
+    return f'{loop_var}_greater_eq'
+def less_eq_const_name(loop_var):
+    return f'{loop_var}_less_eq'
+
 def rename_to_order(pattern, original_order, sorted_order):
     replace_map_1 = {}
     for i, name in enumerate(original_order):
@@ -17,7 +22,9 @@ def normalize_loop_var_order(pattern, sorted_loop_vars):
     ordered_loop_vars = []
     def populate_loop_vars(node):
         if isinstance(node, AbstractLoop):
-            for loop_var in node.loop_vars:
+            for shape in node.loop_shapes:
+                assert(type(shape.loop_var) == Access)
+                loop_var = shape.loop_var.var
                 if loop_var not in ordered_loop_vars:
                     ordered_loop_vars.append(loop_var)
             for stmt in node.body:
@@ -31,6 +38,14 @@ def normalize_loop_var_order(pattern, sorted_loop_vars):
             raise RuntimeError('populate_loop_vars: Unhandled {type(node)}')
     populate_loop_vars(pattern)
     rename_to_order(pattern, ordered_loop_vars, sorted_loop_vars)
+
+    ordered_greater_eq = list(map(greater_eq_const_name, ordered_loop_vars))
+    sorted_greater_eq = list(map(greater_eq_const_name, sorted_loop_vars))
+    rename_to_order(pattern, ordered_greater_eq, sorted_greater_eq)
+
+    ordered_less_eq = list(map(less_eq_const_name, ordered_loop_vars))
+    sorted_less_eq = list(map(less_eq_const_name, sorted_loop_vars))
+    rename_to_order(pattern, ordered_less_eq, sorted_less_eq)
 
 def normalize_access_order(pattern, sorted_decls, sorted_muls, sorted_adds, sorted_datas):
     def populate_var_usage(node, var_pool):

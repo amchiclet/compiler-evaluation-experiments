@@ -1,5 +1,5 @@
-from abstract_ast import Op, Access, Declaration, Assignment, AbstractLoop, Const, Program, ConstReplacer, get_loops, VarRenamer
-from pattern_normalizer import normalize_pattern
+from abstract_ast import Op, Access, Declaration, Assignment, AbstractLoop, Const, Program, ConstReplacer, get_loops, VarRenamer, Literal, LoopShape, get_accesses
+from pattern_normalizer import normalize_pattern, greater_eq_const_name, less_eq_const_name
 import random
 from loguru import logger
 
@@ -102,7 +102,16 @@ class AssignmentGenerator(Generator):
         lhs = self.access_gen.generate(loop_vars)
         rhs = self.op_gen.generate(n_ops, loop_vars)
         return Assignment(lhs, rhs, self.next_id())
-        
+
+def loop_var_expr(loop_var, node_id):
+    return Access(loop_var, node_id=node_id)
+def greater_eq_expr(loop_var, node_id):
+    return Access(greater_eq_const_name(loop_var), node_id=node_id)
+def less_eq_expr(loop_var, node_id):
+    return Access(less_eq_const_name(loop_var), node_id=node_id)
+def step_expr(i, node_id):
+    return Literal(int, i, node_id=node_id)
+
 class LoopGenerator(Generator):
     def __init__(self, assignment_gen, next_id=None):
         super(LoopGenerator, self).__init__(next_id)
@@ -114,24 +123,22 @@ class LoopGenerator(Generator):
         for _ in range(n_stmts):
             stmt = self.assignment_gen.generate(n_ops, chosen_loop_vars)
             body.append(stmt)
-        return AbstractLoop(chosen_loop_vars, body, self.next_id())
+        loop_shapes = []
+        for loop_var_name in chosen_loop_vars:
+            loop_var = loop_var_expr(loop_var_name, self.next_id())
+            greater_eq = greater_eq_expr(loop_var_name, self.next_id())
+            less_eq = less_eq_expr(loop_var_name, self.next_id())
+            step = step_expr(1, self.next_id())
+            loop_shape = LoopShape(loop_var, greater_eq, less_eq, step, self.next_id())
+            loop_shapes.append(loop_shape)
+        return AbstractLoop(loop_shapes, body, self.next_id())
 
 class ProgramGenerator(Generator):
     def __init__(self, loop_gen, next_id=None):
         super(ProgramGenerator, self).__init__(next_id)
         self.loop_gen = loop_gen
     def generate(self, n_loops, n_depth, loop_vars, n_stmts, n_ops):
-        all_consts = set()
-
         access_gen = self.loop_gen.assignment_gen.op_gen.access_gen
-        index_gen = access_gen.index_gen
-        all_consts.update(access_gen.float_consts,
-                          index_gen.mul_consts,
-                          index_gen.add_consts)
-
-        gen_consts = []
-        for c in sorted(list(all_consts)):
-            gen_consts.append(Const(c, self.next_id()))
         gen_decls = []
         for d in sorted(access_gen.decls, key=lambda d: d.name):
             gen_decls.append(Declaration(d.name, d.n_dimensions, self.next_id()))
@@ -140,6 +147,22 @@ class ProgramGenerator(Generator):
         for _ in range(n_loops):
             loop = self.loop_gen.generate(n_depth, n_stmts, n_ops, loop_vars)
             gen_loops.append(loop)
+
+        non_consts = set()
+        for decl in gen_decls:
+            non_consts.add(decl.name)
+        for stmt in gen_loops:
+            for _, loop in get_loops(stmt).items():
+                for shape in loop.loop_shapes:
+                    non_consts.add(shape.loop_var.var)
+        consts_set = set()
+        for stmt in gen_loops:
+            for access in get_accesses(stmt):
+                if access.var not in non_consts:
+                    consts_set.add(access.var)
+        gen_consts = [Const(name, self.next_id())
+                      for name in sorted(list(consts_set))]
+
         program = Program(gen_decls, gen_loops, gen_consts, self.next_id())
         return program
 

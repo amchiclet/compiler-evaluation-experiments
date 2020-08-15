@@ -1,7 +1,7 @@
 from pattern_generator import PatternInfo
 from abstract_ast import Declaration
 
-def create_pattern_info(n_stmts, n_ops):
+def create_pattern_info_v2(n_loops, n_stmts, n_ops):
     mul_consts = ['a1', 'a2', 'a3']
     add_consts = ['b1', 'b2', 'b3']
     data_consts = ['f1', 'f2', 'f3']
@@ -14,7 +14,7 @@ def create_pattern_info(n_stmts, n_ops):
         Declaration('E', 1),
     ]
     ops = ['+', '*', '-']
-    n_loops = 5
+    # n_loops = 5
     n_depth = 3
     # n_stmts = 2
     # n_ops = 1
@@ -23,6 +23,9 @@ def create_pattern_info(n_stmts, n_ops):
                                loop_vars, n_loops,
                                n_depth, n_stmts, n_ops)
     return pattern_info
+
+def create_pattern_info(n_stmts, n_ops):
+    return create_pattern_info_2(5, n_stmts, n_ops)
 
 def create_pattern_info_1():
     return create_pattern_info(1, 25)

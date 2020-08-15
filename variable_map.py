@@ -87,21 +87,6 @@ def find_min_max(constraints, i):
 def dimension_var(var, dimension):
     return f'{var}{"[]"*(dimension+1)}'
 
-def generate_cvars(accesses):
-    cvars = {}
-    def add_cvar(expr):
-        if type(expr) == Access:
-            if expr.is_scalar() and expr.var not in cvars:
-                cvars[expr.var] = Int(expr.var)
-        elif type(expr) == Op:
-            for arg in expr.args:
-                add_cvar(arg)
-
-    for access in accesses:
-        for index in access.indices:
-            add_cvar(index)
-    return cvars
-
 def generate_index_constraints(accesses, cvars, var_map):
     constraints = []
     for access in accesses:
@@ -177,8 +162,7 @@ def validate_var_map(program, var_map):
 
     accesses = get_accesses(program)
 
-    cvars = generate_cvars(accesses)
-
+    cvars = get_scalar_cvars(program)
     index_constraints = generate_index_constraints(accesses, cvars, cloned)
     bound_constraints = generate_bound_constraints(cvars, cloned)
     constraints = index_constraints + bound_constraints
@@ -202,6 +186,14 @@ class Instance:
             lines.append(f'Array {name}: {self.array_sizes[name]}')
         return '\n'.join(lines)
 
+def get_scalar_cvars(pattern):
+    cvars = {}
+    for access in get_accesses(pattern):
+        if access.is_scalar():
+            if access.var not in cvars:
+                cvars[access.var] = Int(access.var)
+    return cvars
+
 def create_instance(program, var_map, max_tries=10000):
     def randomly_replace_consts():
         cloned = program.clone()
@@ -220,8 +212,8 @@ def create_instance(program, var_map, max_tries=10000):
 
     def try_once():
         random_pattern = randomly_replace_consts()
+        cvars = get_scalar_cvars(random_pattern)
         accesses = get_accesses(random_pattern)
-        cvars = generate_cvars(accesses)
         cloned_var_map = var_map.clone()
         index_constraints = generate_index_constraints(accesses,
                                                        cvars,
@@ -238,8 +230,9 @@ def create_instance(program, var_map, max_tries=10000):
         solver.add(constraints)
         status = solver.check()
         if status == unsat:
+            logger.debug('unsat retrying')
+            logger.debug('\n'.join(map(str, constraints)))
             return None
-
         array_sizes = determine_array_sizes(random_pattern.decls,
                                             accesses, cvars,
                                             constraints,

@@ -208,6 +208,27 @@ class LoopShapeBuilder:
         step = self.step if self.step is not None else default_step
         return LoopShape(loop_var, greater_eq, less_eq, step, node_id)
 
+def greater_eq_const_name(loop_var):
+    return f'{loop_var}_greater_eq'
+def less_eq_const_name(loop_var):
+    return f'{loop_var}_less_eq'
+
+def is_default_greater_eq(loop_var, expr):
+    return \
+        type(expr) == Access and \
+        expr.is_scalar() and \
+        expr.var == greater_eq_const_name(loop_var)
+def is_default_less_eq(loop_var, expr):
+    return \
+        type(expr) == Access and \
+        expr.is_scalar() and \
+        expr.var == less_eq_const_name(loop_var)
+def is_default_step(expr):
+    return \
+        type(expr) == Literal and \
+        expr.ty == int and \
+        expr.val == 1
+
 class LoopShape(Node):
     def __init__(self, loop_var, greater_eq, less_eq, step, node_id=0):
         self.node_id = node_id
@@ -222,18 +243,25 @@ class LoopShape(Node):
                          self.step.clone(),
                          self.node_id)
     def pprint(self):
-        return ('('
-                f'{self.loop_var.pprint()}, '
-                f'>={self.greater_eq.pprint()}, '
-                f'<={self.less_eq.pprint()}, '
-                f'+={self.step.pprint()}'
-                ')')
+        parts = []
+        parts.append(self.loop_var.pprint())
+        loop_var_name = self.loop_var.var
+        if not is_default_greater_eq(loop_var_name, self.greater_eq):
+            parts.append(f'>={self.greater_eq.pprint()}')
+        if not is_default_less_eq(loop_var_name, self.less_eq):
+            parts.append(f'<={self.less_eq.pprint()}')
+        if not is_default_step(self.step):
+            parts.append(f'+={self.step.pprint()}')
+        if len(parts) == 1:
+            return parts[0]
+        else:
+            return '(' + ', '.join(parts) + ')'
 
     def is_syntactically_equal(self, other):
-        return all(self.loop_var.is_syntactically_equal(other.loop_var),
-                   self.greater_eq.is_syntactically_equal(other.greater_eq),
-                   self.less_eq.is_syntactically_equal(other.less_eq),
-                   self.step.is_syntactically_equal(other.step))
+        return all([self.loop_var.is_syntactically_equal(other.loop_var),
+                    self.greater_eq.is_syntactically_equal(other.greater_eq),
+                    self.less_eq.is_syntactically_equal(other.less_eq),
+                    self.step.is_syntactically_equal(other.step)])
     def replace(self, replacer):
         self.loop_var = replace(self.loop_var, replacer)
         self.greater_eq = replace(self.greater_eq, replacer)
@@ -293,8 +321,8 @@ class AbstractLoop(Node):
         cloned_loop = AbstractLoop(cloned_loop_shapes, cloned_body, self.node_id)
         return cloned_loop
     def is_syntactically_equal(self, other):
-        return all(is_list_syntactically_equal(self.loop_shapes, other.loop_shapes),
-                   is_list_syntactically_equal(self.body, other.body))
+        return all([is_list_syntactically_equal(self.loop_shapes, other.loop_shapes),
+                    is_list_syntactically_equal(self.body, other.body)])
     def replace(self, replacer):
         self.loop_shapes = replace_each(self.loop_shapes, replacer)
         self.body = replace_each(self.body, replacer)
@@ -393,7 +421,7 @@ class Program:
     def pprint(self, indent=0):
         body = []
         body += [f'{decl.pprint(indent)}' for decl in self.decls]
-        body += [f'{const.pprint(indent)}' for const in self.consts]
+        # body += [f'{const.pprint(indent)}' for const in self.consts]
         body += [f'{stmt.pprint(indent)}' for stmt in self.body]
         return '\n'.join(body)
     def clone(self):
@@ -448,6 +476,8 @@ def get_accesses(node):
         return accesses
     elif isinstance(node, Access):
         accesses.add(node)
+        for index in node.indices:
+            accesses.update(get_accesses(index))
         return accesses
     elif isinstance(node, Op):
         for arg in node.args:

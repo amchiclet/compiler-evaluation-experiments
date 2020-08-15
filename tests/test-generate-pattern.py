@@ -7,7 +7,7 @@ from variable_map import validate_var_map, VariableMap, create_instance
 from parser import parse_file
 from codegen import CodeGen
 from transformers.loop_interchange import LoopInterchange
-from pattern_info_factory import create_pattern_info
+from pattern_info_factory import create_pattern_info_v2
 
 # 1 stmts * 10 ops = 12 access pairs per  loop
 # 2 stmts * 1 ops = 12 access pairs per loop
@@ -36,11 +36,12 @@ def generate_patterns(n_patterns, output_dir, pattern_info):
 # 1 statement 27 ops = 27 access pairs
 # 2 statements 5 ops = 28 access pairs
 # 3 statements 1 ops = 27 access pairs
-pattern_shapes = ((1, 27), (2, 5), (3, 1))
+# pattern_shapes = ((1, 27), (2, 5), (3, 1))
+pattern_shapes = [(3, 1)]
 for pattern_shape in pattern_shapes:
     n_stmts, n_ops = pattern_shape
-    pattern_info = create_pattern_info(n_stmts, n_ops)
+    pattern_info = create_pattern_info_v2(1, n_stmts, n_ops)
     pattern_dir = os.path.join(output_root, f'gen_{n_stmts}_{n_ops}')
-    generate_patterns(100,
+    generate_patterns(10,
                       pattern_dir,
                       pattern_info)
