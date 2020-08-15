@@ -28,11 +28,8 @@ def iterate_direction_vectors(dependency_graph, loop):
             yield dep.direction_vector
 
 class LoopInterchange:
-    def transform(self, program, var_map=None):
-        if not var_map:
-            var_map = VariableMap()
-
-        dependence_graph = analyze_dependence(program, var_map)
+    def transform(self, instance):
+        dependence_graph = analyze_dependence(instance.pattern)
         dependence_graph.debug()
 
         def is_permutable(loop, new_order):
@@ -47,12 +44,12 @@ class LoopInterchange:
         # a brute-force method should be fine
         # There is always at least one valid permutation
         # which is keeping the original loop.
-        loops = get_loops(program)
+        loops = get_loops(instance.pattern)
         while True:
             permutations = []
             is_valid = True
             for loop in loops.values():
-                permutation = list(range(len(loop.loop_vars)))
+                permutation = list(range(len(loop.loop_shapes)))
                 random.shuffle(permutation)
                 permutations.append(permutation)
             for loop, permutation in zip(loops.values(), permutations):
@@ -60,8 +57,8 @@ class LoopInterchange:
                     is_valid = False
                     break
             if is_valid:
-                clone = program.clone()
-                cloned_loops = get_loops(clone)
+                clone = instance.clone()
+                cloned_loops = get_loops(clone.pattern)
                 for loop, permutation in zip(cloned_loops.values(), permutations):
-                    reorder(permutation, loop.loop_vars)
+                    reorder(permutation, loop.loop_shapes)
                 yield clone

@@ -4,7 +4,7 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats
-from util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation
+from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation
 
 def get_normalized_cost_model_performance(runtimes):
     grouped = {}

@@ -4,7 +4,7 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats
-from util import merge_value, update_dict_array
+from report.util import merge_value, update_dict_array
 
 def get_normalized_vector_rates(vector_rates):
     best_mutations = {}

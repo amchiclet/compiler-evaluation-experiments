@@ -4,7 +4,7 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats
-from util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair
+from report.util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair
 
 def get_normalized_runtimes(runtimes):
     best_mutations = {}

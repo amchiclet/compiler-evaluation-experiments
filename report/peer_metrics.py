@@ -1,4 +1,4 @@
-from util import \
+from report.util import \
     merge_value, \
     update_dict_dict, \
     update_dict_array, \

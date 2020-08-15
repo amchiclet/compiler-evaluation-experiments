@@ -2,6 +2,9 @@ from abstract_ast import Op, Access, Declaration, Assignment, AbstractLoop, Cons
 from pattern_normalizer import normalize_pattern, greater_eq_const_name, less_eq_const_name
 import random
 from loguru import logger
+from variable_map import validate_var_map
+from pathlib import Path
+import os
 
 class IdGenerator:
     def __init__(self, current=0):
@@ -221,6 +224,23 @@ def generate(pattern_info):
                       pattern_info.data_consts,
                       pattern_info.loop_vars)
     return node, id_gen.current
+
+def generate_pattern(pattern_info, var_map=None, max_tries=10):
+    for _ in range(max_tries):
+        pattern, _ = generate(pattern_info)
+        if var_map is None or validate_var_map(pattern, var_map):
+            return pattern
+    return None
+
+def write_pattern_to_file(pattern, path):
+    with open(path, 'w') as f:
+        f.write(pattern.pprint())
+
+def write_patterns_to_dir(pattern_name_pairs, output_dir):
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    for pattern, name in pattern_name_pairs:
+        pattern_path = os.path.join(output_dir, f'{name}.pattern')
+        write_pattern_to_file(pattern, pattern_path)
 
 # import os
 # n_patterns = 10

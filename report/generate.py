@@ -7,15 +7,15 @@ from scipy.stats import tmean
 from compilers import compilers
 import os
 
-import runtime
-import vector_speedup
-import cost_model
-import vectorizable
-import peer_speedup
-import peer_rank
+import report.runtime
+import report.vector_speedup
+import report.vectorizable
+import report.cost_model
+import report.peer_speedup
+import report.peer_rank
 
-from peer_metrics import is_approximate_key, x_approximates_y_key
-from vector_rate import get_vector_rate_stats
+from report.peer_metrics import is_approximate_key, x_approximates_y_key
+from report.vector_rate import get_vector_rate_stats
 
 from build import PathBuilder
 
@@ -84,7 +84,7 @@ def compute_file_md5(path):
         m.update(f.read().encode('utf-8'))
         return m.digest()
 
-def generate_report():
+def get_ok_patterns():
     n_samples = 0
     n_ok_samples = 0
     n_fpe_samples = 0
@@ -123,11 +123,15 @@ def generate_report():
           f'Duplicate mutations: {n_duplicate_mutations}\n'
           f'Singleton mutations: {n_singleton_mutations}\n'
           f'Remaining mutations included in experiment: {n_ok_samples}\n')
+    return ok_patterns
+
+def generate_report():
+    ok_patterns = get_ok_patterns()
     runtimes = read_runtimes_database(ok_patterns)
 
     interesting_mutations = set()
 
-    runtime_stats = runtime.get_stats(runtimes)
+    runtime_stats = report.runtime.get_stats(runtimes)
 
     ci_table_1 = []
     cases_table_1 = []
@@ -139,10 +143,10 @@ def generate_report():
     cases_table_1.append(
         runtime_stats.format_interesting_case_row('runtime',
                                                   compiler_order,
-                                                  runtime.format_raw))
-    interesting_mutations.update(runtime.get_paths(runtime_stats))
+                                                  report.runtime.format_raw))
+    interesting_mutations.update(report.runtime.get_paths(runtime_stats))
 
-    vec_speedup_stats = vector_speedup.get_stats(runtimes)
+    vec_speedup_stats = report.vector_speedup.get_stats(runtimes)
 
     ci_table_1.append(
         vec_speedup_stats.format_ci_row('vec speedup stability',
@@ -150,29 +154,29 @@ def generate_report():
     cases_table_1.append(
         vec_speedup_stats.format_interesting_case_row('vector speedup',
                                                       compiler_order,
-                                                      vector_speedup.format_raw))
-    interesting_mutations.update(vector_speedup.get_paths(vec_speedup_stats))
+                                                      report.vector_speedup.format_raw))
+    interesting_mutations.update(report.vector_speedup.get_paths(vec_speedup_stats))
 
-    vectorizable_stats = vectorizable.get_stats(runtimes)
+    vectorizable_stats = report.vectorizable.get_stats(runtimes)
     ci_table_1.append(
         vectorizable_stats.format_ci_row('vectorizability stability',
                                          [c for c in compiler_order]))
 
-    cost_model_stats = cost_model.get_stats(runtimes)
+    cost_model_stats = report.cost_model.get_stats(runtimes)
     ci_table_1.append(cost_model_stats.format_ci_row('cost model stability', compiler_order))
     cases_table_1.append(
         cost_model_stats.format_interesting_case_row('cost model',
                                                      compiler_order,
-                                                     cost_model.format_raw))
+                                                     report.cost_model.format_raw))
 
-    interesting_mutations.update(cost_model.get_paths(cost_model_stats))
+    interesting_mutations.update(report.cost_model.get_paths(cost_model_stats))
 
     peer_table_map = {}
     peer_cases_map = {}
 
-    peer_speedup_stats = peer_speedup.get_stats(runtimes)
+    peer_speedup_stats = report.peer_speedup.get_stats(runtimes)
 
-    peer_rank_stats = peer_rank.get_stats(runtimes)
+    peer_rank_stats = report.peer_rank.get_stats(runtimes)
     compiler_pair_keys = {*peer_speedup_stats.keys(),
                           *peer_rank_stats.keys()}
 
@@ -190,10 +194,10 @@ def generate_report():
         peer_case = peer_speedup_stats.format_interesting_case_row(
             'peer speedup',
             pair_order,
-            peer_speedup.format_raw)
+            report.peer_speedup.format_raw)
         peer_cases_map[compiler] = (peer_case, pair_order)
 
-    interesting_mutations.update(peer_speedup.get_paths(peer_speedup_stats))
+    interesting_mutations.update(report.peer_speedup.get_paths(peer_speedup_stats))
 
     approximates_table = []
     approximate_keys = [key for key in compiler_pair_order

@@ -4,7 +4,7 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats
-from util import merge_value, update_dict_dict
+from report.util import merge_value, update_dict_dict
 
 vectorizable_threshold = 1.00
 def get_normalized_vectorizables(runtimes):

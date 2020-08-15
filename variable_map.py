@@ -2,6 +2,7 @@ from abstract_ast import get_accesses, get_loops, Access, Op, ConstReplacer
 from random import randint, choice, shuffle
 from loguru import logger
 from dependence_analysis import expr_to_cexpr
+from copy import deepcopy
 
 class Limit:
     def __init__(self, min_val=None, max_val=None):
@@ -185,6 +186,9 @@ class Instance:
         for name in sorted(self.array_sizes.keys()):
             lines.append(f'Array {name}: {self.array_sizes[name]}')
         return '\n'.join(lines)
+    def clone(self):
+        return Instance(self.pattern.clone(),
+                        deepcopy(self.array_sizes))
 
 def get_scalar_cvars(pattern):
     cvars = {}
@@ -194,9 +198,9 @@ def get_scalar_cvars(pattern):
                 cvars[access.var] = Int(access.var)
     return cvars
 
-def create_instance(program, var_map, max_tries=10000):
+def create_instance(pattern, var_map, max_tries=10000):
     def randomly_replace_consts():
-        cloned = program.clone()
+        cloned = pattern.clone()
         replace_map = {}
         for const in cloned.consts:
             var = const.name

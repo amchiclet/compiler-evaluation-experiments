@@ -1,13 +1,15 @@
 from build import PathBuilder
 from simple_formatter import SimpleFormatter
 from loguru import logger
+from pathlib import Path
+import os
 
 class CodeGen:
     def __init__(self, output_dir):
         self.output_dir = output_dir
-        from pathlib import Path
+
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        import os
+
         dodo_path = f'{output_dir}/dodo.py'
         if not os.path.exists(dodo_path):
             os.symlink('../dodo.py', dodo_path)
@@ -34,11 +36,11 @@ class CodeGen:
     def generate_pattern_file(self, patterns_map):
         patterns = []
         for pattern in sorted(patterns_map.keys()):
-            programs = []
-            for program in sorted(patterns_map[pattern].keys()):
-                mutations = sorted(patterns_map[pattern][program])
-                programs.append((program, mutations))
-            patterns.append((pattern, programs))
+            instances = []
+            for instance in sorted(patterns_map[pattern].keys()):
+                mutations = sorted(patterns_map[pattern][instance])
+                instances.append((instance, mutations))
+            patterns.append((pattern, instances))
 
         # Print out the patterns for the build script to work
         # once this is serializable, then we will be able to iterate through mutations

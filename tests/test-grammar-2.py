@@ -32,6 +32,7 @@ for [i1, i2, i3] {
   B[a3 * i3 - b2] = B[a3 * i1 - b2] * f1;
 }
 """
+
 ast, _ = parse_str(code)
 print(ast.pprint())
 var_map = VariableMap()
@@ -49,8 +50,10 @@ for v in ['i1', 'i2', 'i3']:
 
 print(var_map.pprint())
 print(validate_var_map(ast, var_map))
+
 instance = create_instance(ast, var_map)
 print(instance.pprint())
+
 # dep_graph = analyze_dependence(instance.pattern)
 # print(dep_graph.pprint())
 
