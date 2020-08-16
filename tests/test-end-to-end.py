@@ -68,9 +68,9 @@ codegen = CodeGen(output_dir)
 
 pattern_info = create_pattern_info()
 var_map = create_var_map()
-max_patterns = 2
-max_instances = 2
-max_mutations = 2
+max_patterns = 20
+max_instances = 10
+max_mutations = 6
 pattern_name_pairs = []
 patterns = {}
 for p in range(max_patterns):
