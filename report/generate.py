@@ -13,39 +13,45 @@ import report.vectorizable
 import report.cost_model
 import report.peer_speedup
 import report.peer_rank
+import importlib.util
 
 from report.peer_metrics import is_approximate_key, x_approximates_y_key
 from report.vector_rate import get_vector_rate_stats
 
 from build import PathBuilder
 
-def import_patterns():
-    import sys
-    base_dir = os.getcwd()
-    sys.path = [base_dir] + sys.path
-    from patterns import patterns
-    return patterns
+def import_patterns(base_dir=None):
+    if base_dir is None:
+        base_dir = os.getcwd()
+    spec = importlib.util.spec_from_file_location('patterns', f'{base_dir}/patterns.py')
+    foo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(foo)
+    return foo.patterns
 
-def import_blacklist():
-    import sys
-    base_dir = os.getcwd()
-    sys.path = [base_dir] + sys.path
-    if os.path.exists('blacklist.py'):
-        from blacklist import blacklist
-        return blacklist
+def import_blacklist(base_dir):
+    if base_dir is None:
+        base_dir = os.getcwd()
+    path = f'{base_dir}/blacklist.py'
+    if os.path.exists(path):
+        spec = importlib.util.spec_from_file_location('blacklist', path)
+        foo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(foo)
+        return foo.blacklist
     else:
         return []
 
 from multiprocessing import Pool, Manager
 from functools import partial
 
-def read_runtime(key):
+def read_runtime(base_dir, key):
     path = PathBuilder(*key).runtimes_ns_path()
-    if os.path.exists(path):
-        with open(path) as f:
+    full_path = f'{base_dir}/{path}'
+    if os.path.exists(full_path):
+        with open(full_path) as f:
             runtimes_str = f.read()
             runtime = tmean(list(map(int, runtimes_str.split())))
             return (key, runtime)
+    raise RuntimeError(f'File not found {full_path}')
 
 def read_vector_rate(key):
     path = PathBuilder(*key).vector_rate_path()
@@ -59,8 +65,9 @@ def mutations(patterns):
         for pattern, program, mutation in iterate_mutations(patterns):
             yield compiler, mode, pattern, program, mutation
 
-def read_runtimes_database(patterns):
-    return dict(Pool().map(read_runtime, mutations(patterns)))
+def read_runtimes_database(base_dir, patterns):
+    f = partial(read_runtime, base_dir)
+    return dict(Pool().map(f, mutations(patterns)))
 
 def read_vector_rates_database(patterns):
     return dict(Pool().map(read_vector_rate, mutations(patterns)))
@@ -84,15 +91,15 @@ def compute_file_md5(path):
         m.update(f.read().encode('utf-8'))
         return m.digest()
 
-def get_ok_patterns():
+def get_ok_patterns(base_dir):
     n_samples = 0
     n_ok_samples = 0
     n_fpe_samples = 0
     n_duplicate_mutations = 0
     n_singleton_mutations = 0
 
-    patterns = import_patterns()
-    blacklist = import_blacklist()
+    patterns = import_patterns(base_dir)
+    blacklist = import_blacklist(base_dir)
     ok_patterns = []
     hashes = set()
     for p, instances in patterns:
@@ -102,7 +109,8 @@ def get_ok_patterns():
                 ok_mutations = []
                 for m in mutations:
                     pb = PathBuilder(pattern=p, program=i, mutation=m)
-                    filehash = compute_file_md5(pb.core_path())
+                    full_path = f'{base_dir}/{pb.core_path()}'
+                    filehash = compute_file_md5(full_path)
                     if filehash not in hashes:
                         hashes.add(filehash)
                         ok_mutations.append(m)
@@ -125,9 +133,11 @@ def get_ok_patterns():
           f'Remaining mutations included in experiment: {n_ok_samples}\n')
     return ok_patterns
 
-def generate_report():
-    ok_patterns = get_ok_patterns()
-    runtimes = read_runtimes_database(ok_patterns)
+def generate_report(base_dir=None):
+    if base_dir is None:
+        base_dir = os.getcwd()
+    ok_patterns = get_ok_patterns(base_dir)
+    runtimes = read_runtimes_database(base_dir, ok_patterns)
 
     interesting_mutations = set()
 
@@ -277,4 +287,5 @@ def generate_report():
     # vector_rate_stats = get_vector_rate_stats(vector_rates)
     # print(vector_rate_stats.pprint())
 
-generate_report()
+if __name__ == '__main__':
+    generate_report()

@@ -10,12 +10,15 @@ class CodeGen:
 
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+        root_dir = os.path.dirname(os.path.abspath(__file__))
+        src_dodo_path= f'{root_dir}/dodo.py'
         dodo_path = f'{output_dir}/dodo.py'
         if not os.path.exists(dodo_path):
-            os.symlink('../dodo.py', dodo_path)
+            os.symlink(src_dodo_path, dodo_path)
+        src_main_c_path = f'{root_dir}/main.c'
         main_c_path = f'{output_dir}/main.c'
         if not os.path.exists(main_c_path):
-            os.symlink('../main.c', main_c_path)
+            os.symlink(src_main_c_path, main_c_path)
 
     def generate_wrapper(self, pattern_str, instance_str, instance):
         pb = PathBuilder(pattern=pattern_str, program=instance_str)
