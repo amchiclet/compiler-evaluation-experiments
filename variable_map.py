@@ -53,7 +53,7 @@ class VariableMap:
             lines.append(f'Variable {var} range [{limit.min_val}, {limit.max_val}]')
         return '\n'.join(lines)
 
-from z3 import Solver, Int, unsat, Optimize, sat, Or
+from z3 import Solver, Int, unsat, Optimize, sat, Or, And, Not
 
 def affine_to_cexpr(affine, cvars):
     if not affine.var:
@@ -228,15 +228,24 @@ def create_instance(pattern, var_map, max_tries=10000):
             loop_shape_constraints += generate_loop_shape_constraints(loop.loop_shapes,
                                                                       cvars,
                                                                       cloned_var_map)
-        constraints = index_constraints + loop_shape_constraints
 
+        assert(len(index_constraints) > 0)
+        conj_index_constraints = index_constraints[0]
+        for i in index_constraints[1:]:
+            conj_index_constraints = And(conj_index_constraints, i)
+        invert_index_constraints = Not(conj_index_constraints)
+        constraints = [invert_index_constraints] + loop_shape_constraints
         solver = Solver()
         solver.add(constraints)
         status = solver.check()
         if status == unsat:
-            logger.debug('unsat retrying')
+            logger.debug('sat retrying')
             logger.debug('\n'.join(map(str, constraints)))
             return None
+        else:
+            logger.debug('These constraints passed')
+            logger.debug('\n'.join(map(str, constraints)))
+        constraints = index_constraints + loop_shape_constraints
         array_sizes = determine_array_sizes(random_pattern.decls,
                                             accesses, cvars,
                                             constraints,
