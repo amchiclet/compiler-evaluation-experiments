@@ -92,7 +92,9 @@ class Literal(Node):
 class Assignment(Node):
     def __init__(self, lhs, rhs, node_id=0):
         self.node_id = node_id
+        assert(type(lhs) == Access)
         self.lhs = lhs
+        self.lhs.is_write = True
         self.rhs = rhs
         self.surrounding_loop = None
         for access in get_accesses(self):

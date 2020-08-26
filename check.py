@@ -52,7 +52,7 @@ for (pattern, program), checksums in checksums_db.items():
     elif len(outliers) > 0:
         print(distribution)
         print(f'FAIL: {pattern} {program} (checksums do not match)')
-        print('\n'.join([format_mutation(m) for (_, m) in outliers]))
+        print('\n'.join([f'{format_mutation(m)} ({v})' for (v, m) in outliers]))
         blacklist.append((pattern, program))
     else:
         print(f'PASS: {pattern} {program}')

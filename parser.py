@@ -130,10 +130,7 @@ class TreeSimplifier(Transformer):
         return args[0]
 
     def assignment(self, args):
-        lhs = args[0]
-        assert(isinstance(lhs, Access))
-        lhs.is_write = True
-        return Assignment(lhs, args[1], self.next_node_id())
+        return Assignment(args[0], args[1], self.next_node_id())
     def statement(self, args):
         stmt = args[0]
         return stmt
