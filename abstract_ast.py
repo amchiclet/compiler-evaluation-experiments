@@ -268,7 +268,17 @@ class LoopShape(Node):
         self.less_eq = replace(self.less_eq, replacer)
         self.step = replace(self.step, replacer)
 
-class AbstractLoop(Node):
+class LoopTrait:
+    def find_stmt(self, stmt):
+        return self.body.index(stmt)
+    def remove_stmt(self, stmt):
+        self.body.remove(stmt)
+    def insert_stmts(self, i, stmts):
+        self.body[i:i] = stmts
+        for stmt in stmts:
+            stmt.surrounding_loop = self
+
+class AbstractLoop(Node, LoopTrait):
     def __init__(self, loop_shapes, body, node_id=0):
         self.node_id = node_id
         self.loop_shapes = loop_shapes
@@ -276,9 +286,6 @@ class AbstractLoop(Node):
         self.surrounding_loop = None
         for stmt in body:
             stmt.surrounding_loop = self
-
-        # To be used for strip mining
-        self.partial_loop_order = []
 
     def cprint_recursive(self, depth, indent=0):
         if depth == len(self.loop_shapes):
@@ -337,7 +344,7 @@ class Op(Node):
     def precedence(self):
         if len(self.args) == 1:
             return 100
-        if self.op in ['*', '/']:
+        if self.op in ['*', '/', '%']:
             return 99
         if self.op in ['+', '-']:
             return 98
@@ -398,7 +405,7 @@ class Op(Node):
     def replace(self, replacer):
         self.args = replace_each(self.args, replacer)
 
-class Program:
+class Program(Node, LoopTrait):
     def __init__(self, decls, body, consts, node_id=0):
         self.node_id = node_id
         self.decls = decls
