@@ -238,13 +238,12 @@ def create_instance(pattern, var_map, max_tries=10000):
         solver = Solver()
         solver.add(constraints)
         status = solver.check()
-        if status == unsat:
-            logger.debug('sat retrying')
+        if status != unsat:
+            logger.debug('Constraints are not unsatisfiable. '
+                         'May result in index out of bound')
             logger.debug('\n'.join(map(str, constraints)))
             return None
-        else:
-            logger.debug('These constraints passed')
-            logger.debug('\n'.join(map(str, constraints)))
+
         constraints = index_constraints + loop_shape_constraints
         array_sizes = determine_array_sizes(random_pattern.decls,
                                             accesses, cvars,
