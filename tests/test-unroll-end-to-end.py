@@ -5,18 +5,7 @@ from codegen import CodeGen
 from pattern_generator import generate_pattern, PatternInfo, write_patterns_to_dir
 from loguru import logger
 from abstract_ast import Declaration
-
-def init_logger():
-    import sys
-    logger.remove()
-    logger.add(sys.stdout, level='INFO')
-    logger.add(sink = f'test-grammar-2.log',
-               level = 'INFO',
-               format = ('{process.name} | '
-                         '{time:YYYYMMDD_HH:mm:ss.SSS} | '
-                         '{file}:{function}:{line} | '
-                         '{message}'),
-               enqueue = True)
+from log_util import init_logger
 
 def create_pattern_info():
     mul_consts = ['a1', 'a2', 'a3']
@@ -63,9 +52,10 @@ def generate_mutation(instance):
     from transformers.loop_unroll import LoopUnroll
     yield from LoopUnroll().transform(instance)
 
-init_logger()
+
 
 root_dir = 'unroll-experiment'
+init_logger(f'{root_dir}/log.txt')
 pattern_dir = f'{root_dir}/temp-generated-patterns'
 output_dir = f'{root_dir}/temp-generated-code'
 codegen = CodeGen(output_dir)
