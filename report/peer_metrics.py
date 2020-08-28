@@ -5,6 +5,12 @@ from report.util import \
     get_paths_for_pair, \
     format_spread_pair
 
+def is_faster_mention(key, c):
+    return f'{c}>' in key
+
+def is_approximate_mention(key, c):
+    return '~' in key and c in key
+
 def x_faster_than_y_key(x, y):
     return f'{x}>{y}'
 

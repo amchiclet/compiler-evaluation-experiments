@@ -60,7 +60,6 @@ grammar = '''
 '''
 
 from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder
-from loguru import logger
 
 class TreeSimplifier(Transformer):
     def __init__(self, start_node_id=0):
@@ -151,7 +150,6 @@ class TreeSimplifier(Transformer):
     def multi_loop_shape(self, args):
         return args[0]
     def loop_shape_parts(self, args):
-        logger.info(args)
         merged = None
         for loop_shape_builder in args:
             if merged is None:

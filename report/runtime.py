@@ -3,8 +3,10 @@ from stats import \
     calculate_ci_proportion, \
     create_min_max_cases, \
     create_max_spread_cases, \
-    Stats
+    Stats, \
+    geometric_mean
 from report.util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair
+import plot
 
 def get_normalized_runtimes(runtimes):
     best_mutations = {}
@@ -22,6 +24,19 @@ def get_normalized_runtimes(runtimes):
             outliers.merge(key, normalized[key], (runtime, key[-3:]))
 
     return normalized, outliers
+
+def plot_normalized_runtimes(runtimes):
+    compilers = set()
+    normalized, _ = get_normalized_runtimes(runtimes)
+    grouped = {}
+    for (compiler, pattern, program, mutation), runtime in normalized.items():
+        update_dict_array(grouped, compiler, runtime)
+        compilers.add(compiler)
+
+    for compiler in sorted(list(compilers)):
+        filtered = {k:v for k,v in grouped.items() if k == compiler}
+        plot.add_dict_array(filtered, geometric_mean, b=10000, min_val=0, max_val=1)
+        plot.display_plot(f'{compiler} runtime stability')
 
 def get_stats(runtimes):
     normalized, outliers = get_normalized_runtimes(runtimes)

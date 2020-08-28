@@ -139,57 +139,42 @@ def generate_report(base_dir=None):
     ok_patterns = get_ok_patterns(base_dir)
     runtimes = read_runtimes_database(base_dir, ok_patterns)
 
-    interesting_mutations = set()
+    report.runtime.plot_normalized_runtimes(runtimes)
+    report.vector_speedup.plot_vec_speedups(runtimes)
+    report.vectorizable.plot_vectorizables(runtimes)
+    report.cost_model.plot_cost_model(runtimes)
+    report.peer_speedup.plot_peer_speedups(runtimes)
+    report.peer_rank.plot_rank_counts(runtimes)
 
     runtime_stats = report.runtime.get_stats(runtimes)
+    vec_speedup_stats = report.vector_speedup.get_stats(runtimes)
+    vectorizable_stats = report.vectorizable.get_stats(runtimes)
+    cost_model_stats = report.cost_model.get_stats(runtimes)
+    peer_speedup_stats = report.peer_speedup.get_stats(runtimes)
+    peer_rank_stats = report.peer_rank.get_stats(runtimes)
 
-    ci_table_1 = []
-    cases_table_1 = []
     compiler_order = sorted(runtime_stats.keys())
 
+    ci_table_1 = []
+    table_1_header = ['', *[c for c in compiler_order]]
     ci_table_1.append(
         runtime_stats.format_ci_row('runtime stability',
                                     compiler_order))
-    cases_table_1.append(
-        runtime_stats.format_interesting_case_row('runtime',
-                                                  compiler_order,
-                                                  report.runtime.format_raw))
-    interesting_mutations.update(report.runtime.get_paths(runtime_stats))
-
-    vec_speedup_stats = report.vector_speedup.get_stats(runtimes)
-
     ci_table_1.append(
         vec_speedup_stats.format_ci_row('vec speedup stability',
                                         compiler_order))
-    cases_table_1.append(
-        vec_speedup_stats.format_interesting_case_row('vector speedup',
-                                                      compiler_order,
-                                                      report.vector_speedup.format_raw))
-    interesting_mutations.update(report.vector_speedup.get_paths(vec_speedup_stats))
-
-    vectorizable_stats = report.vectorizable.get_stats(runtimes)
     ci_table_1.append(
         vectorizable_stats.format_ci_row('vectorizability stability',
                                          [c for c in compiler_order]))
-
-    cost_model_stats = report.cost_model.get_stats(runtimes)
     ci_table_1.append(cost_model_stats.format_ci_row('cost model stability', compiler_order))
-    cases_table_1.append(
-        cost_model_stats.format_interesting_case_row('cost model',
-                                                     compiler_order,
-                                                     report.cost_model.format_raw))
-
-    interesting_mutations.update(report.cost_model.get_paths(cost_model_stats))
+    print('Confidence intervals\n')
+    print(tabulate(ci_table_1, headers=table_1_header))
+    print()
 
     peer_table_map = {}
     peer_cases_map = {}
-
-    peer_speedup_stats = report.peer_speedup.get_stats(runtimes)
-
-    peer_rank_stats = report.peer_rank.get_stats(runtimes)
     compiler_pair_keys = {*peer_speedup_stats.keys(),
                           *peer_rank_stats.keys()}
-
     compiler_pair_order = sorted(list(compiler_pair_keys))
     for compiler in compilers:
         peer_table = []
@@ -207,8 +192,6 @@ def generate_report(base_dir=None):
             report.peer_speedup.format_raw)
         peer_cases_map[compiler] = (peer_case, pair_order)
 
-    interesting_mutations.update(report.peer_speedup.get_paths(peer_speedup_stats))
-
     approximates_table = []
     approximate_keys = [key for key in compiler_pair_order
                         if is_approximate_key(key)]
@@ -218,12 +201,6 @@ def generate_report(base_dir=None):
         peer_rank_stats.format_ci_row('peer proportion',
                                       approximate_keys))
 
-
-    table_1_header = ['', *[c for c in compiler_order]]
-
-    print('Confidence intervals\n')
-    print(tabulate(ci_table_1, headers=table_1_header))
-    print()
     for compiler in compilers:
         peer_table, pair_order = peer_table_map[compiler]
         header = ['', *pair_order]
@@ -232,6 +209,20 @@ def generate_report(base_dir=None):
     approximate_header = ['', *approximate_keys]
     print(tabulate(approximates_table, headers=approximate_header))
     print()
+
+    cases_table_1 = []
+    cases_table_1.append(
+        runtime_stats.format_interesting_case_row('runtime',
+                                                  compiler_order,
+                                                  report.runtime.format_raw))
+    cases_table_1.append(
+        vec_speedup_stats.format_interesting_case_row('vector speedup',
+                                                      compiler_order,
+                                                      report.vector_speedup.format_raw))
+    cases_table_1.append(
+        cost_model_stats.format_interesting_case_row('cost model',
+                                                     compiler_order,
+                                                     report.cost_model.format_raw))
 
     print('Interesting cases')
     print()
@@ -243,22 +234,13 @@ def generate_report(base_dir=None):
         print(tabulate([peer_case], headers=header))
         print()
 
+    interesting_mutations = set()
+    interesting_mutations.update(report.runtime.get_paths(runtime_stats))
+    interesting_mutations.update(report.vector_speedup.get_paths(vec_speedup_stats))
+    interesting_mutations.update(report.cost_model.get_paths(cost_model_stats))
+    interesting_mutations.update(report.peer_speedup.get_paths(peer_speedup_stats))
     print('Raw runtimes')
     print()
-    # rows = []
-    # header = ['mutation-id']
-    # for compiler, mode in iterate_compiler_modes():
-    #     header.append(f'{compiler}-{mode}')
-    # sorted_mutation_ids = sorted(list(interesting_mutations))
-    # for (pattern, program, mutation) in sorted_mutation_ids:
-    #     row = [(pattern, program, mutation)]
-    #     for compiler, mode in iterate_compiler_modes():
-    #         key = (compiler, mode, pattern, program, mutation)
-    #         row.append(runtimes[key])
-    #     rows.append(row)
-
-    # print(tabulate(rows, headers=header, floatfmt='.2f'))
-
     sorted_mutation_ids = sorted(list(interesting_mutations))
     for compiler in compilers:
         rows = []

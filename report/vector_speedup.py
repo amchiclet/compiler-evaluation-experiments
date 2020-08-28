@@ -3,12 +3,16 @@ from stats import \
     calculate_ci_proportion, \
     create_min_max_cases, \
     create_max_spread_cases, \
-    Stats
+    Stats, \
+    geometric_mean
+import plot
 from report.util import update_dict_dict, merge_value, update_dict_array, get_paths_for_pair, format_spread_pair
 
-def get_normalized_vec_speedups(runtimes):
+def get_vec_speedups(runtimes):
+    compilers = set()
     grouped = {}
     for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        compilers.add(compiler)
         key = (compiler, pattern, program, mutation)
         update_dict_dict(grouped, key, mode, runtime)
 
@@ -16,11 +20,13 @@ def get_normalized_vec_speedups(runtimes):
     for key, mode_runtimes in grouped.items():
         if 'novec' in mode_runtimes and 'fast' in mode_runtimes:
             speedups[key] = mode_runtimes['novec'] / mode_runtimes['fast']
-
     best_speedups = {}
     for key, speedup in speedups.items():
         merge_value(best_speedups, key[:-1], speedup, max)
+    return compilers, speedups, best_speedups
 
+def get_normalized_vec_speedups(runtimes):
+    compilers, speedups, best_speedups = get_vec_speedups(runtimes)
     outliers = create_min_max_cases()
     normalized = {}
     for key, speedup in speedups.items():
@@ -28,6 +34,19 @@ def get_normalized_vec_speedups(runtimes):
         outliers.merge(key, normalized[key], (speedup, key[-3:]))
 
     return normalized, outliers
+
+def plot_vec_speedups(runtimes):
+    compilers = set()
+    normalized, _ = get_normalized_vec_speedups(runtimes)
+    grouped = {}
+    for (compiler, pattern, program, mutation), runtime in normalized.items():
+        update_dict_array(grouped, compiler, runtime)
+        compilers.add(compiler)
+
+    for compiler in sorted(list(compilers)):
+        filtered = {k:v for k,v in grouped.items() if k == compiler}
+        plot.add_dict_array(filtered, geometric_mean, b=10000, min_val=0, max_val=1)
+        plot.display_plot(f'{compiler} vector speedup stability')
 
 def get_raw_outliers(runtimes):
     grouped = {}

@@ -3,8 +3,10 @@ from stats import \
     calculate_ci_proportion, \
     create_min_max_cases, \
     create_max_spread_cases, \
-    Stats
+    Stats, \
+    arithmetic_mean
 from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation
+import plot
 
 def get_normalized_cost_model_performance(runtimes):
     grouped = {}
@@ -14,16 +16,16 @@ def get_normalized_cost_model_performance(runtimes):
         key = (compiler, pattern, program, mutation)
         update_dict_dict(grouped, key, mode, runtime)
 
+    best_nopredict = {}
+    for (compiler, mode, *rest), runtime in runtimes.items():
+        if mode == 'nopredict':
+            merge_value(best_nopredict, (compiler, *rest[:-1]), runtime, min)
+
     n_cost_model_good = {}
     n_total_mutations = {}
     for compiler in compilers:
         n_cost_model_good[compiler] = 0
         n_total_mutations[compiler] = 0
-
-    best_nopredict = {}
-    for (compiler, mode, *rest), runtime in runtimes.items():
-        if mode == 'nopredict':
-            merge_value(best_nopredict, (compiler, *rest[:-1]), runtime, min)
 
     outliers = create_max_spread_cases()
 
@@ -46,6 +48,32 @@ def get_normalized_cost_model_performance(runtimes):
             normalized[key] = (n_cost_model_good[key], n_total)
 
     return normalized, outliers
+
+def plot_cost_model(runtimes):
+    grouped = {}
+    compilers = set()
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        compilers.add(compiler)
+        key = (compiler, pattern, program, mutation)
+        update_dict_dict(grouped, key, mode, runtime)
+
+    n_cost_model_good = {}
+    for compiler in compilers:
+        n_cost_model_good[compiler] = []
+
+    for (compiler, *rest), mode_runtimes in grouped.items():
+        if 'nopredict' in mode_runtimes and 'fast' in mode_runtimes:
+            with_cost_model = mode_runtimes['fast']
+            without_cost_model = mode_runtimes['nopredict']
+            is_good = without_cost_model >= with_cost_model * 0.95
+            n_cost_model_good[compiler].append(1 if is_good else 0)
+
+    for compiler in sorted(list(compilers)):
+        filtered = {}
+        filtered[compiler] = n_cost_model_good[compiler]
+        if plot.check_samples(f'cost model {compiler}', filtered[compiler]):
+            plot.add_dict_array(filtered, arithmetic_mean, b=10000, min_val=0, max_val=1)
+            plot.display_plot(f'{compiler} cost model stability')
 
 def get_stats(runtimes):
     normalized, outliers = get_normalized_cost_model_performance(runtimes)

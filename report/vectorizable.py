@@ -3,26 +3,16 @@ from stats import \
     calculate_ci_proportion, \
     create_min_max_cases, \
     create_max_spread_cases, \
-    Stats
+    Stats, \
+    arithmetic_mean
 from report.util import merge_value, update_dict_dict
+from report.vector_speedup import get_vec_speedups
+import plot
 
-vectorizable_threshold = 1.00
+vectorizable_threshold = 1.15
+
 def get_normalized_vectorizables(runtimes):
-    compilers = set()
-    grouped = {}
-    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
-        compilers.add(compiler)
-        key = (compiler, pattern, program, mutation)
-        update_dict_dict(grouped, key, mode, runtime)
-
-    speedups = {}
-    for key, mode_runtimes in grouped.items():
-        if 'novec' in mode_runtimes and 'fast' in mode_runtimes:
-            speedups[key] = mode_runtimes['novec'] / mode_runtimes['fast']
-
-    best_speedups = {}
-    for key, speedup in speedups.items():
-        merge_value(best_speedups, key[:-1], speedup, max)
+    compilers, speedups, best_speedups = get_vec_speedups(runtimes)
 
     n_vectorizables = {}
     n_actually_vectorized = {}
@@ -44,6 +34,26 @@ def get_normalized_vectorizables(runtimes):
             normalized[key] = (n_actually_vectorized[key], n_total)
 
     return normalized
+
+def plot_vectorizables(runtimes):
+    compilers, speedups, best_speedups = get_vec_speedups(runtimes)
+
+    n_actually_vectorized = {}
+    for c in compilers:
+        n_actually_vectorized[c] = []
+
+    for key, speedup in speedups.items():
+        compiler = key[0]
+        best_speedup = best_speedups[key[:-1]]
+        if best_speedup > vectorizable_threshold:
+            n_actually_vectorized[c].append(1 if speedup > vectorizable_threshold else 0)
+
+    for compiler in sorted(list(compilers)):
+        filtered = {}
+        filtered[compiler] = n_actually_vectorized[compiler]
+        if plot.check_samples(f'vectorizable {compiler}', filtered[compiler]):
+            plot.add_dict_array(filtered, arithmetic_mean, b=10000, min_val=0, max_val=1)
+            plot.display_plot(f'{compiler} vectorizability stability')
 
 def get_stats(runtimes):
     normalized = get_normalized_vectorizables(runtimes)
