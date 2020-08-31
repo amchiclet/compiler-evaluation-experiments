@@ -135,7 +135,7 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
                 sizes.append(max(1, cloned.get_min(var)))
             else:
                 sizes.append(1)
-        array_sizes[decl.name] = sizes
+        array_sizes[decl.name] = (decl.is_local, sizes)
 
     for access in accesses:
         for dimension, index in enumerate(access.indices):
@@ -153,8 +153,8 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
             # # Update the min value for the array size.
             # # Min array size must be large enough to
             # # hold the max index.
-            if max_val > array_sizes[access.var][dimension]:
-                array_sizes[access.var][dimension] = max_val
+            if max_val > array_sizes[access.var][1][dimension]:
+                array_sizes[access.var][1][dimension] = max_val
 
     return array_sizes
 
@@ -235,6 +235,7 @@ def create_instance(pattern, var_map, max_tries=10000):
             conj_index_constraints = And(conj_index_constraints, i)
         invert_index_constraints = Not(conj_index_constraints)
         constraints = [invert_index_constraints] + loop_shape_constraints
+
         solver = Solver()
         solver.add(constraints)
         status = solver.check()
@@ -245,6 +246,15 @@ def create_instance(pattern, var_map, max_tries=10000):
             return None
 
         constraints = index_constraints + loop_shape_constraints
+        solver = Solver()
+        solver.add(constraints)
+        status = solver.check()
+        if status == unsat:
+            logger.debug('Constraints are not satisfiable. '
+                         'May result in no iterations')
+            logger.debug('\n'.join(map(str, constraints)))
+            return None
+
         array_sizes = determine_array_sizes(random_pattern.decls,
                                             accesses, cvars,
                                             constraints,

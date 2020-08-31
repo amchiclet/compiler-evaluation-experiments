@@ -51,6 +51,10 @@ class SimpleFormatter:
                 brackets += f'[{size}]'
         return f'{ty} {name}{brackets}'
 
+    def array_local(self, ty, name, sizes):
+        brackets = ''.join([f'[{size}]' for size in sizes])
+        return f'{ty} {name}{brackets}'
+
     def array_decl(self, ty, name, sizes):
         ws = spaces(self.indent)
         return f'{ws}{ty} (*{name})' + (''.join([f'[{size}]' for size in sizes]) + ';')
@@ -61,7 +65,9 @@ class SimpleFormatter:
         lines.append('struct Data {')
         self.indent += 1
         for array in sorted(self.array_sizes.keys()):
-            lines.append(self.array_decl('float', array, self.array_sizes[array]))
+            is_local, sizes = self.array_sizes[array]
+            if not is_local:
+                lines.append(self.array_decl('float', array, sizes))
         self.indent -= 1
         lines.append('};')
         return '\n'.join(lines)
@@ -88,7 +94,9 @@ class SimpleFormatter:
 
         params = []
         for array in sorted(self.array_sizes.keys()):
-            params.append(self.array_param('float', array, self.array_sizes[array]))
+            is_local, sizes = self.array_sizes[array]
+            if not is_local:
+                params.append(self.array_param('float', array, sizes))
 
         lines.append(f'{ws}float checksum_inner({", ".join(params)}) {{')
 
@@ -97,7 +105,9 @@ class SimpleFormatter:
 
         lines.append(f'{ws}float total = 0.0;')
 
-        for array, sizes in self.array_sizes.items():
+        for array, (is_local, sizes) in self.array_sizes.items():
+            if is_local:
+                continue
             loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
             indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
             access = f'{array}{indices_str}'
@@ -117,24 +127,33 @@ class SimpleFormatter:
     def cast_data(self):
         ws = spaces(self.indent)
         return f'{ws}struct Data *data = (struct Data*)void_ptr;'
-    def return_inner(self, function_name):
+    def return_inner(self, function_name, scalar_as_array=False):
         ws = spaces(self.indent)
-        params = [f'*data->{field}' for field in sorted(self.array_sizes.keys())]
+        params = []
+        for array in sorted(self.array_sizes.keys()):
+            is_local, sizes = self.array_sizes[array]
+            if not is_local:
+                if len(sizes) == 0 and scalar_as_array:
+                    params.append(f'*(float (*)[1])data->{array}')
+                else:
+                    params.append(f'*data->{array}')
+
+        # params = [f'*data->{field}' for field in sorted(self.array_sizes.keys())]
         return f'{ws}return {function_name}({", ".join(params)});'
 
-    def wrapper(self, return_type, wrapper_name, inner_name):
+    def wrapper(self, return_type, wrapper_name, inner_name, scalar_as_array=False):
         lines = []
         ws = spaces(self.indent)
         lines.append(f'{ws}{return_type} {wrapper_name}(void *void_ptr) {{')
         self.indent += 1
         lines.append(self.cast_data())
-        lines.append(self.return_inner(inner_name))
+        lines.append(self.return_inner(inner_name, scalar_as_array))
         self.indent -= 1
         lines.append(f'{ws}}};')
         return '\n'.join(lines)
 
     def init(self):
-        return self.wrapper('int', 'init', 'init_inner')
+        return self.wrapper('int', 'init', 'init_inner', scalar_as_array=True)
     def checksum(self):
         return self.wrapper('float', 'checksum', 'checksum_inner')
     def kernel(self):
@@ -142,7 +161,9 @@ class SimpleFormatter:
     def declare_core(self):
         params = []
         for array in sorted(self.array_sizes.keys()):
-            params.append(self.array_param('float', array, self.array_sizes[array]))
+            is_local, sizes = self.array_sizes[array]
+            if not is_local:
+                params.append(self.array_param('float', array, sizes))
         ws = spaces(self.indent)
         return f'{ws}unsigned long long core({", ".join(params)});'
     def array_allocate(self, ty, arrays, sizes):
@@ -200,8 +221,10 @@ class SimpleFormatter:
         ws = spaces(self.indent)
         lines.append(f'{ws}struct Data *data = malloc(sizeof(struct Data));')
         for array in sorted(self.array_sizes.keys()):
-            lhs = f'data->{array}'
-            lines.append(self.array_allocate('float', [lhs], self.array_sizes[array]))
+            is_local, sizes = self.array_sizes[array]
+            if not is_local:
+                lhs = f'data->{array}'
+                lines.append(self.array_allocate('float', [lhs], sizes))
         lines.append(f'{ws}return (void*)data;')
         self.indent -= 1
         lines.append('}')
@@ -215,7 +238,12 @@ class SimpleFormatter:
         # array parameters
         params = []
         for array in sorted(self.array_sizes.keys()):
-            params.append(self.array_param('float', array, self.array_sizes[array]))
+            is_local, sizes = self.array_sizes[array]
+            if not is_local:
+                if len(sizes) == 0:
+                    params.append(self.array_param('float', array, [1]))
+                else:
+                    params.append(self.array_param('float', array, sizes))
         
         # function header
         lines.append(f'int init_inner({", ".join(params)}) {{')
@@ -227,8 +255,14 @@ class SimpleFormatter:
 
         init_value = 'frand(0.0, 1.0)'
         for array in sorted(self.array_sizes.keys()):
-            loop_ends = [size - 1 for size in self.array_sizes[array]]
-            lines.append(self.array_init('float', [array], loop_ends, init_value))
+            is_local, sizes = self.array_sizes[array]
+            if not is_local:
+                # for scalars, the initialization treats it as a one element array
+                if len(sizes) == 0:
+                    lines.append(self.array_init('float', [array], [0], init_value))
+                else:
+                    loop_ends = [size - 1 for size in sizes]
+                    lines.append(self.array_init('float', [array], loop_ends, init_value))
 
         lines.append(f'{ws}return 0;')
 
@@ -249,10 +283,17 @@ class SimpleFormatter:
 
         params = []
         for array in sorted(self.array_sizes.keys()):
-            params.append(self.array_param('float', array, self.array_sizes[array]))
+            is_local, sizes = self.array_sizes[array]
+            if not is_local:
+                params.append(self.array_param('float', array, sizes))
         lines.append(f'{ws}unsigned long long core({", ".join(params)}) {{')
         self.indent += 1
         ws = spaces(self.indent)
+        for array in sorted(self.array_sizes.keys()):
+            is_local, sizes = self.array_sizes[array]
+            if is_local:
+                decl = self.array_local('float', array, sizes)
+                lines.append(f'{ws}{decl};')
         lines.append(f'{ws}struct timespec before, after;')
         lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &before);')
         # lines.append(self.c_test_program.pprint(self.indent))

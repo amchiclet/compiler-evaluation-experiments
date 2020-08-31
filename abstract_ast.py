@@ -53,20 +53,24 @@ class Const(Node):
         self.name = replace(self.name, replacer)
 
 class Declaration(Node):
-    def __init__(self, name, n_dimensions, node_id=0):
+    def __init__(self, name, n_dimensions, is_local=False, node_id=0):
         self.name = name
         self.n_dimensions = n_dimensions
         self.node_id = node_id
+        self.is_local = is_local
         # self.surrounding_loop = None
     def cprint(self, indent=0):
         raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
+        localness = 'local' if self.is_local else 'param'
         ws = space_per_indent * indent * ' '
-        return f'{ws}declare {self.name}{"[]"*self.n_dimensions};'
+        return f'{ws}{localness} {self.name}{"[]"*self.n_dimensions};'
     def clone(self):
-        return Declaration(self.name, self.n_dimensions, self.node_id)
+        return Declaration(self.name, self.n_dimensions, self.is_local, self.node_id)
     def is_syntactically_equal(self, other):
-        return self.name == other.name and self.n_dimensions == other.n_dimensions
+        return self.name == other.name and \
+            self.n_dimensions == other.n_dimensions and \
+            self.is_local == other.is_local
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
 
