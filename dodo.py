@@ -81,7 +81,7 @@ def task_build():
         pb = PathBuilder(compiler)
         main_path = pb.main_path()
         main_obj_path = pb.main_obj_path()
-        main_command = CommandBuilder().build_object(compiler, 'novec', main_path, main_obj_path)
+        main_command = CommandBuilder().build_object(compiler, 'noopt', main_path, main_obj_path)
         yield {
             'name': main_obj_path,
             'file_dep': [main_path],
@@ -95,7 +95,7 @@ def task_build():
             wrapper_path = pb.wrapper_path()
             wrapper_obj_path = pb.wrapper_obj_path()
             wrapper_command = CommandBuilder().build_object(compiler,
-                                                            'novec',
+                                                            'noopt',
                                                             wrapper_path,
                                                             wrapper_obj_path)
             yield {
@@ -125,7 +125,7 @@ def task_build():
 
             objs = [main_obj_path, wrapper_obj_path, core_obj_path]
             exe_name = pb.exe_path()
-            exe_command = CommandBuilder().link_objects(compiler, 'novec', objs, math_lib[compiler], exe_name)
+            exe_command = CommandBuilder().link_objects(compiler, 'noopt', objs, math_lib[compiler], exe_name)
             yield {
                 'name': exe_name,
                 'file_dep': objs,

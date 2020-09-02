@@ -1,4 +1,4 @@
-from compilers import compilers, base_command, novec_flags, nopredict_flags
+from compilers import compilers, base_command, novec_flags, nopredict_flags, noopt_flags
 import inspect
 from pathlib import Path
 
@@ -107,12 +107,14 @@ def create_compiler_command_map():
     m = {
         'fast':{},
         'novec':{},
-        'nopredict':{}
+        'nopredict':{},
+        'noopt':{},
     }
     for c in compilers:
         if c in base_command:
             fast = base_command[c]
             m['fast'][c] = fast
+            m['noopt'][c] = fast + noopt_flags[c]
             if c in novec_flags:
                 m['novec'][c] = fast + novec_flags[c]
             if c in nopredict_flags:

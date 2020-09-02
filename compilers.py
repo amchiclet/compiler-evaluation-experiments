@@ -12,6 +12,13 @@ base_command = {
     'clang': ['clang', '-march=native', '-Ofast']
 }
 
+noopt_flags = {
+    'pgi': ['-Mnovect'],
+    'gcc': ['-fno-tree-vectorize'],
+    'icc': ['-no-vec'],
+    'clang': ['-fno-vectorize'],
+}
+
 novec_flags = {
     'pgi': ['-Mnovect'],
     'gcc': ['-fno-tree-vectorize'],
