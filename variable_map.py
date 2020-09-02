@@ -64,6 +64,7 @@ def find_max(constraints, expr):
     if type(expr) == int:
         return expr
     max_optimize = Optimize()
+    max_optimize.set('timeout', 10000)
     max_optimize.assert_exprs(*constraints)
     max_optimize.maximize(expr)
     # Called the second time to hopefully workaround a bug:
@@ -150,7 +151,8 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
                 max_val = cloned.default_max
             else:
                 max_val = find_max(constraints, cexpr)
-                assert(max_val is not None)
+                if max_val is None:
+                    return None
                 max_val = min(max_val + 1, cloned.default_max)
 
             # var = dimension_var(access.var, dimension)
@@ -174,6 +176,7 @@ def validate_var_map(program, var_map):
     constraints = index_constraints + bound_constraints
 
     solver = Solver()
+    solver.set('timeout', 10000)
     solver.add(constraints)
     status = solver.check()
 
@@ -245,6 +248,7 @@ def create_instance(pattern, var_map, max_tries=10000):
         constraints = [invert_index_constraints] + loop_shape_constraints
 
         solver = Solver()
+        solver.set('timeout', 10000)
         solver.add(constraints)
         status = solver.check()
         if status != unsat:
@@ -255,6 +259,7 @@ def create_instance(pattern, var_map, max_tries=10000):
 
         constraints = index_constraints + loop_shape_constraints
         solver = Solver()
+        solver.set('timeout', 10000)
         solver.add(constraints)
         status = solver.check()
         if status == unsat:
@@ -267,6 +272,8 @@ def create_instance(pattern, var_map, max_tries=10000):
                                             accesses, cvars,
                                             constraints,
                                             cloned_var_map)
+        if array_sizes is None:
+            return None
 
         return Instance(random_pattern, array_sizes)
 
