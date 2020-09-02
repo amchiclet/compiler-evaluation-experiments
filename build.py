@@ -160,6 +160,7 @@ def iterate_programs(patterns):
             yield (pattern, program, mutations)
 
 def iterate_compiler_modes():
-    for mode, compilers in compiler_command_map.items():
+    for mode in iterate_modes():
         for compiler in compilers:
-            yield (compiler, mode)
+            if compiler in compiler_command_map[mode]:
+                yield (compiler, mode)
