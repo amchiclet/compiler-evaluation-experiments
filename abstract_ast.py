@@ -548,7 +548,7 @@ class ConstReplacer(Replacer):
     def should_replace(self, node):
         return type(node) == Access and node.var in self.replace_map
     def replace(self, node):
-        return Literal(int, self.replace_map[node.var], node.node_id)
+        return Literal(type(self.replace_map[node.var]), self.replace_map[node.var], node.node_id)
 
 class VarRenamer(Replacer):
     def __init__(self, replace_map):

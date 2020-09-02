@@ -1,5 +1,5 @@
 from abstract_ast import get_accesses, get_loops, Access, Op, ConstReplacer
-from random import randint, choice, shuffle
+from random import randint, choice, shuffle, uniform
 from loguru import logger
 from dependence_analysis import expr_to_cexpr
 from copy import deepcopy
@@ -66,11 +66,14 @@ def find_max(constraints, expr):
     max_optimize = Optimize()
     max_optimize.assert_exprs(*constraints)
     max_optimize.maximize(expr)
+    # Called the second time to hopefully workaround a bug:
+    #   https://github.com/Z3Prover/z3/issues/4670
+    max_optimize.maximize(expr)
     max_val = None
     if sat == max_optimize.check():
         max_val = max_optimize.model().eval(expr).as_long()
     constraint_strs = [f'{c}' for c in constraints]
-    logger.debug(f'Find max:\n' + '\n'.join(constraint_strs))
+    logger.debug(f'Find max ({expr}) => {max_val}:\n' + '\n'.join(constraint_strs))
     return max_val
 
 def find_min(constraints, expr):
@@ -125,6 +128,8 @@ def generate_bound_constraints(cvars, var_map):
     return constraints
 
 def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
+    constraint_strs = '\n'.join(map(str, constraints))
+    logger.debug(f'Determining array sizes for constraints\n{constraint_strs}')
     array_sizes = {}
     cloned = var_map.clone()
     for decl in decls:
@@ -207,7 +212,10 @@ def create_instance(pattern, var_map, max_tries=10000):
             min_val = var_map.get_min(var)
             max_val = var_map.get_max(var)
             # TODO: support other types than int
-            val = randint(min_val, max_val)
+            if type(min_val) == int:
+                val = randint(min_val, max_val)
+            elif type(min_val) == float:
+                val = uniform(min_val, max_val)
             replace_map[const.name] = val
         replacer = ConstReplacer(replace_map)
         cloned.replace(replacer)

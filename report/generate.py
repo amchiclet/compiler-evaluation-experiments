@@ -19,6 +19,7 @@ from report.peer_metrics import is_approximate_key, x_approximates_y_key
 from report.vector_rate import get_vector_rate_stats
 
 from build import PathBuilder
+from random import sample
 
 def import_patterns(base_dir=None):
     if base_dir is None:
@@ -67,7 +68,7 @@ def mutations(patterns):
 
 def read_runtimes_database(base_dir, patterns):
     f = partial(read_runtime, base_dir)
-    return dict(Pool().map(f, mutations(patterns)))
+    return dict(Pool(1).map(f, mutations(patterns)))
 
 def read_vector_rates_database(patterns):
     return dict(Pool().map(read_vector_rate, mutations(patterns)))
@@ -133,13 +134,42 @@ def get_ok_patterns(base_dir):
           f'Remaining mutations included in experiment: {n_ok_samples}\n')
     return ok_patterns
 
+def filter_patterns(patterns, n_instances, n_mutations):
+    filtered_patterns = []
+    for p, instances in patterns:
+        filtered_instances = []
+        for i, mutations in instances:
+            if len(mutations) < n_mutations:
+                continue
+            mutation_samples = sample(mutations, k=n_mutations)
+            filtered_instances.append((i, mutation_samples))
+        if len(filtered_instances) < n_instances:
+            continue
+        instance_samples = sample(filtered_instances, k=n_instances)
+        filtered_patterns.append((p, instance_samples))
+    return filtered_patterns
+
+def limit_patterns(patterns, n_patterns, n_instances):
+    result = []
+    # filter patterns with >= n_instances
+    filtered_patterns = [(p, instances) for (p, instances) in patterns if len(instances) >= n_instances]
+    sampled_patterns = sample(filtered_patterns, k=n_patterns)
+    for p, instances in sampled_patterns:
+        sampled_instances = sample(instances, n_instances)
+        result.append((p, sampled_instances))
+    return result
+
 def generate_report(base_dir=None):
     if base_dir is None:
         base_dir = os.getcwd()
     ok_patterns = get_ok_patterns(base_dir)
+    # ok_patterns = filter_patterns(ok_patterns, 2, 5)
+    ok_patterns = limit_patterns(ok_patterns, 1, 2)
+    print(ok_patterns)
     runtimes = read_runtimes_database(base_dir, ok_patterns)
 
-    report.runtime.plot_normalized_runtimes(runtimes)
+    report.runtime.plot_normalized_runtimes(1, 2, runtimes)
+    return
     report.vector_speedup.plot_vec_speedups(runtimes)
     report.vectorizable.plot_vectorizables(runtimes)
     report.cost_model.plot_cost_model(runtimes)

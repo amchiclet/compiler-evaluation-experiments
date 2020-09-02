@@ -144,7 +144,7 @@ class ProgramGenerator(Generator):
         access_gen = self.loop_gen.assignment_gen.op_gen.access_gen
         gen_decls = []
         for d in sorted(access_gen.decls, key=lambda d: d.name):
-            gen_decls.append(Declaration(d.name, d.n_dimensions, self.next_id()))
+            gen_decls.append(Declaration(d.name, d.n_dimensions, is_local=False, node_id=self.next_id()))
 
         gen_loops = []
         for _ in range(n_loops):

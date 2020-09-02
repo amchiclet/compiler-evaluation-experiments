@@ -1,7 +1,7 @@
 import seaborn
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from random import choices
+from random import choices, sample
 
 def add_plot(list_1d, label, min_val=None, max_val=None):
     # seaborn.distplot(list_1d, hist=True, kde=True)
@@ -23,6 +23,27 @@ def add_dict_array(da, stat, b=100, min_val=None, max_val=None):
             samples = choices(vs, k=len(vs))
             data.append(stat(samples))
         add_plot(data, k, min_val, max_val)
+
+def add_dddl(pattern_maps, n_patterns, n_instances, stat, b=100, min_val=None, max_val=None):
+    for compiler, pattern_map in pattern_maps.items():
+        patterns = []
+        for pattern, instance_map in pattern_map.items():
+            instances = []
+            for instance, mutations in instance_map.items():
+                instances.append((instance, mutations))
+            patterns.append((pattern, instances))
+
+        data = []
+        print(f'Plotting: {compiler}')
+        for _ in tqdm(range(b)):
+            print('      new sample')
+            samples = []
+            for pattern, instances in choices(patterns, k=n_patterns):
+                for instance, runtimes in choices(instances, k=n_instances):
+                    samples += runtimes
+                    print(runtimes)
+            data.append(stat(samples))
+        add_plot(data, compiler, min_val, max_val)
 
 def check_samples(name, samples):
     if len(samples) == 0:
