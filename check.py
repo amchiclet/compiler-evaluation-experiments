@@ -21,9 +21,11 @@ class Checksums:
 
 def read_checksum_database():
     database = {}
+    missing = []
     for pattern, program, mutations in iterate_programs(patterns):
         database[(pattern, program)] = Checksums()
         for mutation in mutations:
+            is_missing = False
             for compiler, mode in iterate_compiler_modes():
                 key = (compiler, mode, pattern, program, mutation)
                 path = PathBuilder(*key).checksum_path()
@@ -31,7 +33,15 @@ def read_checksum_database():
                     with open(path) as f:
                         checksum = float(f.read())
                     database[(pattern, program)].add(key, checksum)
-    return database
+                else:
+                    is_missing = True
+                    database.pop((pattern, program))
+                    missing.append((pattern, program))
+                    break
+            if is_missing:
+                break
+
+    return database, missing
 
 def write_blacklist_file(blacklist, path):
     from pprint import PrettyPrinter
@@ -42,8 +52,10 @@ def write_blacklist_file(blacklist, path):
 def format_mutation(mutation):
     return '.'.join(mutation)
 
-checksums_db = read_checksum_database()
-blacklist = []
+checksums_db, missing = read_checksum_database()
+blacklist = missing
+for pattern, program in missing:
+    print(f'FAIL: {pattern} {program} (missing or error while calculating checksum)')
 for (pattern, program), checksums in checksums_db.items():
     distribution, outliers = find_outliers(checksums.vals, checksums.keys)
     if distribution is None:
