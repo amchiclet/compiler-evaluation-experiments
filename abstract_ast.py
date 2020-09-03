@@ -62,7 +62,7 @@ class Declaration(Node):
     def cprint(self, indent=0):
         raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
-        localness = 'local' if self.is_local else 'param'
+        localness = 'local' if self.is_local else 'declare'
         ws = space_per_indent * indent * ' '
         return f'{ws}{localness} {self.name}{"[]"*self.n_dimensions};'
     def clone(self):
