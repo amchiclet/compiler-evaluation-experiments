@@ -87,6 +87,7 @@ def task_build():
             'file_dep': [main_path],
             'actions': [f'echo {" ".join(main_command)}', main_command],
             'targets': [main_obj_path],
+            'clean': True,
         }
 
     for (compiler, mode) in iterate_compiler_modes():
@@ -103,6 +104,7 @@ def task_build():
                 'file_dep': [wrapper_path],
                 'actions': [f'echo {" ".join(wrapper_command)}', wrapper_command],
                 'targets': [wrapper_obj_path],
+                'clean': True,
             }
 
     for (compiler, mode) in iterate_compiler_modes():
@@ -118,6 +120,7 @@ def task_build():
                 'file_dep': [core_path],
                 'actions': [f'echo {" ".join(core_command)}', core_command],
                 'targets': [core_obj_path],
+                'clean': True,
             }
 
             main_obj_path = PathBuilder(compiler).main_obj_path()
@@ -131,6 +134,7 @@ def task_build():
                 'file_dep': objs,
                 'actions': [f'echo {" ".join(exe_command)}', exe_command],
                 'targets': [exe_name],
+                'clean': True,
             }
 
 def task_assembly():
