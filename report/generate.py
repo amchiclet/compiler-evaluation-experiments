@@ -44,6 +44,18 @@ def import_blacklist(base_dir):
 from multiprocessing import Pool, Manager
 from functools import partial
 
+def read_runtime_multi_experiment(base_dir, key):
+    path = PathBuilder(*key).runtimes_ns_path()
+    full_path = f'{base_dir}/{path}'
+    if os.path.exists(full_path):
+        with open(full_path) as f:
+            runtimes_str = f.read()
+            runtime = tmean(list(map(int, runtimes_str.split())))
+            c, m, p, i, mu = key
+            new_key = (c, m, f'{base_dir}.{p}', i, mu)
+            return (new_key, runtime)
+    raise RuntimeError(f'File not found {full_path}')
+
 def read_runtime(base_dir, key):
     path = PathBuilder(*key).runtimes_ns_path()
     full_path = f'{base_dir}/{path}'
@@ -68,6 +80,10 @@ def mutations(patterns):
 
 def read_runtimes_database(base_dir, patterns):
     f = partial(read_runtime, base_dir)
+    return dict(Pool(1).map(f, mutations(patterns)))
+
+def read_runtimes_database_multi_experiment(base_dir, patterns):
+    f = partial(read_runtime_multi_experiment, base_dir)
     return dict(Pool(1).map(f, mutations(patterns)))
 
 def read_vector_rates_database(patterns):
@@ -107,25 +123,34 @@ def get_ok_patterns(base_dir):
         ok_instances = []
         for i, mutations in instances:
             if (p, i) not in blacklist:
-                ok_mutations = []
-                for m in mutations:
-                    pb = PathBuilder(pattern=p, program=i, mutation=m)
-                    full_path = f'{base_dir}/{pb.core_path()}'
-                    filehash = compute_file_md5(full_path)
-                    if filehash not in hashes:
-                        hashes.add(filehash)
-                        ok_mutations.append(m)
-                    else:
-                        n_duplicate_mutations += 1
-                if len(ok_mutations) > 1:
-                    ok_instances.append((i, ok_mutations))
-                    n_ok_samples += len(ok_mutations)
-                else:
-                    n_singleton_mutations += 1
+                ok_instances.append((i, mutations))
+                n_ok_samples += len(mutations)
+
+                # This section is commented out for now
+                # Currently the plan is to allow de-duplication and handle
+                # singletons during the generation phase
+
+                # ok_mutations = []
+                # for m in mutations:
+                #     pb = PathBuilder(pattern=p, program=i, mutation=m)
+                #     full_path = f'{base_dir}/{pb.core_path()}'
+                #     filehash = compute_file_md5(full_path)
+                #     if filehash not in hashes:
+                #         hashes.add(filehash)
+                #         ok_mutations.append(m)
+                #     else:
+                #         n_duplicate_mutations += 1
+                # if len(ok_mutations) > 1:
+                #     ok_instances.append((i, ok_mutations))
+                #     n_ok_samples += len(ok_mutations)
+                # else:
+                #     n_singleton_mutations += 1
+
             else:
                 n_fpe_samples += len(mutations)
             n_samples += len(mutations)
-        ok_patterns.append((p, ok_instances))
+        if len(ok_instances) > 0:
+            ok_patterns.append((p, ok_instances))
 
     print(f'Total generated mutations: {n_samples}\n'
           f'Mutations that could not be validated: {n_fpe_samples}\n'
