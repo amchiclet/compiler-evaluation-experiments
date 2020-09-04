@@ -25,6 +25,9 @@ class IdGenerator:
         return r
 
 class LoopUnroll:
+    def __init__(self, max_factor):
+        self.max_factor = max_factor
+
     def transform(self, instance):
         loops = get_loops(instance.pattern)
         loop_vars = []
@@ -60,10 +63,9 @@ class LoopUnroll:
             cloned = instance.clone()
 
             for loop_id, loop_var in sorted_loop_vars:
-                unroll = random.choice([True, False])
-                if not unroll:
+                factor = random.randint(1, self.max_factor)
+                if factor == 1:
                     continue
-                factor = random.randint(2, 4)
                 loops = get_loops(cloned.pattern)
                 loop = loops[loop_id]
                 loop_shapes_before = []
