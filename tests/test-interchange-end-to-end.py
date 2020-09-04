@@ -50,43 +50,68 @@ def create_var_map():
 
 from transformers.loop_interchange import LoopInterchange
 
+n_patterns = 1
+n_instances = 1
+n_mutations = 2
 
-root_dir = f'exp.10.10.6.2'
-pattern_dir = f'{root_dir}/temp-generated-patterns'
-output_dir = f'{root_dir}/temp-generated-code'
-codegen = CodeGen(output_dir)
+attempt = 3
+root_dir = f'exp.{n_patterns}.{n_instances}.{n_mutations}.{attempt}'
+pattern_dir = f'{root_dir}/patterns'
+instance_dir = f'{root_dir}/instances'
+code_dir = f'{root_dir}/code'
+codegen = CodeGen(code_dir)
 init_logger(f'{root_dir}/end-to-end.log', True)
 
 pattern_info = create_pattern_info()
 var_map = create_var_map()
-max_patterns = 10
-max_instances = 10
-max_mutations = 6
 pattern_name_pairs = []
+
 patterns = {}
-for p in range(max_patterns):
+for p in range(n_patterns):
     pattern = generate_pattern(pattern_info, var_map)
     if pattern is None:
         continue
     pattern_name = f'p{p:02d}'
 
     instances = {}
-    for i in range(max_instances):
+    while len(instances) < n_instances:
         instance = create_instance(pattern, var_map)
+
         if instance is None:
             continue
-        instance_name = f'i{i:02d}'
-        codegen.generate_wrapper(pattern_name, instance_name, instance)
+
         loop_interchange = LoopInterchange()
+
+        mutation_names = []
         mutations = []
-        for m in range(max_mutations):
+        for m in range(n_mutations):
             mutation = next(loop_interchange.transform(instance))
             mutation_name = f'm{m:02d}'
-            mutations.append(mutation_name)
+            mutation_names.append(mutation_name)
+            mutations.append(mutation)
+
+        original_mutation = None
+        found_diff = False
+        for m in mutations:
+            if original_mutation is None:
+                original_mutation = m
+            else:
+                if not original_mutation.pattern.is_syntactically_equal(m.pattern):
+                    found_diff = True
+                    break
+
+        # Enforce that at least two mutations are different
+        if not found_diff:
+            print('Failed trying again')
+            continue
+
+        instance_name = f'i{len(instances):02d}'
+        codegen.generate_wrapper(pattern_name, instance_name, instance)
+        for mutation, mutation_name in zip(mutations, mutation_names):
             codegen.generate_code(pattern_name, instance_name, 
                                   mutation_name, mutation)
 
-        instances[instance_name] = mutations
+        instances[instance_name] = mutation_names
 
     patterns[pattern_name] = instances
     pattern_name_pairs.append((pattern, pattern_name))
