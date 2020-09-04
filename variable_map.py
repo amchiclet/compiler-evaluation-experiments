@@ -67,14 +67,23 @@ def find_max(constraints, expr):
     max_optimize.set('timeout', 10000)
     max_optimize.assert_exprs(*constraints)
     max_optimize.maximize(expr)
-    # Called the second time to hopefully workaround a bug:
+
+    if sat != max_optimize.check():
+        return None
+
+    max_val = max_optimize.model().eval(expr).as_long()
+
+    # Make sure it's actually the max, since z3 has a bug
     #   https://github.com/Z3Prover/z3/issues/4670
-    max_optimize.maximize(expr)
-    max_val = None
-    if sat == max_optimize.check():
-        max_val = max_optimize.model().eval(expr).as_long()
-    constraint_strs = [f'{c}' for c in constraints]
-    logger.debug(f'Find max ({expr}) => {max_val}:\n' + '\n'.join(constraint_strs))
+    solver = Solver()
+    solver.set('timeout', 10000)
+    solver.add(constraints + [expr > max_val])
+    status = solver.check()
+
+    if status != unsat:
+        constraint_strs = [f'{c}' for c in constraints]
+        logger.warning(f'Z3 bug\nFind max ({expr}) => {max_val}:\n' + '\n'.join(constraint_strs))
+        return None
     return max_val
 
 def find_min(constraints, expr):
