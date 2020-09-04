@@ -24,6 +24,13 @@ def update_dddl(d, k1, k2, k3, v):
         d[k1][k2][k3] = []
     d[k1][k2][k3].append(v)
 
+def update_ddl(d, k1, k2, v):
+    if k1 not in d:
+        d[k1] = {}
+    if k2 not in d[k1]:
+        d[k1][k2] = []
+    d[k1][k2].append(v)
+
 def update_dict_array(d, k, v):
     if k not in d:
         d[k] = []

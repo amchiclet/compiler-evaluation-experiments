@@ -5,7 +5,7 @@ from stats import \
     create_max_spread_cases, \
     Stats, \
     geometric_mean
-from report.util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair, update_dddl
+from report.util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair, update_dddl, update_ddl
 import plot
 
 def get_normalized_runtimes(runtimes):
@@ -26,25 +26,36 @@ def get_normalized_runtimes(runtimes):
     return normalized, outliers
 
 def plot_normalized_runtimes(n_patterns, n_instances, runtimes):
-    compilers = set()
     normalized, _ = get_normalized_runtimes(runtimes)
     grouped = {}
     for (compiler, pattern, instance, mutation), runtime in normalized.items():
         update_dddl(grouped, compiler, pattern, instance, runtime)
         compilers.add(compiler)
 
-    print(grouped)
     for compiler in sorted(list(compilers)):
         filtered = {k:v for k,v in grouped.items() if k == compiler}
         # plot.add_dict_array(filtered, geometric_mean, b=10000, min_val=0, max_val=1)
         plot.add_dddl(filtered,
-                      n_patterns,
-                      n_instances,
                       geometric_mean,
+                      n_patterns=None,
+                      n_instances=None,
                       b=10000,
                       min_val=0,
                       max_val=1)
         plot.display_plot(f'{compiler} runtime stability')
+
+def add_plot_normalized_runtimes(compiler, runtimes, label, n_patterns=None, n_instances=None):
+    normalized, _ = get_normalized_runtimes(runtimes)
+    grouped = {}
+    for (c, p, i, m), runtime in normalized.items():
+        if compiler != c:
+            continue
+        update_dddl(grouped, label, p, i, runtime)
+    plot.add_dddl(grouped,
+                  geometric_mean,
+                  n_patterns, n_instances,
+                  b=10000,
+                  min_val=0, max_val=1)
 
 def get_stats(runtimes):
     normalized, outliers = get_normalized_runtimes(runtimes)
