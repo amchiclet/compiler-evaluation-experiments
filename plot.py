@@ -30,7 +30,7 @@ def add_dict_array(da, stat, b=100, min_val=None, max_val=None):
             data.append(stat(samples))
         add_plot(data, k, min_val, max_val)
 
-def add_dddl(pattern_maps, stat, n_patterns=None, n_instances=None, b=100, min_val=None, max_val=None):
+def add_dddl(pattern_maps, stat, b=100, min_val=None, max_val=None):
     for compiler, pattern_map in pattern_maps.items():
         patterns = []
         for pattern, instance_map in pattern_map.items():
@@ -42,10 +42,8 @@ def add_dddl(pattern_maps, stat, n_patterns=None, n_instances=None, b=100, min_v
         data = []
         for _ in tqdm(range(b)):
             samples = []
-            k_patterns = len(patterns) if n_patterns is None else n_patterns
-            for pattern, instances in choices(patterns, k=k_patterns):
-                k_instances = len(instances) if n_instances is None else n_instances
-                for instance, runtimes in choices(instances, k=k_instances):
+            for pattern, instances in choices(patterns, k=len(patterns)):
+                for instance, runtimes in instances:
                     samples += runtimes
             data.append(stat(samples))
         add_plot(data, compiler, min_val, max_val)
