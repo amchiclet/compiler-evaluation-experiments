@@ -20,17 +20,21 @@ class CodeGen:
         if not os.path.exists(main_c_path):
             os.symlink(src_main_c_path, main_c_path)
 
-    def generate_wrapper(self, pattern_str, instance_str, instance):
+    def generate_wrapper(self, pattern_str, instance_str, instance, l=None):
+        if l is None:
+            l = logger
         pb = PathBuilder(pattern=pattern_str, program=instance_str)
         sf = SimpleFormatter(instance)
-        logger.info(f'Generating wrapper for {pattern_str}.{instance_str}')
+        l.info(f'Generating wrapper for {pattern_str}.{instance_str}')
         wrapper = pb.wrapper_path()
         sf.write_kernel_wrapper(f'{self.output_dir}/{wrapper}')
 
-    def generate_code(self, pattern_str, instance_str, mutation_str, instance):
+    def generate_code(self, pattern_str, instance_str, mutation_str, instance, l=None):
+        if l is None:
+            l = logger
         pb = PathBuilder(pattern=pattern_str, program=instance_str, mutation=mutation_str)
         sf = SimpleFormatter(instance)
-        logger.info(f'Generating code for {pattern_str}.{instance_str}.{mutation_str}\n'
+        l.info(f'Generating code for {pattern_str}.{instance_str}.{mutation_str}\n'
                     f'{instance.pattern.pprint()}')
         core = pb.core_path()
         sf.write_core(f'{self.output_dir}/{core}')

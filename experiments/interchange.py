@@ -11,6 +11,7 @@ from multiprocessing import Pool
 import copy
 import sys
 import tqdm
+from pathlib import Path
 
 def create_pattern_info():
     mul_consts = ['a1', 'a2', 'a3']
@@ -53,28 +54,22 @@ def create_var_map():
         var_map.set_max(v, 2.0)
     return var_map
 
-def prep_input(pattern_index):
-    pattern_name = f'p{pattern_index:02d}'
-    pattern_log_path = f'{root_dir}/{pattern_name}.log'
+def get_logger(pattern_name):
+    log_dir = f'{root_dir}/logs'
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
+    pattern_log_path = f'{log_dir}/{pattern_name}.log'
     pattern_logger = copy.deepcopy(logger)
     pattern_logger.add(sink = pattern_log_path,
                        level = 'DEBUG',
                        format = ('{time:YYYYMMDD_HH:mm:ss.SSS} | '
                                  '{file}:{function}:{line} | '
                                  '{message}'))
-    return pattern_name, pattern_logger
+    return pattern_logger
 
 def generate(pattern_name):
     print(pattern_name)
     pattern = generate_pattern(pattern_info, var_map)
-    pattern_log_path = f'{root_dir}/{pattern_name}.log'
-    pattern_logger = copy.deepcopy(logger)
-    pattern_logger.add(sink = pattern_log_path,
-                       level = 'DEBUG',
-                       format = ('{time:YYYYMMDD_HH:mm:ss.SSS} | '
-                                 '{file}:{function}:{line} | '
-                                 '{message}'))
-
+    pattern_logger = get_logger(pattern_name)
     if pattern is None:
         return None
 
@@ -82,14 +77,14 @@ def generate(pattern_name):
     max_tries = 5
     n_tries = 0
     while len(instances) < n_instances and n_tries < max_tries:
-        instance = create_instance(pattern, var_map)
+        instance = create_instance(pattern, var_map, l=pattern_logger)
 
         if instance is None:
             n_tries += 1
             continue
 
         instance_name = f'i{len(instances):02d}'
-        codegen.generate_wrapper(pattern_name, instance_name, instance)
+        codegen.generate_wrapper(pattern_name, instance_name, instance, l=pattern_logger)
 
         mutations = []
         mutation_names = []
@@ -100,7 +95,7 @@ def generate(pattern_name):
             mutations.append(mutation)
             mutation_names.append(mutation_name)
             codegen.generate_code(pattern_name, instance_name, 
-                                  mutation_name, mutation)
+                                  mutation_name, mutation, l=pattern_logger)
 
         original_mutation = None
         found_diff = False
@@ -127,12 +122,11 @@ def generate(pattern_name):
         return None
     return (pattern_name, pattern, instances)
 
-n_patterns = 4
+n_patterns = 10
 n_instances = 2
 n_mutations = 4
 
-attempt = 0
-root_dir = f'parallel-interchange.{n_patterns}.{n_instances}.{n_mutations}.{attempt}'
+root_dir = f'parallel-interchange.{n_patterns}.{n_instances}.{n_mutations}'
 pattern_dir = f'{root_dir}/patterns'
 code_dir = f'{root_dir}/code'
 codegen = CodeGen(code_dir)

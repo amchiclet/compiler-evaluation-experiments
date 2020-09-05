@@ -60,7 +60,10 @@ def affine_to_cexpr(affine, cvars):
         return affine.offset
     return affine.coeff * cvars[affine.var] + affine.offset
 
-def find_max(constraints, expr):
+def find_max(constraints, expr, l = None):
+    if l is None:
+        l = logger
+
     if type(expr) == int:
         return expr
     max_optimize = Optimize()
@@ -82,7 +85,7 @@ def find_max(constraints, expr):
 
     if status != unsat:
         constraint_strs = [f'{c}' for c in constraints]
-        logger.warning(f'Z3 bug\nFind max ({expr}) => {max_val}:\n' + '\n'.join(constraint_strs))
+        l.warning(f'Z3 bug\nFind max ({expr}) => {max_val}:\n' + '\n'.join(constraint_strs))
         return None
     return max_val
 
@@ -137,9 +140,11 @@ def generate_bound_constraints(cvars, var_map):
         constraints.append(cvar <= current_max)
     return constraints
 
-def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
+def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
+    if l is None:
+        l = logger
     constraint_strs = '\n'.join(map(str, constraints))
-    logger.debug(f'Determining array sizes for constraints\n{constraint_strs}')
+    l.debug(f'Determining array sizes for constraints\n{constraint_strs}')
     array_sizes = {}
     cloned = var_map.clone()
     for decl in decls:
@@ -156,7 +161,7 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map):
         for dimension, index in enumerate(access.indices):
             cexpr = expr_to_cexpr(index, cvars)
             if cexpr is None:
-                logger.warning(f'Unable to analyze the max value of {index.pprint()} in {access.pprint()}')
+                l.warning(f'Unable to analyze the max value of {index.pprint()} in {access.pprint()}')
                 max_val = cloned.default_max
             else:
                 max_val = find_max(constraints, cexpr)
@@ -215,7 +220,10 @@ def get_scalar_cvars(pattern):
                 cvars[access.var] = Int(access.var)
     return cvars
 
-def create_instance(pattern, var_map, max_tries=10000):
+def create_instance(pattern, var_map, max_tries=10000, l=None):
+    if l is None:
+        l = logger
+
     def randomly_replace_consts():
         cloned = pattern.clone()
         replace_map = {}
@@ -261,9 +269,9 @@ def create_instance(pattern, var_map, max_tries=10000):
         solver.add(constraints)
         status = solver.check()
         if status != unsat:
-            logger.debug('Constraints are not unsatisfiable. '
+            l.debug('Constraints are not unsatisfiable. '
                          'May result in index out of bound')
-            logger.debug('\n'.join(map(str, constraints)))
+            l.debug('\n'.join(map(str, constraints)))
             return None
 
         constraints = index_constraints + loop_shape_constraints
@@ -272,15 +280,15 @@ def create_instance(pattern, var_map, max_tries=10000):
         solver.add(constraints)
         status = solver.check()
         if status != sat:
-            logger.debug('Constraints are not satisfiable. '
+            l.debug('Constraints are not satisfiable. '
                          'May result in no iterations')
-            logger.debug('\n'.join(map(str, constraints)))
+            l.debug('\n'.join(map(str, constraints)))
             return None
 
         array_sizes = determine_array_sizes(random_pattern.decls,
                                             accesses, cvars,
                                             constraints,
-                                            cloned_var_map)
+                                            cloned_var_map, l)
         if array_sizes is None:
             return None
 
