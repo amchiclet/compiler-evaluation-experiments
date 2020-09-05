@@ -44,7 +44,7 @@ def plot_normalized_runtimes(n_patterns, n_instances, runtimes):
                       max_val=1)
         plot.display_plot(f'{compiler} runtime stability')
 
-def add_plot_normalized_runtimes(compiler, runtimes, label, n_patterns=None, n_instances=None):
+def add_plot_normalized_runtimes(compiler, runtimes, label):
     normalized, _ = get_normalized_runtimes(runtimes)
     grouped = {}
     for (c, p, i, m), runtime in normalized.items():
@@ -53,7 +53,6 @@ def add_plot_normalized_runtimes(compiler, runtimes, label, n_patterns=None, n_i
         update_dddl(grouped, label, p, i, runtime)
     plot.add_dddl(grouped,
                   geometric_mean,
-                  n_patterns, n_instances,
                   b=10000,
                   min_val=0, max_val=1)
 
