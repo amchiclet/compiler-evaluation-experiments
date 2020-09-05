@@ -174,15 +174,31 @@ def filter_patterns(patterns, n_instances, n_mutations):
         filtered_patterns.append((p, instance_samples))
     return filtered_patterns
 
-def limit_patterns(patterns, n_patterns, n_instances):
-    result = []
-    # filter patterns with >= n_instances
-    filtered_patterns = [(p, instances) for (p, instances) in patterns if len(instances) >= n_instances]
-    sampled_patterns = sample(filtered_patterns, k=n_patterns)
-    for p, instances in sampled_patterns:
-        sampled_instances = sample(instances, n_instances)
-        result.append((p, sampled_instances))
-    return result
+def check_structure(pattern, n_instances, n_mutations):
+    p, instances = pattern
+    if len(instances) != n_instances:
+        return False
+    for i, mutations in instances:
+        if len(mutations) != n_mutations:
+            return False
+    return True
+
+def get_popular_pattern_structure(patterns):
+    most_popular_structure = None
+    most_popular_count = None
+    counts = {}
+    for p, instances in patterns:
+        for i, mutations in instances:
+            key = (len(instances), len(mutations))
+            if key not in counts:
+                counts[key] = 0
+            counts[key] += 1
+            if most_popular_count is None or counts[key] > most_popular_count:
+                most_popular_structure = key
+    return most_popular_structure
+
+def limit_patterns(patterns, n_instances, n_mutations):
+    return [p for p in patterns if check_structure(p, n_instances, n_mutations)]
 
 def generate_report(base_dir=None):
     if base_dir is None:
