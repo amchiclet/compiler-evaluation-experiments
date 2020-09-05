@@ -28,7 +28,8 @@ def task_find_ns_per_iteration():
                 'name': output_path,
                 'file_dep': [exe_name],
                 'actions': [(calculate_ns_per_iteration, [exe_name, output_path])],
-                'targets': [output_path]
+                'targets': [output_path],
+                'clean': True,
             }
 
 def task_measure_runtimes():
@@ -43,7 +44,8 @@ def task_measure_runtimes():
                 'name': output_path,
                 'file_dep': [exe_name, ns_per_iteration_path],
                 'actions': [(measure_runtime, [exe_name, ns_per_iteration_path, output_path])],
-                'targets': [output_path]
+                'targets': [output_path],
+                'clean': True,
             }
 
 def task_calculate_checksum():
