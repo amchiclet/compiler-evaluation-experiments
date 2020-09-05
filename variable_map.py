@@ -271,7 +271,7 @@ def create_instance(pattern, var_map, max_tries=10000):
         solver.set('timeout', 10000)
         solver.add(constraints)
         status = solver.check()
-        if status == unsat:
+        if status != sat:
             logger.debug('Constraints are not satisfiable. '
                          'May result in no iterations')
             logger.debug('\n'.join(map(str, constraints)))
