@@ -66,12 +66,16 @@ def find_max(constraints, expr, l = None):
 
     if type(expr) == int:
         return expr
+
+    constraint_strs = [f'{c}' for c in constraints]
+
     max_optimize = Optimize()
     max_optimize.set('timeout', 10000)
     max_optimize.assert_exprs(*constraints)
     max_optimize.maximize(expr)
-
-    if sat != max_optimize.check():
+    status = max_optimize.check()
+    if status != sat:
+        l.warning(f'Unable to find max ({status}) for:\n' + '\n'.join(constraint_strs))
         return None
 
     max_val = max_optimize.model().eval(expr).as_long()
@@ -84,8 +88,7 @@ def find_max(constraints, expr, l = None):
     status = solver.check()
 
     if status != unsat:
-        constraint_strs = [f'{c}' for c in constraints]
-        l.warning(f'Z3 bug\nFind max ({expr}) => {max_val}:\n' + '\n'.join(constraint_strs))
+        l.warning(f'Z3 bug\nFind max ({expr}) => {max_val} with status ({status}):\n' + '\n'.join(constraint_strs))
         return None
     return max_val
 
@@ -164,7 +167,7 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
                 l.warning(f'Unable to analyze the max value of {index.pprint()} in {access.pprint()}')
                 max_val = cloned.default_max
             else:
-                max_val = find_max(constraints, cexpr)
+                max_val = find_max(constraints, cexpr, l)
                 if max_val is None:
                     return None
                 max_val = min(max_val + 1, cloned.default_max)
@@ -257,11 +260,16 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
                                                                       cvars,
                                                                       cloned_var_map)
 
+        l.debug('Index constraints:\n' + '\n'.join(map(str, index_constraints)))
+        l.debug('Loop shape constraints:\n' + '\n'.join(map(str, loop_shape_constraints)))
+
         assert(len(index_constraints) > 0)
-        conj_index_constraints = index_constraints[0]
-        for i in index_constraints[1:]:
-            conj_index_constraints = And(conj_index_constraints, i)
-        invert_index_constraints = Not(conj_index_constraints)
+        # conj_index_constraints = index_constraints[0]
+        # for i in index_constraints[1:]:
+        #     conj_index_constraints = And(conj_index_constraints, i)
+        # invert_index_constraints = Not(conj_index_constraints)
+        invert_index_constraints = Not(And(index_constraints))
+        
         constraints = [invert_index_constraints] + loop_shape_constraints
 
         solver = Solver()
@@ -269,9 +277,11 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
         solver.add(constraints)
         status = solver.check()
         if status != unsat:
-            l.debug('Constraints are not unsatisfiable. '
-                         'May result in index out of bound')
-            l.debug('\n'.join(map(str, constraints)))
+            l.debug(f'Constraints are not unsatisfiable ({status}). '
+                    'May result in index out of bound')
+            l.debug('Loop shape constraints:\n' + '\n'.join(map(str, constraints)))
+            if status == sat:
+                l.debug(f'Model:\n{solver.model()}')
             return None
 
         constraints = index_constraints + loop_shape_constraints
@@ -280,8 +290,8 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
         solver.add(constraints)
         status = solver.check()
         if status != sat:
-            l.debug('Constraints are not satisfiable. '
-                         'May result in no iterations')
+            l.debug('Constraints are not satisfiable ({status}). '
+                    'May result in no iterations')
             l.debug('\n'.join(map(str, constraints)))
             return None
 
