@@ -7,6 +7,9 @@ from loguru import logger
 from abstract_ast import Declaration
 from log_util import init_logger
 from transformers.loop_unroll import LoopUnroll
+from multiprocessing import Pool
+from pathlib import Path
+import copy
 
 def create_pattern_info():
     mul_consts = ['a1', 'a2', 'a3']
@@ -49,36 +52,27 @@ def create_var_map():
         var_map.set_max(v, 2.0)
     return var_map
 
+def get_logger(pattern_name):
+    log_dir = f'{root_dir}/logs'
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
+    pattern_log_path = f'{log_dir}/{pattern_name}.log'
+    pattern_logger = copy.deepcopy(logger)
+    pattern_logger.add(sink = pattern_log_path,
+                       level = 'DEBUG',
+                       format = ('{time:YYYYMMDD_HH:mm:ss.SSS} | '
+                                 '{file}:{function}:{line} | '
+                                 '{message}'))
+    return pattern_logger
 
-n_patterns = 125
-n_instances = 2
-n_mutations = 4
-attempt = 0
-
-root_dir = f'unroll.{n_patterns}.{n_instances}.{n_mutations}.{attempt}'
-pattern_dir = f'{root_dir}/patterns'
-instance_dir = f'{root_dir}/instances'
-code_dir = f'{root_dir}/code'
-codegen = CodeGen(code_dir)
-init_logger(f'{root_dir}/generate.log', True)
-
-pattern_info = create_pattern_info()
-var_map = create_var_map()
-pattern_name_pairs = []
-
-max_factor = 16
-assert(max_factor >= n_mutations)
-loop_unroll = LoopUnroll(max_factor)
-patterns = {}
-for p in range(n_patterns):
+def generate(pattern_name):
+    print(pattern_name)
     pattern = generate_pattern(pattern_info, var_map)
-    if pattern is None:
-        continue
-    pattern_name = f'p{p:03d}'
+    pattern_logger = get_logger(pattern_name)
+    assert(pattern is not None)
 
     instances = {}
     while len(instances) < n_instances:
-        instance = create_instance(pattern, var_map)
+        instance = create_instance(pattern, var_map, l=pattern_logger)
 
         if instance is None:
             continue
@@ -94,23 +88,56 @@ for p in range(n_patterns):
                     is_duplicate = True
                     break
             if is_duplicate:
-                print('found duplicate trying again')
+                pattern_logger.debug('found duplicate trying again')
                 continue
             mutation_names.append(mutation_name)
             mutations.append(mutation)
 
         instance_name = f'i{len(instances):02d}'
-        codegen.generate_wrapper(pattern_name, instance_name, instance)
+        codegen.generate_wrapper(pattern_name, instance_name, instance, l=pattern_logger)
         for mutation, mutation_name in zip(mutations, mutation_names):
             codegen.generate_code(pattern_name, instance_name, 
-                                  mutation_name, mutation)
+                                  mutation_name, mutation, l=pattern_logger)
 
         instances[instance_name] = mutation_names
+    return (pattern_name, pattern, instances)
 
-    patterns[pattern_name] = instances
-    pattern_name_pairs.append((pattern, pattern_name))
+n_patterns = 200
+n_instances = 2
+n_mutations = 4
 
-write_patterns_to_dir(pattern_name_pairs, pattern_dir)
-codegen.generate_pattern_file(patterns)
+root_dir = f'unroll.{n_patterns}.{n_instances}.{n_mutations}'
+pattern_dir = f'{root_dir}/patterns'
+code_dir = f'{root_dir}/code'
+codegen = CodeGen(code_dir)
+
+# This needs to be called for the generate function to work with multiprocessing
+logger.remove()
+
+pattern_info = create_pattern_info()
+var_map = create_var_map()
+
+max_factor = 16
+assert(max_factor >= n_mutations)
+loop_unroll = LoopUnroll(max_factor)
+
+pattern_name_pairs = []
+patterns = {}
+
+with Pool() as pool:
+    new_patterns = pool.map(generate, [f'p{p:03d}' for p in range(n_patterns)])
+    for pattern_name, pattern, instances in new_patterns:
+        patterns[pattern_name] = instances
+        pattern_name_pairs.append((pattern, pattern_name))
+    write_patterns_to_dir(pattern_name_pairs, pattern_dir)
+    codegen.generate_pattern_file(patterns)
+
+# for p in range(n_patterns):
+#     new_pattern = generate(f'p{p:03d}')
+#     pattern_name, pattern, instances = new_pattern
+#     patterns[pattern_name] = instances
+#     pattern_name_pairs.append((pattern, pattern_name))
+# write_patterns_to_dir(pattern_name_pairs, pattern_dir)
+# codegen.generate_pattern_file(patterns)
 
 print(patterns)
