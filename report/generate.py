@@ -204,12 +204,12 @@ def generate_report(base_dir=None):
     if base_dir is None:
         base_dir = os.getcwd()
     ok_patterns = get_ok_patterns(base_dir)
-    # ok_patterns = filter_patterns(ok_patterns, 2, 5)
-    ok_patterns = limit_patterns(ok_patterns, 1, 2)
-    print(ok_patterns)
+    n_instances, n_mutations = get_popular_pattern_structure(ok_patterns)
+    ok_patterns = limit_patterns(ok_patterns, n_instances, n_mutations)
+
     runtimes = read_runtimes_database(base_dir, ok_patterns)
 
-    report.runtime.plot_normalized_runtimes(1, 2, runtimes)
+    report.runtime.add_plot_normalized_runtimes_v2(compilers, ok_patterns, runtimes)
     return
     report.vector_speedup.plot_vec_speedups(runtimes)
     report.vectorizable.plot_vectorizables(runtimes)

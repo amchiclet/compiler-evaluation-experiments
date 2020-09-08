@@ -7,6 +7,8 @@ from stats import \
     geometric_mean
 from report.util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair, update_dddl, update_ddl
 import plot
+from tqdm import tqdm
+from random import choices, sample, shuffle
 
 def get_normalized_runtimes(runtimes):
     best_mutations = {}
@@ -43,6 +45,28 @@ def plot_normalized_runtimes(n_patterns, n_instances, runtimes):
                       min_val=0,
                       max_val=1)
         plot.display_plot(f'{compiler} runtime stability')
+
+def add_plot_normalized_runtimes_v2(compilers, patterns, runtimes):
+    normalized, _ = get_normalized_runtimes(runtimes)
+
+    plots = {}
+    for c in compilers:
+        plots[c] = []
+
+    print(f'total patterns {len(patterns)}')
+    for _ in tqdm(range(10000)):
+        sample_patterns = choices(patterns, k=len(patterns))
+        for c in compilers:
+            rs = []
+            for p, instances in sample_patterns:
+                for i, mutations in instances:
+                    for m in mutations:
+                        rs.append(normalized[(c, p, i, m)])
+            plots[c].append(geometric_mean(rs))
+
+    for compiler, sample_stat in plots.items():
+        plot.add_plot(sample_stat, label=compiler, min_val=0, max_val=1)
+    plot.display_plot('normalized runtimes')
 
 def add_plot_normalized_runtimes(compiler, runtimes, label):
     normalized, _ = get_normalized_runtimes(runtimes)
