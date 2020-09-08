@@ -74,7 +74,7 @@ def generate(pattern_name):
         return None
 
     instances = {}
-    max_tries = 5
+    max_tries = 3
     n_tries = 0
     while len(instances) < n_instances and n_tries < max_tries:
         instance = create_instance(pattern, var_map, l=pattern_logger)
@@ -122,11 +122,11 @@ def generate(pattern_name):
         return None
     return (pattern_name, pattern, instances)
 
-n_patterns = 10
+n_patterns = 200
 n_instances = 2
 n_mutations = 4
 
-root_dir = f'parallel-interchange.{n_patterns}.{n_instances}.{n_mutations}'
+root_dir = f'interchange.{n_patterns}.{n_instances}.{n_mutations}'
 pattern_dir = f'{root_dir}/patterns'
 code_dir = f'{root_dir}/code'
 codegen = CodeGen(code_dir)
@@ -143,12 +143,19 @@ patterns = {}
 # This needs to be called for the generate function to work with multiprocessing
 logger.remove()
 
+remaining_patterns = set([f'p{p:03d}' for p in range(200)])
+
 with Pool() as pool:
-    while len(patterns) < n_patterns:
-        new_patterns = pool.map(generate, [f'p{p:02d}' for p in range(len(patterns), n_patterns)])
-        for pattern_name, pattern, instances in new_patterns:
+    while len(remaining_patterns) > 0:
+        new_patterns = pool.map(generate, remaining_patterns)
+        for triplet in new_patterns:
+            if triplet is None:
+                continue
+            pattern_name, pattern, instances = triplet
             patterns[pattern_name] = instances
             pattern_name_pairs.append((pattern, pattern_name))
+            remaining_patterns.remove(pattern_name)
+
     write_patterns_to_dir(pattern_name_pairs, pattern_dir)
     codegen.generate_pattern_file(patterns)
 
