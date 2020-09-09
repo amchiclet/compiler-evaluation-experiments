@@ -53,7 +53,9 @@ def add_plot_normalized_runtimes_v2(compilers, patterns, runtimes):
     for c in compilers:
         plots[c] = []
 
+    patterns = sample(patterns, 30)
     print(f'total patterns {len(patterns)}')
+
     for _ in tqdm(range(10000)):
         sample_patterns = choices(patterns, k=len(patterns))
         for c in compilers:

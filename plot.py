@@ -2,14 +2,28 @@ import seaborn
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from random import choices, sample
+from scipy.stats import norm, gamma
 
-def add_plot(list_1d, label, min_val=None, max_val=None):
-    # seaborn.distplot(list_1d, hist=True, kde=True)
+def add_plot(list_1d, label, color=None, min_val=None, max_val=None):
+    width = (max(list_1d) - min(list_1d)) * 0.5
+    n_bins = [t/100 for t in range(200)]
+    seaborn.distplot(
+        list_1d,
+        label=label,
+        hist=True,
+        kde=False,
+        fit=norm,
+        color=color,
+        norm_hist=True,
+        bins=n_bins,
+    ).set(xlim=(min_val, 2))
     # seaborn.kdeplot(list_1d, bw=0.1, clip=(0.0, 1.0), label=label)
-    seaborn.kdeplot(list_1d, label=label).set(xlim=(min_val, max_val))
+    # seaborn.kdeplot(list_1d, label=label, bw=width).set(xlim=(min_val, max_val))
+
 def display_plot(title=None):
     if title is not None:
         plt.title(title)
+    plt.legend()
     plt.show()
 
 def save_plot(path, title=None):

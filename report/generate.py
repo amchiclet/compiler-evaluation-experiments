@@ -168,6 +168,7 @@ def filter_patterns(patterns, n_instances, n_mutations):
                 continue
             mutation_samples = sample(mutations, k=n_mutations)
             filtered_instances.append((i, mutation_samples))
+
         if len(filtered_instances) < n_instances:
             continue
         instance_samples = sample(filtered_instances, k=n_instances)
@@ -209,7 +210,12 @@ def generate_report(base_dir=None):
 
     runtimes = read_runtimes_database(base_dir, ok_patterns)
 
-    report.runtime.add_plot_normalized_runtimes_v2(compilers, ok_patterns, runtimes)
+    # report.runtime.add_plot_normalized_runtimes_v2(compilers, ok_patterns, runtimes)
+    # report.vector_speedup.add_plot_normalized_vec_speedups(compilers, ok_patterns, runtimes)
+    # report.vectorizable.add_plot_vectorizables(compilers, ok_patterns, runtimes)
+    # report.cost_model.add_plot_cost_model(compilers, ok_patterns, runtimes)
+    # report.peer_speedup.add_plot_peer_speedups(compilers, ok_patterns, runtimes)
+    report.peer_rank.add_plot_rank_counts(compilers, ok_patterns, runtimes)
     return
     report.vector_speedup.plot_vec_speedups(runtimes)
     report.vectorizable.plot_vectorizables(runtimes)

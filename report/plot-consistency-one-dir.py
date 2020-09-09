@@ -39,4 +39,3 @@ for repeat in range(10):
                 add_plot_normalized_runtimes(c, filtered_runtimes, f'patterns {part}-{part+n_patterns}')
             save_plot(f'/{fig_dir}/unroll.{c}.{n_patterns}.{n_instances}.{repeat}.png', f'{c} runtime stability')
             clear_plot()
-

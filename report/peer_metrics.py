@@ -72,6 +72,13 @@ def get_compiler_pairs_and_pims(runtimes):
 
     return compiler_pairs, keys_to_consider
 
+def get_compiler_pairs(compilers):
+    compiler_pairs = []
+    for i, c1 in enumerate(compilers[:-1]):
+        for c2 in compilers[i+1:]:
+            compiler_pairs.append((c1, c2))
+    return compiler_pairs
+
 def iterate_compiler_runtime_pairs(runtimes):
     compiler_pairs, pims = get_compiler_pairs_and_pims(runtimes)
     for c1, c2 in compiler_pairs:

@@ -7,11 +7,13 @@ from report.util import merge_value, update_dict_dict, update_dict_array, get_pa
 
 from scipy import log
 from scipy.stats import gmean
-from report.peer_metrics import get_compiler_pairs_and_pims, x_faster_than_y_key, iterate_compiler_runtime_pairs, is_approximate, x_approximates_y_key, is_faster_mention
+from report.peer_metrics import get_compiler_pairs_and_pims, x_faster_than_y_key, iterate_compiler_runtime_pairs, is_approximate, x_approximates_y_key, is_faster_mention, get_compiler_pairs
 
 import plot
 
 from loguru import logger
+from random import choices
+from tqdm import tqdm
 
 def get_peer_speedups(runtimes):
     compilers = set()
@@ -64,6 +66,43 @@ def get_peer_speedups_v2(runtimes):
         update_dict_array(speedups, key_inv, speedup_inv)
         outliers.merge((key_inv, pim), speedup_inv, (speedup_inv, pim))
     return speedups, outliers
+
+def get_peer_speedups_v3(runtimes):
+    speedups = {}
+    for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
+        key = make_key(c2, c1)
+        speedup = r2 / r1
+        speedups[(key, pim)] = speedup
+
+        key_inv = make_key(c1, c2)
+        speedup_inv = r1 / r2
+        speedups[(key_inv, pim)] = speedup_inv
+    return speedups
+
+def add_plot_peer_speedups(compilers, patterns, runtimes):
+    speedups_map = get_peer_speedups_v3(runtimes)
+
+    plots = {}
+
+    for (c1, c2) in get_compiler_pairs(compilers):
+        plots[make_key(c1, c2)] = []
+        plots[make_key(c2, c1)] = []
+
+    for _ in tqdm(range(1000)):
+        sample_patterns = choices(patterns, k=len(patterns))
+        for (c1, c2) in get_compiler_pairs(compilers):
+            for pair in [make_key(c1, c2), make_key(c2, c1)]:
+                speedups = []
+                for p, instances in sample_patterns:
+                    for i, mutations in instances:
+                        for m in mutations:
+                            speedups.append(speedups_map[(pair, (p, i, m))])
+                plots[pair].append(geometric_mean(speedups))
+
+    colors = 'bgrcmyk'
+    for (pair, sample_stat), color in zip(plots.items(), colors):
+        plot.add_plot(sample_stat, label=pair, color=color)
+    plot.display_plot('peer speedup')
 
 def get_stats(runtimes):
     _, speedups, outliers = get_peer_speedups(runtimes)

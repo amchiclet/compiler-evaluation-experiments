@@ -7,6 +7,8 @@ from stats import \
     arithmetic_mean
 from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation
 import plot
+from random import choices
+from tqdm import tqdm
 
 def get_normalized_cost_model_performance(runtimes):
     grouped = {}
@@ -48,6 +50,29 @@ def get_normalized_cost_model_performance(runtimes):
             normalized[key] = (n_cost_model_good[key], n_total)
 
     return normalized, outliers
+
+def add_plot_cost_model(compilers, patterns, runtimes):
+    plots = {}
+    for c in compilers:
+        plots[c] = []
+
+    for _ in tqdm(range(10000)):
+        sample_patterns = choices(patterns, k=len(patterns))
+        for c in compilers:
+            n_good_cost_model = []
+            for p, instances in sample_patterns:
+                for i, mutations in instances:
+                    for m in mutations:
+                        with_cost_model = runtimes[(c, 'fast', p, i, m)]
+                        without_cost_model = runtimes[(c, 'nopredict', p, i, m)]
+                        is_good = without_cost_model >= with_cost_model * 0.95
+                        n_good_cost_model.append(1 if is_good else 0)
+            plots[c].append(arithmetic_mean(n_good_cost_model))
+
+    for compiler, sample_stat in plots.items():
+        print(plots[c][:100])
+        plot.add_plot(sample_stat, label=compiler, min_val=0, max_val=1)
+    plot.display_plot('cost model')
 
 def plot_cost_model(runtimes):
     grouped = {}

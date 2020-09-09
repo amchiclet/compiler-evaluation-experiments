@@ -8,6 +8,8 @@ from stats import \
 from report.util import merge_value, update_dict_dict
 from report.vector_speedup import get_vec_speedups
 import plot
+from random import choices
+from tqdm import tqdm
 
 vectorizable_threshold = 1.15
 
@@ -34,6 +36,33 @@ def get_normalized_vectorizables(runtimes):
             normalized[key] = (n_actually_vectorized[key], n_total)
 
     return normalized
+
+def add_plot_vectorizables(compilers, patterns, runtimes):
+    _, speedups, best_speedups = get_vec_speedups(runtimes)
+    plots = {}
+    n_vectorized_map = {}
+    for c in compilers:
+        plots[c] = []
+        n_vectorized_map[c] = []
+    for _ in tqdm(range(10000)):
+        sample_patterns = choices(patterns, k=len(patterns))
+        for c in compilers:
+            n_vectorized = []
+            for p, instances in sample_patterns:
+                for i, mutations in instances:
+                    if best_speedups[(c, p, i)] < vectorizable_threshold:
+                        continue
+                    for m in mutations:
+                        speedup = speedups[(c, p, i, m)]
+                        is_vectorizable = speedup >= vectorizable_threshold
+                        n_vectorized.append(1 if is_vectorizable else 0)
+            plots[c].append(arithmetic_mean(n_vectorized))
+            n_vectorized_map[c].append(len(n_vectorized))
+
+    for compiler, sample_stat in plots.items():
+        print(compiler, n_vectorized_map[c][:10])
+        plot.add_plot(sample_stat, label=compiler, min_val=0, max_val=1)
+    plot.display_plot('vectorized')
 
 def plot_vectorizables(runtimes):
     compilers, speedups, best_speedups = get_vec_speedups(runtimes)
