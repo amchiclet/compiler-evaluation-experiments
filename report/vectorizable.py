@@ -37,7 +37,7 @@ def get_normalized_vectorizables(runtimes):
 
     return normalized
 
-def add_plot_vectorizables(compilers, patterns, runtimes):
+def add_plot_vectorizables(compilers, patterns, runtimes, fig_path=None):
     _, speedups, best_speedups = get_vec_speedups(runtimes)
     plots = {}
     n_vectorized_map = {}
@@ -60,9 +60,12 @@ def add_plot_vectorizables(compilers, patterns, runtimes):
             n_vectorized_map[c].append(len(n_vectorized))
 
     for compiler, sample_stat in plots.items():
-        print(compiler, n_vectorized_map[c][:10])
         plot.add_plot(sample_stat, label=compiler, min_val=0, max_val=1)
-    plot.display_plot('vectorized')
+    if fig_path is None:
+        plot.display_plot('vectorized')
+    else:
+        plot.save_plot(fig_path, 'vectororized')
+        plot.clear_plot()
 
 def plot_vectorizables(runtimes):
     compilers, speedups, best_speedups = get_vec_speedups(runtimes)

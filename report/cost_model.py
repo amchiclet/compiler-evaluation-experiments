@@ -51,7 +51,7 @@ def get_normalized_cost_model_performance(runtimes):
 
     return normalized, outliers
 
-def add_plot_cost_model(compilers, patterns, runtimes):
+def add_plot_cost_model(compilers, patterns, runtimes, fig_path=None):
     plots = {}
     for c in compilers:
         plots[c] = []
@@ -70,9 +70,12 @@ def add_plot_cost_model(compilers, patterns, runtimes):
             plots[c].append(arithmetic_mean(n_good_cost_model))
 
     for compiler, sample_stat in plots.items():
-        print(plots[c][:100])
         plot.add_plot(sample_stat, label=compiler, min_val=0, max_val=1)
-    plot.display_plot('cost model')
+    if fig_path is None:
+        plot.display_plot('cost model')
+    else:
+        plot.save_plot(fig_path, 'cost model')
+        plot.clear_plot()
 
 def plot_cost_model(runtimes):
     grouped = {}

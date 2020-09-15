@@ -79,7 +79,7 @@ def get_peer_speedups_v3(runtimes):
         speedups[(key_inv, pim)] = speedup_inv
     return speedups
 
-def add_plot_peer_speedups(compilers, patterns, runtimes):
+def add_plot_peer_speedups(compilers, patterns, runtimes, fig_path=None):
     speedups_map = get_peer_speedups_v3(runtimes)
 
     plots = {}
@@ -88,7 +88,7 @@ def add_plot_peer_speedups(compilers, patterns, runtimes):
         plots[make_key(c1, c2)] = []
         plots[make_key(c2, c1)] = []
 
-    for _ in tqdm(range(1000)):
+    for _ in tqdm(range(10000)):
         sample_patterns = choices(patterns, k=len(patterns))
         for (c1, c2) in get_compiler_pairs(compilers):
             for pair in [make_key(c1, c2), make_key(c2, c1)]:
@@ -101,8 +101,12 @@ def add_plot_peer_speedups(compilers, patterns, runtimes):
 
     colors = 'bgrcmyk'
     for (pair, sample_stat), color in zip(plots.items(), colors):
-        plot.add_plot(sample_stat, label=pair, color=color)
-    plot.display_plot('peer speedup')
+        plot.add_plot(sample_stat, label=pair, color=color, min_val=0)
+    if fig_path is None:
+        plot.display_plot('peer speedup')
+    else:
+        plot.save_plot(fig_path, 'peer speedup')
+        plot.clear_plot()
 
 def get_stats(runtimes):
     _, speedups, outliers = get_peer_speedups(runtimes)

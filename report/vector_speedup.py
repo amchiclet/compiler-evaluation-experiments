@@ -37,7 +37,7 @@ def get_normalized_vec_speedups(runtimes):
 
     return normalized, outliers
 
-def add_plot_normalized_vec_speedups(compilers, patterns, runtimes):
+def add_plot_normalized_vec_speedups(compilers, patterns, runtimes, fig_path=None):
     normalized, _ = get_normalized_vec_speedups(runtimes)
     plots = {}
     for c in compilers:
@@ -54,7 +54,11 @@ def add_plot_normalized_vec_speedups(compilers, patterns, runtimes):
 
     for compiler, sample_stat in plots.items():
         plot.add_plot(sample_stat, label=compiler, min_val=0, max_val=1)
-    plot.display_plot('vector speedup')
+    if fig_path is None:
+        plot.display_plot('vector speedup')
+    else:
+        plot.save_plot(fig_path, 'vector speedup')
+        plot.clear_plot()
 
 def plot_vec_speedups(runtimes):
     compilers = set()

@@ -76,7 +76,7 @@ def get_rankings(runtimes):
                 rankings[(x_faster_than_y_key(c2, c1), pim)] = 1
     return rankings
 
-def add_plot_rank_counts(compilers, patterns, runtimes):
+def add_plot_rank_counts(compilers, patterns, runtimes, fig_path=None):
     rankings_map = get_rankings(runtimes)
 
     plots = {}
@@ -85,7 +85,7 @@ def add_plot_rank_counts(compilers, patterns, runtimes):
         plots[x_faster_than_y_key(c1, c2)] = []
         plots[x_faster_than_y_key(c2, c1)] = []
 
-    for _ in tqdm(range(1000)):
+    for _ in tqdm(range(10000)):
         sample_patterns = choices(patterns, k=len(patterns))
         for (c1, c2) in get_compiler_pairs(compilers):
             keys = [x_approximates_y_key(c1, c2),
@@ -101,8 +101,12 @@ def add_plot_rank_counts(compilers, patterns, runtimes):
 
     colors = 'bgrcmyk'
     for (pair, sample_stat), color in zip(plots.items(), colors):
-        plot.add_plot(sample_stat, label=pair, color=color)
-    plot.display_plot('peer rank')
+        plot.add_plot(sample_stat, label=pair, color=color, min_val=0, max_val=1)
+    if fig_path is None:
+        plot.display_plot('peer rank')
+    else:
+        plot.save_plot(fig_path, 'peer rank')
+        plot.clear_plot()
 
 def get_total_counts(rank_counts):
     total_counts = {}

@@ -1,7 +1,7 @@
 compilers = [
-    'gcc',
-    'icc',
-    'pgi',
+    # 'gcc',
+    # 'icc',
+    # 'pgi',
     'clang',
 ]
 
@@ -20,17 +20,17 @@ noopt_flags = {
 }
 
 novec_flags = {
-    'pgi': ['-Mnovect'],
-    'gcc': ['-fno-tree-vectorize'],
-    'icc': ['-no-vec'],
-    'clang': ['-fno-vectorize'],
+    # 'pgi': ['-Mnovect'],
+    # 'gcc': ['-fno-tree-vectorize'],
+    # 'icc': ['-no-vec'],
+    # 'clang': ['-fno-vectorize'],
 }
 
 nopredict_flags = {
-    'pgi': ['-Mvect=nosizelimit'],
-    'gcc': ['-fvect-cost-model=unlimited'],
-    'icc': ['-vec-threshold0'],
-    'clang': ['-mllvm', '-force-vector-width=16'],
+    # 'pgi': ['-Mvect=nosizelimit'],
+    # 'gcc': ['-fvect-cost-model=unlimited'],
+    # 'icc': ['-vec-threshold0'],
+    # 'clang': ['-mllvm', '-force-vector-width=16'],
 }
 
 report_flags = {

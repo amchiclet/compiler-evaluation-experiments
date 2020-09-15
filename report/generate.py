@@ -210,12 +210,12 @@ def generate_report(base_dir=None):
 
     runtimes = read_runtimes_database(base_dir, ok_patterns)
 
-    # report.runtime.add_plot_normalized_runtimes_v2(compilers, ok_patterns, runtimes)
-    # report.vector_speedup.add_plot_normalized_vec_speedups(compilers, ok_patterns, runtimes)
-    # report.vectorizable.add_plot_vectorizables(compilers, ok_patterns, runtimes)
-    # report.cost_model.add_plot_cost_model(compilers, ok_patterns, runtimes)
-    # report.peer_speedup.add_plot_peer_speedups(compilers, ok_patterns, runtimes)
-    report.peer_rank.add_plot_rank_counts(compilers, ok_patterns, runtimes)
+    report.runtime.add_plot_normalized_runtimes_v2(compilers, ok_patterns, runtimes, f'{base_dir}/runtime.png')
+    report.vector_speedup.add_plot_normalized_vec_speedups(compilers, ok_patterns, runtimes, f'{base_dir}/vector_speedup.png')
+    report.vectorizable.add_plot_vectorizables(compilers, ok_patterns, runtimes, f'{base_dir}/vectorized.png')
+    report.cost_model.add_plot_cost_model(compilers, ok_patterns, runtimes, f'{base_dir}/cost_model.png')
+    report.peer_speedup.add_plot_peer_speedups(compilers, ok_patterns, runtimes, f'{base_dir}/peer_speedup.png')
+    report.peer_rank.add_plot_rank_counts(compilers, ok_patterns, runtimes, f'{base_dir}/peer_rank.png')
     return
     report.vector_speedup.plot_vec_speedups(runtimes)
     report.vectorizable.plot_vectorizables(runtimes)

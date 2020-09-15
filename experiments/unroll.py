@@ -66,6 +66,7 @@ def get_logger(pattern_name):
 
 def generate(pattern_name):
     print(pattern_name)
+
     pattern = generate_pattern(pattern_info, var_map)
     pattern_logger = get_logger(pattern_name)
     assert(pattern is not None)
@@ -105,32 +106,32 @@ def generate(pattern_name):
 n_patterns = 200
 n_instances = 2
 n_mutations = 4
-
-root_dir = f'unroll.{n_patterns}.{n_instances}.{n_mutations}'
-pattern_dir = f'{root_dir}/patterns'
-code_dir = f'{root_dir}/code'
-codegen = CodeGen(code_dir)
+pattern_info = create_pattern_info()
+var_map = create_var_map()
 
 # This needs to be called for the generate function to work with multiprocessing
 logger.remove()
-
-pattern_info = create_pattern_info()
-var_map = create_var_map()
 
 max_factor = 16
 assert(max_factor >= n_mutations)
 loop_unroll = LoopUnroll(max_factor)
 
-pattern_name_pairs = []
-patterns = {}
+for repeat in range(10):
+    root_dir = f'big-unroll.{n_patterns}.{n_instances}.{n_mutations}/r{repeat:02d}'
+    pattern_dir = f'{root_dir}/patterns'
+    code_dir = f'{root_dir}/code'
+    codegen = CodeGen(code_dir)
 
-with Pool() as pool:
-    new_patterns = pool.map(generate, [f'p{p:03d}' for p in range(n_patterns)])
-    for pattern_name, pattern, instances in new_patterns:
-        patterns[pattern_name] = instances
-        pattern_name_pairs.append((pattern, pattern_name))
-    write_patterns_to_dir(pattern_name_pairs, pattern_dir)
-    codegen.generate_pattern_file(patterns)
+    pattern_name_pairs = []
+    patterns = {}
+
+    with Pool() as pool:
+        new_patterns = pool.map(generate, [f'p{p:03d}' for p in range(n_patterns)])
+        for pattern_name, pattern, instances in new_patterns:
+            patterns[pattern_name] = instances
+            pattern_name_pairs.append((pattern, pattern_name))
+        write_patterns_to_dir(pattern_name_pairs, pattern_dir)
+        codegen.generate_pattern_file(patterns)
 
 # for p in range(n_patterns):
 #     new_pattern = generate(f'p{p:03d}')
@@ -140,4 +141,3 @@ with Pool() as pool:
 # write_patterns_to_dir(pattern_name_pairs, pattern_dir)
 # codegen.generate_pattern_file(patterns)
 
-print(patterns)
