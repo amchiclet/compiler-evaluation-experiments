@@ -438,7 +438,11 @@ class Program(Node, LoopTrait):
             if decl.name == name:
                 return decl.is_local
         return False
-
+    def get_decl(self, name):
+        for decl in self.decls:
+            if decl.name == name:
+                return decl
+        return None
     def cprint(self, indent=0):
         lines = []
         for stmt in self.body:

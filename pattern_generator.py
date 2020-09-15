@@ -22,22 +22,27 @@ class Generator:
             self.next_id = next_id
 
 class IndexGenerator:
-    def __init__(self, mul_consts, add_consts, next_id=None):
+    def __init__(self, mul_consts, maybe_zero_mul_consts, add_consts, next_id=None):
         self.mul_consts = mul_consts
+        self.maybe_zero_mul_consts = maybe_zero_mul_consts
         self.add_consts = add_consts
         if next_id is None:
             self.next_id = IdGenerator().next_id
         else:
             self.next_id = next_id
     def generate(self, loop_vars):
-        a_str = random.choice(self.mul_consts)
+        all_mul_consts = self.mul_consts + self.maybe_zero_mul_consts
+        a_str = random.choice(all_mul_consts)
         x_str = random.choice(loop_vars)
         b_str = random.choice(self.add_consts)
         a = Access(a_str, node_id=self.next_id())
         x = Access(x_str, node_id=self.next_id())
         b = Access(b_str, node_id=self.next_id())
         ax = Op('*', [a, x], node_id=self.next_id())
-        additive = random.choice(['+', '-'])
+        if a_str in self.maybe_zero_mul_consts:
+            additive = '+'
+        else:
+            additive = random.choice(['+', '-'])
         return Op(additive, [ax, b], node_id=self.next_id())
 
 class AccessGenerator(Generator):
@@ -172,7 +177,8 @@ class ProgramGenerator(Generator):
 class PatternInfo:
     def __init__(self, decls=None, mul_consts=None, add_consts=None,
                  data_consts=None, ops=None, loop_vars=None,
-                 n_loops=0, n_depth=0, n_stmts=0, n_ops=0):
+                 n_loops=0, n_depth=0, n_stmts=0, n_ops=0,
+                 maybe_zero_mul_consts=None):
         self.decls = decls if decls else []
         self.mul_consts = mul_consts if mul_consts else []
         self.add_consts = add_consts if add_consts else []
@@ -183,6 +189,7 @@ class PatternInfo:
         self.n_depth = n_depth
         self.n_stmts = n_stmts
         self.n_ops = n_ops
+        self.maybe_zero_mul_consts = maybe_zero_mul_consts if maybe_zero_mul_consts else []
     def pprint(self):
         from pprint import PrettyPrinter
         pp = PrettyPrinter(indent=2)
@@ -190,6 +197,7 @@ class PatternInfo:
         decl_pairs = [(decl.name, decl.n_dimensions) for decl in self.decls]
         lines.append(f'decls = {pp.pformat(decl_pairs)}')
         lines.append(f'mul_consts = {pp.pformat(self.mul_consts)}')
+        lines.append(f'maybe_zero_mul_consts = {pp.pformat(self.maybe_zero_mul_consts)}')
         lines.append(f'add_consts = {pp.pformat(self.add_consts)}')
         lines.append(f'data_consts = {pp.pformat(self.data_consts)}')
         lines.append(f'loop_vars = {pp.pformat(self.loop_vars)}')
@@ -202,6 +210,7 @@ class PatternInfo:
 def generate(pattern_info):
     id_gen = IdGenerator()
     index_gen = IndexGenerator(pattern_info.mul_consts,
+                               pattern_info.maybe_zero_mul_consts,
                                pattern_info.add_consts, id_gen.next_id)
     access_gen = AccessGenerator(pattern_info.decls,
                                  pattern_info.data_consts, index_gen,
@@ -218,11 +227,16 @@ def generate(pattern_info):
                                 pattern_info.loop_vars,
                                 pattern_info.n_stmts,
                                 pattern_info.n_ops)
+    # print('\n\nbefore\n')
+    # print(node.pprint())
     normalize_pattern(node, pattern_info.decls,
                       pattern_info.mul_consts,
+                      pattern_info.maybe_zero_mul_consts,
                       pattern_info.add_consts,
                       pattern_info.data_consts,
                       pattern_info.loop_vars)
+    # print('\n\nafter\n')
+    # print(node.pprint())
     return node, id_gen.current
 
 def has_use_before_def(pattern):
@@ -233,12 +247,12 @@ def has_use_before_def(pattern):
         for access in get_accesses(assignment.rhs):
             var = access.var
             if var in local_vars and var not in is_write_first:
-                return False
+                return True
         for access in get_accesses(assignment.lhs):
             var = access.var
-            if var in local_scalars:
+            if var in local_vars:
                 is_write_first.add(var)
-    return True
+    return False
 
 def generate_pattern(pattern_info, var_map=None, max_tries=10):
     for _ in range(max_tries):

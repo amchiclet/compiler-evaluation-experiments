@@ -65,8 +65,12 @@ def find_outliers(values, keys):
     numpy.seterr(all='raise')
 
     # avg = tmean(values)
-    avg = median(values)
-    bound = 0.01 * avg
+    try:
+        avg = median(values)
+        bound = 0.01 * avg
+    except FloatingPointError as fpe:
+        return None, None
+
     try:
         max_val = avg + bound
     except FloatingPointError as fpe:

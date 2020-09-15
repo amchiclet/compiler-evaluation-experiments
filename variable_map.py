@@ -3,6 +3,10 @@ from random import randint, choice, shuffle, uniform
 from loguru import logger
 from dependence_analysis import expr_to_cexpr
 from copy import deepcopy
+from enum import Enum
+
+class Error(Enum):
+    Z3_BUG = 0
 
 class Limit:
     def __init__(self, min_val=None, max_val=None):
@@ -89,7 +93,7 @@ def find_max(constraints, expr, l = None):
 
     if status != unsat:
         l.warning(f'Z3 bug\nFind max ({expr}) => {max_val} with status ({status}):\n' + '\n'.join(constraint_strs))
-        return None
+        return Error.Z3_BUG
     return max_val
 
 def find_min(constraints, expr):
@@ -148,28 +152,35 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
         l = logger
     constraint_strs = '\n'.join(map(str, constraints))
     l.debug(f'Determining array sizes for constraints\n{constraint_strs}')
+    bypass_set = set()
     array_sizes = {}
     cloned = var_map.clone()
     for decl in decls:
         sizes = []
         for dimension in range(decl.n_dimensions):
-            var = dimension_var(decl.name, dimension)
-            if cloned.has_min(var):
-                sizes.append(max(1, cloned.get_min(var)))
+            dim_var = dimension_var(decl.name, dimension)
+            if cloned.has_min(dim_var):
+                sizes.append(cloned.get_min(dim_var))
+                bypass_set.add(dim_var)
             else:
                 sizes.append(1)
         array_sizes[decl.name] = (decl.is_local, sizes)
 
     for access in accesses:
         for dimension, index in enumerate(access.indices):
+
+            dim_var = dimension_var(access.var, dimension)
+            if dim_var in bypass_set:
+                continue
+
             cexpr = expr_to_cexpr(index, cvars)
             if cexpr is None:
                 l.warning(f'Unable to analyze the max value of {index.pprint()} in {access.pprint()}')
                 max_val = cloned.default_max
             else:
                 max_val = find_max(constraints, cexpr, l)
-                if max_val is None:
-                    return None
+                if max_val is None or max_val == Error.Z3_BUG:
+                    return max_val
                 max_val = min(max_val + 1, cloned.default_max)
 
             # var = dimension_var(access.var, dimension)
@@ -275,8 +286,8 @@ def try_create_instance(pattern, var_map, l=None):
                                         accesses, cvars,
                                         constraints,
                                         cloned_var_map, l)
-    if array_sizes is None:
-        return None
+    if array_sizes is None or array_sizes == Error.Z3_BUG:
+        return array_sizes
 
     return Instance(pattern, array_sizes)
 
@@ -356,15 +367,16 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
                                             accesses, cvars,
                                             constraints,
                                             cloned_var_map, l)
-        if array_sizes is None:
-            return None
+        if array_sizes is None or array_sizes == Error.Z3_BUG:
+            return array_sizes
 
         return Instance(random_pattern, array_sizes)
 
-    result = None
     for _ in range(max_tries):
         result = try_once()
+        if result == Error.Z3_BUG:
+            return Error.Z3_BUG
         if result is not None:
             return result
 
-    return result
+    return None
