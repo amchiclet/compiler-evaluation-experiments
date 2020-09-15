@@ -1,5 +1,5 @@
 from dependence_analysis import analyze_dependence
-from variable_map import VariableMap, try_create_instance
+from variable_map import VariableMap, try_create_instance, Error
 from random import choice
 from sampler import Sampler
 from math import factorial
@@ -37,7 +37,10 @@ def gather_surrounding_loop_shapes(access):
 # variables are i, j, and k in the order of the loop nesting.
 
 def array_name(scalar_name):
-    return f'{scalar_name}_array'
+    if scalar_name.endswith('_'):
+        return f'{scalar_name}array'
+    else:
+        return f'{scalar_name}_array'
 
 class ScalarReplacer(Replacer):
     def __init__(self, replace_map):
@@ -79,17 +82,18 @@ def get_candidates(instance):
             if v is not None and k in is_write_first}
 
 class SimpleScalarExpansion:
-    def transform(self, instance, var_map):
+    def transform(self, instance, var_map, max_tries=10):
         candidates = get_candidates(instance)
 
-        while True:
+        n_tries = 0
+        while n_tries < max_tries:
             cloned_pattern = instance.pattern.clone()
 
-            for candidate, loop_shapes in candidates.items():
+            for candidate in sorted(candidates.keys()):
+                loop_shapes = candidates[candidate]
                 is_expand = choice([True, False])
                 if not is_expand:
                     continue
-                print('expand!')
                 replace_map = {candidate:loop_shapes}
                 replacer = ScalarReplacer(replace_map)
                 cloned_pattern.replace(replacer)
@@ -102,7 +106,13 @@ class SimpleScalarExpansion:
 
             new_instance = try_create_instance(cloned_pattern, var_map)
             if new_instance is None:
+                n_tries += 1
                 print('for some reason it\'s failing')
                 continue
+            if new_instance == Error.Z3_BUG:
+                yield None
 
+            n_tries = 0
             yield new_instance
+        while True:
+            yield None

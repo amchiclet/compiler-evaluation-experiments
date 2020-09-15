@@ -18,6 +18,9 @@ def rename_to_order(pattern, original_order, sorted_order):
     renamer_2 = VarRenamer(replace_map_2)
     pattern.replace(renamer_2)
 
+def rename_decls(pattern, original_decls, sorted_decls):
+    pass
+
 def normalize_loop_var_order(pattern, sorted_loop_vars):
     ordered_loop_vars = []
     def populate_loop_vars(node):
@@ -47,7 +50,8 @@ def normalize_loop_var_order(pattern, sorted_loop_vars):
     sorted_less_eq = list(map(less_eq_const_name, sorted_loop_vars))
     rename_to_order(pattern, ordered_less_eq, sorted_less_eq)
 
-def normalize_access_order(pattern, sorted_decls, sorted_muls, sorted_adds, sorted_datas):
+def normalize_access_order(pattern, sorted_decls, sorted_muls,
+                           sorted_maybe_zero_muls, sorted_adds, sorted_datas):
     def populate_var_usage(node, var_pool):
         ordered_var_usage = []
         def recurse(node):
@@ -75,18 +79,36 @@ def normalize_access_order(pattern, sorted_decls, sorted_muls, sorted_adds, sort
         recurse(node)
         return ordered_var_usage
 
-    # pattern info includes variable decls and constants
-    def normalize_pattern_info(filter_fn, original_order, sorted_pool):
-        pattern.decls = list(filter(filter_fn, pattern.decls))
+    def get_decl_map(decls):
+        decl_map = {}
+        for decl in decls:
+            key = (decl.n_dimensions, decl.is_local)
+            if key not in decl_map:
+                decl_map[key] = []
+            decl_map[key].append(decl.name)
+        return decl_map
 
-    original_decls = populate_var_usage(pattern, sorted_decls)
-    pattern.decls[:] = [decl for decl in pattern.decls if decl.name in original_decls]
-    rename_to_order(pattern, original_decls, sorted_decls)
+    all_decl_names = [decl.name for decl in sorted_decls]
+    original_decl_names = populate_var_usage(pattern, all_decl_names)
+    # print(f'original decl names {original_decl_names}')
+    pattern.decls[:] = [pattern.get_decl(name) for name in original_decl_names]
+    original_decls = [decl for decl in pattern.decls]
+    original_decl_map = get_decl_map(pattern.decls)
+    sorted_decl_map = get_decl_map(sorted_decls)
+    for k, original_decl_order in original_decl_map.items():
+        sorted_decl_order= sorted_decl_map[k]
+        # print(f'renaming {original_decl_order} {sorted_decl_order}')
+        rename_to_order(pattern, original_decl_order, sorted_decl_order)
 
     original_muls = populate_var_usage(pattern, sorted_muls)
     pattern.consts[:] = [c for c in pattern.consts
                          if c.name not in sorted_muls or c.name in original_muls]
     rename_to_order(pattern, original_muls, sorted_muls)
+
+    original_maybe_zero_muls = populate_var_usage(pattern, sorted_maybe_zero_muls)
+    pattern.consts[:] = [c for c in pattern.consts
+                         if c.name not in sorted_maybe_zero_muls or c.name in original_maybe_zero_muls]
+    rename_to_order(pattern, original_maybe_zero_muls, sorted_maybe_zero_muls)
 
     original_adds = populate_var_usage(pattern, sorted_adds)
     pattern.consts[:] = [c for c in pattern.consts
@@ -101,10 +123,12 @@ def normalize_access_order(pattern, sorted_decls, sorted_muls, sorted_adds, sort
     pattern.decls.sort(key=lambda decl: decl.name)
     pattern.consts.sort(key=lambda const: const.name)
 
-def normalize_pattern(pattern, decls, mul_consts, add_consts, data_consts, loop_vars):
+def normalize_pattern(pattern, decls, mul_consts,
+                      maybe_zero_mul_consts, add_consts, data_consts, loop_vars):
     normalize_loop_var_order(pattern, sorted(loop_vars))
     normalize_access_order(pattern,
-                           sorted([decl.name for decl in decls]),
+                           sorted(decls, key=lambda decl:decl.name),
                            sorted(mul_consts),
+                           sorted(maybe_zero_mul_consts),
                            sorted(add_consts),
                            sorted(data_consts))
