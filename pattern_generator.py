@@ -1,4 +1,4 @@
-from abstract_ast import Op, Access, Declaration, Assignment, AbstractLoop, Const, Program, ConstReplacer, get_loops, VarRenamer, Literal, LoopShape, get_accesses
+from abstract_ast import Op, Access, Declaration, Assignment, AbstractLoop, Const, Program, ConstReplacer, get_loops, VarRenamer, Literal, LoopShape, get_accesses, get_ordered_assignments
 from pattern_normalizer import normalize_pattern, greater_eq_const_name, less_eq_const_name
 import random
 from loguru import logger
@@ -144,7 +144,7 @@ class ProgramGenerator(Generator):
         access_gen = self.loop_gen.assignment_gen.op_gen.access_gen
         gen_decls = []
         for d in sorted(access_gen.decls, key=lambda d: d.name):
-            gen_decls.append(Declaration(d.name, d.n_dimensions, is_local=False, node_id=self.next_id()))
+            gen_decls.append(Declaration(d.name, d.n_dimensions, d.is_local, node_id=self.next_id()))
 
         gen_loops = []
         for _ in range(n_loops):
@@ -225,9 +225,26 @@ def generate(pattern_info):
                       pattern_info.loop_vars)
     return node, id_gen.current
 
+def has_use_before_def(pattern):
+    local_vars = {decl.name for decl in pattern.decls if decl.is_local}
+
+    is_write_first = set()
+    for assignment in get_ordered_assignments(pattern):
+        for access in get_accesses(assignment.rhs):
+            var = access.var
+            if var in local_vars and var not in is_write_first:
+                return False
+        for access in get_accesses(assignment.lhs):
+            var = access.var
+            if var in local_scalars:
+                is_write_first.add(var)
+    return True
+
 def generate_pattern(pattern_info, var_map=None, max_tries=10):
     for _ in range(max_tries):
         pattern, _ = generate(pattern_info)
+        if has_use_before_def(pattern):
+            continue
         if var_map is None or validate_var_map(pattern, var_map):
             return pattern
     return None
