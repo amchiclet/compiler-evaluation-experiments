@@ -1,7 +1,7 @@
 from parser import parse_file
 from z3 import Solver, Ints, unsat, Optimize, sat, Int
 from loguru import logger
-from abstract_ast import get_accesses, Program, AbstractLoop, Access, Op, Literal
+from abstract_ast import get_accesses, Program, AbstractLoop, Access, Op, Literal, gather_surrounding_loops, gather_loop_shapes, gather_loop_vars
 from dependence_graph import Dependence, DependenceGraph
 
 def is_ordered(l, v1, v2):
@@ -89,21 +89,6 @@ def iterate_execution_order_direction_vector(source_ref, sink_ref):
                 trailing_stars = ['<=>'] * (n_common_loops - 1 - lt_position)
                 yield leading_eqs + ['<'] + trailing_stars
 
-def gather_surrounding_loops(stmt):
-    def recurse(s, acc):
-        outer = s.surrounding_loop
-        if not outer:
-            return acc
-        return recurse(outer, [outer] + acc)
-    return recurse(stmt, [])
-
-def gather_loop_vars(loop_shapes):
-    loop_vars = []
-    for shape in loop_shapes:
-        assert(type(shape.loop_var) == Access)
-        loop_vars.append(shape.loop_var.var)
-    return loop_vars
-
 def gather_loop_steps(loop_shapes):
     steps = []
     for shape in loop_shapes:
@@ -111,12 +96,6 @@ def gather_loop_steps(loop_shapes):
         assert(shape.step.ty == int)
         steps.append(shape.step.val)
     return steps
-
-def gather_loop_shapes(loops):
-    loop_shapes = []
-    for loop in loops:
-        loop_shapes += loop.loop_shapes
-    return  loop_shapes
 
 def get_common_prefix(l1, l2):
     common = []

@@ -288,6 +288,15 @@ class AbstractLoop(Node, LoopTrait):
     def __init__(self, loop_shapes, body, node_id=0):
         self.node_id = node_id
         self.loop_shapes = loop_shapes
+        for loop_shape in loop_shapes:
+            for access in get_accesses(loop_shape.loop_var):
+                access.parent_stmt = self
+            for access in get_accesses(loop_shape.greater_eq):
+                access.parent_stmt = self
+            for access in get_accesses(loop_shape.less_eq):
+                access.parent_stmt = self
+            for access in get_accesses(loop_shape.step):
+                access.parent_stmt = self
         self.body = body
         self.surrounding_loop = None
         for stmt in body:
@@ -424,6 +433,11 @@ class Program(Node, LoopTrait):
         self.loop_shapes = []
         for stmt in body:
             stmt.surrounding_loop = self
+    def is_local(self, name):
+        for decl in self.decls:
+            if decl.name == name:
+                return decl.is_local
+        return False
 
     def cprint(self, indent=0):
         lines = []
@@ -514,6 +528,21 @@ def get_accesses(node):
     else:
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
 
+def get_ordered_assignments(node):
+    assignments = []
+    if isinstance(node, Assignment):
+        return [node]
+    elif isinstance(node, AbstractLoop):
+        for stmt in node.body:
+            assignments += get_ordered_assignments(stmt)
+        return assignments
+    elif isinstance(node, Program):
+        for stmt in node.body:
+            assignments += get_ordered_assignments(stmt)
+        return assignments
+    else:
+        raise RuntimeError('Unhandled type of node ' + str(type(node)))
+
 def get_loops(node):
     if isinstance(node, AbstractLoop):
         loops = {node.node_id:node}
@@ -557,3 +586,24 @@ class VarRenamer(Replacer):
         return type(node) == str and node in self.replace_map
     def replace(self, node):
         return self.replace_map[node]
+
+def gather_surrounding_loops(stmt):
+    def recurse(s, acc):
+        outer = s.surrounding_loop
+        if not outer:
+            return acc
+        return recurse(outer, [outer] + acc)
+    return recurse(stmt, [])
+
+def gather_loop_shapes(loops):
+    loop_shapes = []
+    for loop in loops:
+        loop_shapes += loop.loop_shapes
+    return  loop_shapes
+
+def gather_loop_vars(loop_shapes):
+    loop_vars = []
+    for shape in loop_shapes:
+        assert(type(shape.loop_var) == Access)
+        loop_vars.append(shape.loop_var.var)
+    return loop_vars
