@@ -223,6 +223,63 @@ def get_scalar_cvars(pattern):
                 cvars[access.var] = Int(access.var)
     return cvars
 
+def try_create_instance(pattern, var_map, l=None):
+    if l is None:
+        l = logger
+
+    cvars = get_scalar_cvars(pattern)
+    accesses = get_accesses(pattern)
+    cloned_var_map = var_map.clone()
+    index_constraints = generate_index_constraints(accesses,
+                                                   cvars,
+                                                   cloned_var_map)
+
+    loop_shape_constraints = []
+    for loop in get_loops(pattern).values():
+        loop_shape_constraints += generate_loop_shape_constraints(loop.loop_shapes,
+                                                                  cvars,
+                                                                  cloned_var_map)
+
+    l.debug('Index constraints:\n' + '\n'.join(map(str, index_constraints)))
+    l.debug('Loop shape constraints:\n' + '\n'.join(map(str, loop_shape_constraints)))
+
+    assert(len(index_constraints) > 0)
+    invert_index_constraints = Not(And(index_constraints))
+
+    constraints = [invert_index_constraints] + loop_shape_constraints
+
+    solver = Solver()
+    solver.set('timeout', 10000)
+    solver.add(constraints)
+    status = solver.check()
+    if status != unsat:
+        l.debug(f'Constraints are not unsatisfiable ({status}). '
+                'May result in index out of bound')
+        l.debug('Loop shape constraints:\n' + '\n'.join(map(str, constraints)))
+        if status == sat:
+            l.debug(f'Model:\n{solver.model()}')
+        return None
+
+    constraints = index_constraints + loop_shape_constraints
+    solver = Solver()
+    solver.set('timeout', 10000)
+    solver.add(constraints)
+    status = solver.check()
+    if status != sat:
+        l.debug('Constraints are not satisfiable ({status}). '
+                'May result in no iterations')
+        l.debug('\n'.join(map(str, constraints)))
+        return None
+
+    array_sizes = determine_array_sizes(pattern.decls,
+                                        accesses, cvars,
+                                        constraints,
+                                        cloned_var_map, l)
+    if array_sizes is None:
+        return None
+
+    return Instance(pattern, array_sizes)
+
 def create_instance(pattern, var_map, max_tries=10000, l=None):
     if l is None:
         l = logger
