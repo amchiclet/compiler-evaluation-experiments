@@ -66,6 +66,17 @@ def read_runtime(base_dir, key):
             return (key, runtime)
     raise RuntimeError(f'File not found {full_path}')
 
+def read_runtime_fully_qualified(key):
+    compiler, mode, (base_dir, p), i, m = key
+    path = PathBuilder(compiler, mode, p, i, m).runtimes_ns_path()
+    full_path = f'{base_dir}/{path}'
+    if os.path.exists(full_path):
+        with open(full_path) as f:
+            runtimes_str = f.read()
+            runtime = tmean(list(map(int, runtimes_str.split())))
+            return (key, runtime)
+    raise RuntimeError(f'File not found {full_path}')
+
 def read_vector_rate(key):
     path = PathBuilder(*key).vector_rate_path()
     if os.path.exists(path):
@@ -81,6 +92,9 @@ def mutations(patterns):
 def read_runtimes_database(base_dir, patterns):
     f = partial(read_runtime, base_dir)
     return dict(Pool(1).map(f, mutations(patterns)))
+
+def read_runtimes_database_fully_qualified(patterns):
+    return dict(Pool().map(read_runtime_fully_qualified, mutations(patterns)))
 
 def read_runtimes_database_multi_experiment(base_dir, patterns):
     f = partial(read_runtime_multi_experiment, base_dir)
@@ -159,6 +173,10 @@ def get_ok_patterns(base_dir):
           f'Remaining mutations included in experiment: {n_ok_samples}\n')
     return ok_patterns
 
+def get_ok_patterns_fully_qualified(base_dir):
+    ok_patterns = get_ok_patterns(base_dir)
+    return [((base_dir, p), instances) for p, instances in ok_patterns]
+
 def filter_patterns(patterns, n_instances, n_mutations):
     filtered_patterns = []
     for p, instances in patterns:
@@ -207,22 +225,25 @@ def generate_report(base_dir=None):
     ok_patterns = get_ok_patterns(base_dir)
     n_instances, n_mutations = get_popular_pattern_structure(ok_patterns)
     ok_patterns = limit_patterns(ok_patterns, n_instances, n_mutations)
+    n_patterns = len(ok_patterns)
 
     runtimes = read_runtimes_database(base_dir, ok_patterns)
 
-    report.runtime.add_plot_normalized_runtimes_v2(compilers, ok_patterns, runtimes, f'{base_dir}/runtime.png')
-    report.vector_speedup.add_plot_normalized_vec_speedups(compilers, ok_patterns, runtimes, f'{base_dir}/vector_speedup.png')
-    report.vectorizable.add_plot_vectorizables(compilers, ok_patterns, runtimes, f'{base_dir}/vectorized.png')
-    report.cost_model.add_plot_cost_model(compilers, ok_patterns, runtimes, f'{base_dir}/cost_model.png')
-    report.peer_speedup.add_plot_peer_speedups(compilers, ok_patterns, runtimes, f'{base_dir}/peer_speedup.png')
-    report.peer_rank.add_plot_rank_counts(compilers, ok_patterns, runtimes, f'{base_dir}/peer_rank.png')
-    return
-    report.vector_speedup.plot_vec_speedups(runtimes)
-    report.vectorizable.plot_vectorizables(runtimes)
-    report.cost_model.plot_cost_model(runtimes)
-    report.peer_speedup.plot_peer_speedups(runtimes)
-    report.peer_rank.plot_rank_counts(runtimes)
+    report.runtime.add_plot_normalized_runtimes_v2(compilers, ok_patterns, runtimes)
+    # report.vector_speedup.add_plot_normalized_vec_speedups(compilers, ok_patterns, runtimes, f'{base_dir}/vector_speedup.png')
+    report.vectorizable.add_plot_vectorizables(compilers, ok_patterns, runtimes)
+    # report.cost_model.add_plot_cost_model(compilers, ok_patterns, runtimes, f'{base_dir}/cost_model.png')
+    # report.peer_speedup.add_plot_peer_speedups(compilers, ok_patterns, runtimes, f'{base_dir}/peer_speedup.png')
+    # report.peer_rank.add_plot_rank_counts(compilers, ok_patterns, runtimes, f'{base_dir}/peer_rank.png')
+    # return
+    # report.vector_speedup.plot_vec_speedups(runtimes)
+    # report.vectorizable.plot_vectorizables(runtimes)
+    # report.cost_model.plot_cost_model(runtimes)
+    # report.peer_speedup.plot_peer_speedups(runtimes)
+    # report.peer_rank.plot_rank_counts(runtimes)
 
+    # report.runtime.plot_ci_bar(n_patterns, runtimes)
+    return
     runtime_stats = report.runtime.get_stats(runtimes)
     vec_speedup_stats = report.vector_speedup.get_stats(runtimes)
     vectorizable_stats = report.vectorizable.get_stats(runtimes)
@@ -327,7 +348,10 @@ def generate_report(base_dir=None):
             for mode in iterate_modes():
                 header.append(f'{compiler}-{mode}')
                 key = (compiler, mode, pattern, program, mutation)
-                row.append(runtimes[key])
+                if key in runtimes:
+                    row.append(runtimes[key])
+                else:
+                    row.append('N/A')
             rows.append(row)
         print(tabulate(rows, headers=header, floatfmt='.2f'))
         print()

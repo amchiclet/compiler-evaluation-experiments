@@ -4,6 +4,8 @@ from report.util import \
     update_dict_array, \
     get_paths_for_pair, \
     format_spread_pair
+from stats import arithmetic_mean, geometric_mean
+from scipy import log, e
 
 def is_faster_mention(key, c):
     return f'{c}>' in key
@@ -88,3 +90,18 @@ def iterate_compiler_runtime_pairs(runtimes):
             r1 = runtimes[k1]
             r2 = runtimes[k2]
             yield (c1, r1), (c2, r2), pim
+
+def get_per_pattern_avg_runtimes(runtimes):
+    grouped = {}
+    for (compiler, mode, p, i, m), runtime in runtimes.items():
+        if mode == 'fast':
+            update_dict_array(grouped, (compiler, p), runtime)
+    return {k:arithmetic_mean(rs) for k,rs in grouped.items()}
+
+def get_per_pattern_sum_log_runtimes(runtimes):
+    grouped = {}
+    for (compiler, mode, p, i, m), runtime in runtimes.items():
+        if mode == 'fast':
+            update_dict_array(grouped, (compiler, p), runtime)
+    result = {k:sum(map(log, (rs))) for k,rs in grouped.items()}
+    return result

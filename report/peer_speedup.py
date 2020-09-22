@@ -117,8 +117,72 @@ def get_stats(runtimes):
 
     return Stats('Peer speedup stability', cis, outliers)
 
+def plot_ci_bar(n_patterns, raw_runtimes, fig_path=None):
+    _, speedups, _ = get_peer_speedups(runtimes)
+
+    means = {}
+    cis = {}
+    for key, speedup in speedups.items():
+        all_ci = calculate_ci_geometric(speedup, n_samples=n_patterns)
+        cis[key] = all_ci[1]
+        means[key] = geometric_mean(speedup)
+
+    plot.add_bar(means, cis)
+
+    if fig_path is None:
+        plot.display_plot('peer speedup')
+    else:
+        plot.save_plot(fig_path, 'peer speedup')
+        plot.clear_plot()
+
 def get_paths(stats):
     return get_paths_for_single(stats)
 
 def format_raw(raw):
     return format_raw_single_mutation(raw)
+
+def get_data_and_errors(compilers, n_patterns, runtimes):
+    speedups = {}
+
+    outliers = create_max_cases()
+
+    for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
+        p, i, m = pim
+        speedup = r2 / r1
+    
+        speedups[((c2, c1), pim)] = speedup
+        outliers.merge(((c2, c1), pim), speedup, (speedup, pim))
+
+        speedup_inv = r1 / r2
+        speedups[((c1, c2), pim)] = speedup_inv
+        outliers.merge(((c1, c2), pim), speedup_inv, (speedup_inv, pim))
+    # print(outliers.pprint())
+
+    # pattern level
+    pattern_speedups = {}
+    for (pair, (p, i, m)), speedup in speedups.items():
+        update_dict_array(pattern_speedups, (pair, p), speedup)
+
+    pattern_mean_speedup = {k:geometric_mean(speedups)
+                            for k, speedups in pattern_speedups.items()}
+
+    grouped = {}
+    for (pair, p), mean_speedup in pattern_mean_speedup.items():
+        if p == 'p001' and pair == ('icc', 'pgi'):
+            print(p, pair, mean_speedup)
+        if mean_speedup > 1.05:
+            update_dict_array(grouped, pair, mean_speedup)
+
+    data = {}
+    neg_errs = {}
+    pos_errs = {}
+    for key, speedups in grouped.items():
+        val = geometric_mean(speedups)
+        all_ci = calculate_ci_geometric(speedups)
+        ci95 = all_ci[1]
+
+        data[key] = val
+        neg_errs[key] = val - ci95[0]
+        pos_errs[key] = ci95[1] - val
+
+    return data, neg_errs, pos_errs, outliers

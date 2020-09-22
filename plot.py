@@ -20,15 +20,36 @@ def add_plot(list_1d, label, color=None, min_val=None, max_val=None):
     # seaborn.kdeplot(list_1d, bw=0.1, clip=(0.0, 1.0), label=label)
     # seaborn.kdeplot(list_1d, label=label, bw=width).set(xlim=(min_val, max_val))
 
-def display_plot(title=None):
+def add_bar(values, cis):
+    n_bars = len(cis)
+    x_pos = list(range(n_bars))
+    neg_errs = []
+    pos_errs = []
+    data = []
+    labels = sorted(cis.keys())
+    for key in labels:
+        val = values[key]
+        data.append(val)
+        neg_errs.append(val - cis[key][0])
+        pos_errs.append(cis[key][1] - val)
+
+    fig, ax = plt.subplots()
+    ax.bar(x_pos, data, 0.5, yerr=(neg_errs, pos_errs), capsize=10)
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(labels)
+
+def display_plot(title=None, legend=True):
     if title is not None:
         plt.title(title)
-    plt.legend()
+    if legend:
+        plt.legend()
     plt.show()
 
-def save_plot(path, title=None):
+def save_plot(path, title=None, legend=True):
     if title is not None:
         plt.title(title)
+    if legend:
+        plt.legend()
     plt.savefig(path)
 
 def clear_plot():

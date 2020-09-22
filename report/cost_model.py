@@ -112,8 +112,44 @@ def get_stats(runtimes):
 
     return Stats('Cost model stability', cis, outliers)
 
+def plot_ci_bars(n_patterns, raw_runtimes, fig_path=None):
+    normalized, _ = get_normalized_cost_model_performance(runtimes)
+
+    proportions = {}
+    cis = {}
+    for compiler, (occurrences, total) in normalized.items():
+        all_ci = calculate_ci_proportion(occurrences, total, n_patterns)
+        cis[compiler] = all_ci[1]
+        proportions[compiler] = occurrences / total
+
+    plot.add_bar(proportions, cis)
+
+    if fig_path is None:
+        plot.display_plot('cost model')
+    else:
+        plot.save_plot(fig_path, 'cost model')
+        plot.clear_plot()
+
 def get_paths(stats):
     return get_paths_for_single(stats)
 
 def format_raw(raw):
     return format_pair_raw_single_mutation(raw)
+
+def get_data_and_errors(n_patterns, raw_runtimes):
+    normalized, outliers = get_normalized_cost_model_performance(raw_runtimes)
+
+    proportions = {}
+    neg_errs = {}
+    pos_errs = {}
+    for compiler, (occurrences, total) in normalized.items():
+        all_ci = calculate_ci_proportion(occurrences, total, n_patterns)
+        ci95 = all_ci[1]
+        val = occurrences / total
+        proportions[compiler] = val
+        neg_errs[compiler] = val - ci95[0]
+        pos_errs[compiler] = ci95[1] - val
+
+    # print('cost model')
+    # print(outliers.pprint())
+    return proportions, neg_errs, pos_errs, outliers

@@ -16,8 +16,9 @@ def sample_std(l):
 def sample_gstd(l):
     return gstd(l)
 
-def confidence_interval_mean(samples, level, min_val=None, max_val=None):
-    n_samples = len(samples)
+def confidence_interval_mean(samples, level, min_val=None, max_val=None, n_samples=None):
+    if n_samples is None:
+        n_samples = len(samples)
     mean = arithmetic_mean(samples)
     std = sample_std(samples)
     dof = n_samples - 1
@@ -31,11 +32,11 @@ def confidence_interval_proportion(proportion, n_samples, level):
     return [max(proportion - error, 0.0),
             min(proportion + error, 1.0)]
 
-def calculate_ci_geometric(samples, min_val=None, max_val=None):
+def calculate_ci_geometric(samples, min_val=None, max_val=None, n_samples=None):
     log_samples = list(map(log, samples))
-    log_ci90 = confidence_interval_mean(log_samples, 0.90, min_val, max_val)
-    log_ci95 = confidence_interval_mean(log_samples, 0.95, min_val, max_val)
-    log_ci99 = confidence_interval_mean(log_samples, 0.99, min_val, max_val)
+    log_ci90 = confidence_interval_mean(log_samples, 0.90, min_val, max_val, n_samples)
+    log_ci95 = confidence_interval_mean(log_samples, 0.95, min_val, max_val, n_samples)
+    log_ci99 = confidence_interval_mean(log_samples, 0.99, min_val, max_val, n_samples)
 
     ci90 = [e**log_ci95[0], e**log_ci90[1]]
     ci95 = [e**log_ci95[0], e**log_ci95[1]]
@@ -50,11 +51,13 @@ def calculate_ci_geometric(samples, min_val=None, max_val=None):
         ci99[1] = min(ci99[1], max_val)
     return (ci90, ci95, ci99)
 
-def calculate_ci_proportion(occurrences, total):
+def calculate_ci_proportion(occurrences, total, n_samples=None):
+    if n_samples is None:
+        n_samples = total
     proportion = occurrences / total
-    ci90 = confidence_interval_proportion(proportion, total, 0.90)
-    ci95 = confidence_interval_proportion(proportion, total, 0.95)
-    ci99 = confidence_interval_proportion(proportion, total, 0.99)
+    ci90 = confidence_interval_proportion(proportion, n_samples, 0.90)
+    ci95 = confidence_interval_proportion(proportion, n_samples, 0.95)
+    ci99 = confidence_interval_proportion(proportion, n_samples, 0.99)
     return (ci90, ci95, ci99)
 
 def find_outliers(values, keys):

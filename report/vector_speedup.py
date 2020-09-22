@@ -60,6 +60,28 @@ def add_plot_normalized_vec_speedups(compilers, patterns, runtimes, fig_path=Non
         plot.save_plot(fig_path, 'vector speedup')
         plot.clear_plot()
 
+def plot_ci_bar(n_patterns, raw_runtimes, fig_path=None, legend=True):
+    normalized, _ = get_normalized_vec_speedups(raw_runtimes)
+
+    grouped = {}
+    for (compiler, pattern, program, mutation), runtime in normalized.items():
+        update_dict_array(grouped, compiler, runtime)
+
+    means = {}
+    cis = {}
+    for key, runtimes in grouped.items():
+        all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0, n_patterns)
+        cis[key] = all_ci[1]
+        means[key] = geometric_mean(runtimes)
+
+    plot.add_bar(means, cis)
+
+    if fig_path is None:
+        plot.display_plot('vector speedup', legend)
+    else:
+        plot.save_plot(fig_path, 'vector speedup', legend)
+        plot.clear_plot()
+
 def plot_vec_speedups(runtimes):
     compilers = set()
     normalized, _ = get_normalized_vec_speedups(runtimes)
@@ -111,3 +133,33 @@ def get_paths(stats):
 
 def format_raw(raw):
     return format_spread_pair(raw)
+
+def get_data_and_errors(n_patterns, raw_runtimes):
+    normalized, outliers = get_normalized_vec_speedups(raw_runtimes)
+
+    grouped = {}
+    for (compiler, pattern, program, mutation), runtime in normalized.items():
+        update_dict_array(grouped, compiler, runtime)
+
+    data = {}
+    neg_errs = {}
+    pos_errs = {}
+
+    for key, runtimes in grouped.items():
+        val = geometric_mean(runtimes)
+        all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0, n_patterns)
+        ci95 = all_ci[1]
+
+        data[key] = val
+        neg_errs[key] = val - ci95[0]
+        pos_errs[key] = ci95[1] - val
+
+    interesting_cases = create_max_spread_cases()
+    for (compiler, *rest), [min_outlier, max_outlier] in outliers.cases.items():
+        normalized_pair = (min_outlier.normalized, max_outlier.normalized)
+        raw_pair = (min_outlier.raw, max_outlier.raw)
+        interesting_cases.merge((compiler, rest), normalized_pair, raw_pair)
+
+    # print('vector speedup')
+    # print(interesting_cases.pprint())
+    return data, neg_errs, pos_errs, interesting_cases

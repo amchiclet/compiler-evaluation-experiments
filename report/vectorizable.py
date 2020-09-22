@@ -16,6 +16,7 @@ vectorizable_threshold = 1.15
 def get_normalized_vectorizables(runtimes):
     compilers, speedups, best_speedups = get_vec_speedups(runtimes)
 
+    vectorizable_patterns = set()
     n_vectorizables = {}
     n_actually_vectorized = {}
     for compiler in compilers:
@@ -24,8 +25,11 @@ def get_normalized_vectorizables(runtimes):
 
     for key, speedup in speedups.items():
         compiler = key[0]
+        pattern = key[1]
+
         best_speedup = best_speedups[key[:-1]]
         if best_speedup > vectorizable_threshold:
+            vectorizable_patterns.add(pattern)
             n_vectorizables[compiler] += 1
             if speedup > vectorizable_threshold:
                 n_actually_vectorized[compiler] += 1
@@ -33,7 +37,7 @@ def get_normalized_vectorizables(runtimes):
     normalized = {}
     for key, n_total in n_vectorizables.items():
         if n_total > 0:
-            normalized[key] = (n_actually_vectorized[key], n_total)
+            normalized[key] = (n_actually_vectorized[key], n_total, len(vectorizable_patterns))
 
     return normalized
 
@@ -90,6 +94,37 @@ def plot_vectorizables(runtimes):
 def get_stats(runtimes):
     normalized = get_normalized_vectorizables(runtimes)
     cis = {}
-    for key, (occurrences, total) in normalized.items():
+    for key, (occurrences, total, _) in normalized.items():
         cis[key] = calculate_ci_proportion(occurrences, total)
     return Stats('Vectorizables', cis, None)
+
+def plot_ci_bar(raw_runtimes, fig_path=None):
+    normalized = get_normalized_vectorizables(raw_runtimes)
+
+    proportions = {}
+    cis = {}
+    for key, (occurrences, total, n_patterns) in normalized.items():
+        all_ci = calculate_ci_proportion(occurrences, total, n_patterns)
+        cis[key] = all_ci[1]
+        proportions[key] = occurrences / total
+    plot.add_bar(proportions, cis)
+    if fig_path is None:
+        plot.display_plot('vectorizables')
+    else:
+        plot.save_plot(fig_path, 'vectorizables')
+        plot.clear_plot()
+
+def get_data_and_errors(raw_runtimes):
+    normalized = get_normalized_vectorizables(raw_runtimes)
+
+    proportions = {}
+    neg_errs = {}
+    pos_errs = {}
+    for key, (occurrences, total, n_patterns) in normalized.items():
+        all_ci = calculate_ci_proportion(occurrences, total, n_patterns)
+        ci95 = all_ci[1]
+        val = occurrences / total
+        proportions[key] = val
+        neg_errs[key] = val - ci95[0]
+        pos_errs[key] = ci95[1] - val
+    return proportions, neg_errs, pos_errs
