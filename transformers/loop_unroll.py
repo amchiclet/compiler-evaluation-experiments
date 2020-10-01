@@ -115,6 +115,7 @@ class LoopUnroll:
                 unrolled_body = []
                 for f in range(0, factor):
                     unrolled_innermost_body = []
+                    # TODO: fix bug. this doesn't work when step size is more than 1
                     replacer = UnrollReplacer(loop_var, f)
                     for stmt in loop.body:
                         unrolled_stmt = stmt.clone()

@@ -563,6 +563,22 @@ def get_loops(node):
     else:
         raise RuntimeError('get_loops: Unhandled type of node ' + str(type(node)))
 
+def get_ordered_loops(node):
+    if isinstance(node, AbstractLoop):
+        loops = [node]
+        for stmt in node.body:
+            loops += get_ordered_loops(stmt)
+        return loops
+    elif isinstance(node, Program):
+        loops = []
+        for stmt in node.body:
+            loops += get_ordered_loops(stmt)
+        return loops
+    elif isinstance(node, Assignment):
+        return []
+    else:
+        raise RuntimeError('get_loops: Unhandled type of node ' + str(type(node)))
+
 # returns a map from array name to the number of dimensions for that array
 def get_arrays(program):
     arrays = {}

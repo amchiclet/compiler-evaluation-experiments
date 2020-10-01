@@ -304,3 +304,80 @@ def negate_direction(d):
     return ('<' if gt else ''
             '=' if eq else ''
             '>' if lt else '')
+
+def find_min(constraints, expr, default_min=0):
+    if type(expr) == int:
+        return expr
+
+    constraint_strs = [f'{c}' for c in constraints]
+
+    min_optimize = Optimize()
+    min_optimize.set('timeout', 10000)
+    min_optimize.assert_exprs(*constraints)
+    min_optimize.minimize(expr)
+    status = min_optimize.check()
+    if status != sat:
+        l.warning(f'Unable to find min ({status}) for:\n' + '\n'.join(constraint_strs))
+        return None
+
+    min_val = min_optimize.model().eval(expr).as_long()
+
+    # Make sure it's actually the min, since z3 has a bug
+    #   https://github.com/Z3Prover/z3/issues/4670
+    solver = Solver()
+    solver.set('timeout', 10000)
+    solver.add(constraints + [expr < min_val])
+    status = solver.check()
+
+    if status != unsat:
+        l.warning(f'Z3 bug\nFind min ({expr}) => {min_val} with status ({status}):\n' + '\n'.join(constraint_strs))
+        return None
+    return min_val
+
+def get_min_distance(source_ref, sink_ref):
+    source_loops = gather_surrounding_loops(source_ref.parent_stmt)
+    source_loop_shapes = gather_loop_shapes(source_loops)
+    source_loop_vars = gather_loop_vars(source_loop_shapes)
+    sink_loops = gather_surrounding_loops(sink_ref.parent_stmt)
+    sink_loop_shapes = gather_loop_shapes(sink_loops)
+    sink_loop_vars = gather_loop_vars(sink_loop_shapes)
+
+    source_cvars, sink_cvars, source_step_cvars, sink_step_cvars \
+        = generate_constraint_vars(source_loop_vars,
+                                   sink_loop_vars)
+
+    constraints = []
+
+    constraints += generate_loop_bound_constraints(source_loop_shapes,
+                                                   source_cvars)
+
+    # source_steps = gather_loop_steps(source_loop_shapes)
+    constraints += generate_step_constraints(source_loop_shapes,
+                                             source_cvars,
+                                             source_step_cvars)
+
+    constraints += generate_loop_bound_constraints(sink_loop_shapes,
+                                                   sink_cvars)
+
+    # sink_steps = gather_loop_steps(sink_loop_shapes)
+    constraints += generate_step_constraints(sink_loop_shapes,
+                                             sink_cvars,
+                                             sink_step_cvars)
+
+    constraints += generate_subscript_equality_constraints(source_ref, source_cvars,
+                                                           sink_ref, sink_cvars)
+
+    common_loops = get_common_prefix(source_loops, sink_loops)
+    common_loop_shapes = gather_loop_shapes(common_loops)
+    common_loop_vars = gather_loop_vars(common_loop_shapes)
+
+    distances = {}
+    for loop_var in common_loop_vars:
+        sink_cvar = sink_cvars[loop_var]
+        source_cvar = source_cvars[loop_var]
+        min_val = find_min(constraints, sink_cvar - source_cvar)
+        if min_val is not None:
+            assert(loop_var not in distances)
+            distances[loop_var] = min_val
+
+    return distances
