@@ -9,7 +9,10 @@ import plot
 from report.util import update_dict_dict, merge_value, update_dict_array, get_paths_for_pair, format_spread_pair
 from random import choices
 from tqdm import tqdm
+from scipy.stats import probplot
+import matplotlib.pyplot as plt
 
+normal_threshold = 100
 def get_vec_speedups(runtimes):
     compilers = set()
     grouped = {}
@@ -134,12 +137,20 @@ def get_paths(stats):
 def format_raw(raw):
     return format_spread_pair(raw)
 
-def get_data_and_errors(n_patterns, raw_runtimes):
+def get_data_and_errors(compilers, patterns, raw_runtimes):
     normalized, outliers = get_normalized_vec_speedups(raw_runtimes)
 
-    grouped = {}
+    per_pattern = {}
     for (compiler, pattern, program, mutation), runtime in normalized.items():
-        update_dict_array(grouped, compiler, runtime)
+        update_dict_array(per_pattern, (compiler, pattern), runtime)
+
+    grouped = {}
+    for (compiler, pattern), runtimes in per_pattern.items():
+        update_dict_array(grouped, compiler, geometric_mean(runtimes))
+
+    # grouped = {}
+    # for (compiler, pattern, program, mutation), runtime in normalized.items():
+    #     update_dict_array(grouped, compiler, runtime)
 
     data = {}
     neg_errs = {}
@@ -147,12 +158,16 @@ def get_data_and_errors(n_patterns, raw_runtimes):
 
     for key, runtimes in grouped.items():
         val = geometric_mean(runtimes)
-        all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0, n_patterns)
-        ci95 = all_ci[1]
-
         data[key] = val
-        neg_errs[key] = val - ci95[0]
-        pos_errs[key] = ci95[1] - val
+        if len(runtimes) > normal_threshold:
+            # all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0, n_patterns)
+            all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0)
+            ci95 = all_ci[1]
+            neg_errs[key] = val - ci95[0]
+            pos_errs[key] = ci95[1] - val
+        else:
+            neg_errs[key] = None
+            pos_errs[key] = None
 
     interesting_cases = create_max_spread_cases()
     for (compiler, *rest), [min_outlier, max_outlier] in outliers.cases.items():
@@ -163,3 +178,19 @@ def get_data_and_errors(n_patterns, raw_runtimes):
     # print('vector speedup')
     # print(interesting_cases.pprint())
     return data, neg_errs, pos_errs, interesting_cases
+
+def plot_qq(compilers, patterns, runtimes):
+    normalized, _ = get_normalized_vec_speedups(runtimes)
+    per_pattern = {}
+    for (c, p, i, m), speedup in normalized.items():
+        update_dict_array(per_pattern, (c, p), speedup)
+    grouped = {}
+    for (c, _), speedups in per_pattern.items():
+        update_dict_array(grouped, c, geometric_mean(speedups))
+    for vals in grouped.values():
+        data = []
+        for _ in tqdm(range(1000)):
+            samples = choices(vals, k=len(vals))
+            data.append(geometric_mean(samples))
+        probplot(data, plot=plt)
+        plt.show()

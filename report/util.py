@@ -54,21 +54,27 @@ def get_paths_for_single(stats):
             interesting_case_paths.add(mutation_id)
     return interesting_case_paths
 
-def format_spread_pair(spread):
+def format_spread_pair(spread, is_fully_qualified=False):
     ((less, less_id), (greater, greater_id)) = spread
     assert(less_id[:2] == greater_id[:2])
     pattern, program = less_id[:2]
+    if not is_fully_qualified:
+        pattern = pattern[1]
     mutation_1 = less_id[2]
     mutation_2 = greater_id[2]
     return (f'{less:.2f} vs {greater:.2f}\n'
             f'({pattern}.{program}.[{mutation_1}|{mutation_2}])')
 
-def format_pair_raw_single_mutation(single):
+def format_pair_raw_single_mutation(single, is_fully_qualified=False):
     (raw_1, raw_2), (pattern, program, mutation) = single
+    if not is_fully_qualified:
+        pattern = pattern[1]
     return (f'{raw_1:.2f} vs {raw_2:.2f}\n'
             f'({pattern}.{program}.{mutation})')
 
-def format_raw_single_mutation(single):
+def format_raw_single_mutation(single, is_fully_qualified=False):
     raw, (pattern, program, mutation) = single
+    if not is_fully_qualified:
+        pattern = pattern[1]
     return (f'{raw:.2f}\n'
             f'({pattern}.{program}.{mutation})')

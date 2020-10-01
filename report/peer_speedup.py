@@ -2,19 +2,21 @@ from stats import \
     calculate_ci_geometric, \
     create_max_cases, \
     Stats, \
-    geometric_mean
+    geometric_mean, \
+    arithmetic_mean
 from report.util import merge_value, update_dict_dict, update_dict_array, get_paths_for_pair, format_spread_pair, format_raw_single_mutation, get_paths_for_single
 
 from scipy import log
-from scipy.stats import gmean
+from scipy.stats import gmean, probplot
 from report.peer_metrics import get_compiler_pairs_and_pims, x_faster_than_y_key, iterate_compiler_runtime_pairs, is_approximate, x_approximates_y_key, is_faster_mention, get_compiler_pairs
 
 import plot
-
+import matplotlib.pyplot as plt
 from loguru import logger
 from random import choices
 from tqdm import tqdm
 
+normal_threshold = 100
 def get_peer_speedups(runtimes):
     compilers = set()
     speedups = {}
@@ -168,8 +170,6 @@ def get_data_and_errors(compilers, n_patterns, runtimes):
 
     grouped = {}
     for (pair, p), mean_speedup in pattern_mean_speedup.items():
-        if p == 'p001' and pair == ('icc', 'pgi'):
-            print(p, pair, mean_speedup)
         if mean_speedup > 1.05:
             update_dict_array(grouped, pair, mean_speedup)
 
@@ -178,11 +178,90 @@ def get_data_and_errors(compilers, n_patterns, runtimes):
     pos_errs = {}
     for key, speedups in grouped.items():
         val = geometric_mean(speedups)
+
+        data[key] = val
+        if len(speedups) > normal_threshold:
+            all_ci = calculate_ci_geometric(speedups)
+            ci95 = all_ci[1]
+            neg_errs[key] = val - ci95[0]
+            pos_errs[key] = ci95[1] - val
+        else:
+            neg_errs[key] = None
+            pos_errs[key] = None
+
+    return data, neg_errs, pos_errs, outliers
+
+def get_data_and_errors_v2(compilers, patterns, runtimes):
+    speedups = {}
+
+    outliers = create_max_cases()
+
+    for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
+        p, i, m = pim
+        speedup = r2 / r1
+
+        speedups[((c2, c1), pim)] = speedup
+        outliers.merge(((c2, c1), pim), speedup, (speedup, pim))
+
+        speedup_inv = r1 / r2
+        speedups[((c1, c2), pim)] = speedup_inv
+        outliers.merge(((c1, c2), pim), speedup_inv, (speedup_inv, pim))
+
+    per_pattern = {}
+    for (pair, (p, i, m)), speedup in speedups.items():
+        if speedup > 1.05:
+            update_dict_array(per_pattern, (pair, p), speedup)
+
+    grouped = {}
+    for (pair, _), ss in per_pattern.items():
+        update_dict_array(grouped, pair, geometric_mean(ss))
+
+    data = {}
+    neg_errs = {}
+    pos_errs = {}
+    for key, speedups in grouped.items():
+        print(len(speedups), 'vs', len(patterns))
+        val = geometric_mean(speedups)
         all_ci = calculate_ci_geometric(speedups)
         ci95 = all_ci[1]
 
         data[key] = val
-        neg_errs[key] = val - ci95[0]
-        pos_errs[key] = ci95[1] - val
+        if len(speedups) > normal_threshold:
+            neg_errs[key] = val - ci95[0]
+            pos_errs[key] = ci95[1] - val
+        else:
+            neg_errs[key] = None
+            pos_errs[key] = None
 
     return data, neg_errs, pos_errs, outliers
+
+def plot_qq(compilers, patterns, runtimes):
+    speedups = {}
+    for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
+        p, i, m = pim
+        speedup = r2 / r1
+        speedups[((c2, c1), pim)] = speedup
+
+        speedup_inv = r1 / r2
+        speedups[((c1, c2), pim)] = speedup_inv
+
+    pattern_speedup_map = {}
+    for (pair, (p, i, m)), speedup in speedups.items():
+        update_dict_array(pattern_speedup_map, (pair, p), speedup)
+
+    grouped = {}
+    for (pair, _), pattern_speedups in pattern_speedup_map.items():
+        mean_speedup = geometric_mean(pattern_speedups)
+        # update_dict_array(grouped, pair, mean_speedup)
+        if mean_speedup > 1.05:
+            update_dict_array(grouped, pair, mean_speedup)
+
+    for pair, vals in grouped.items():
+        data = []
+        for _ in tqdm(range(1000)):
+            samples = choices(vals, k=len(vals))
+            data.append(geometric_mean(samples))
+
+        probplot(data, plot=plt)
+        plt.title(f'{pair[0]}/{pair[1]} n_samples={len(vals)}')
+        plt.show()

@@ -98,6 +98,13 @@ def get_per_pattern_avg_runtimes(runtimes):
             update_dict_array(grouped, (compiler, p), runtime)
     return {k:arithmetic_mean(rs) for k,rs in grouped.items()}
 
+def get_per_pattern_avg_runtimes(runtimes):
+    grouped = {}
+    for (compiler, mode, p, i, m), runtime in runtimes.items():
+        if mode == 'fast':
+            update_dict_array(grouped, (compiler, p), runtime)
+    return {k:arithmetic_mean(rs) for k,rs in grouped.items()}
+
 def get_per_pattern_sum_log_runtimes(runtimes):
     grouped = {}
     for (compiler, mode, p, i, m), runtime in runtimes.items():

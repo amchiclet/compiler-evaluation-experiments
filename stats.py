@@ -32,6 +32,20 @@ def confidence_interval_proportion(proportion, n_samples, level):
     return [max(proportion - error, 0.0),
             min(proportion + error, 1.0)]
 
+def calculate_ci_arithmetic(samples, min_val=None, max_val=None, n_samples=None):
+    ci90 = confidence_interval_mean(samples, 0.90, min_val, max_val, n_samples)
+    ci95 = confidence_interval_mean(samples, 0.95, min_val, max_val, n_samples)
+    ci99 = confidence_interval_mean(samples, 0.99, min_val, max_val, n_samples)
+    if min_val is not None:
+        ci90[0] = max(ci90[0], min_val)
+        ci95[0] = max(ci95[0], min_val)
+        ci99[0] = max(ci99[0], min_val)
+    if max_val is not None:
+        ci90[1] = min(ci90[1], max_val)
+        ci95[1] = min(ci95[1], max_val)
+        ci99[1] = min(ci99[1], max_val)
+    return (ci90, ci95, ci99)
+
 def calculate_ci_geometric(samples, min_val=None, max_val=None, n_samples=None):
     log_samples = list(map(log, samples))
     log_ci90 = confidence_interval_mean(log_samples, 0.90, min_val, max_val, n_samples)

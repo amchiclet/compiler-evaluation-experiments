@@ -11,6 +11,8 @@ from tqdm import tqdm
 from random import choices, sample, shuffle
 import matplotlib.pyplot as plt
 
+normal_threshold = 100
+
 def plot_ci_bar(n_patterns, raw_runtimes, fig_path=None):
     normalized, _ = get_normalized_runtimes(raw_runtimes)
 
@@ -132,12 +134,16 @@ def get_paths(stats):
 def format_raw(raw):
     return format_spread_pair(raw)
 
-def get_data_and_errors(n_patterns, raw_runtimes):
+def get_data_and_errors(compilers, patterns, raw_runtimes):
     normalized, outliers = get_normalized_runtimes(raw_runtimes)
 
-    grouped = {}
+    per_pattern = {}
     for (compiler, pattern, program, mutation), runtime in normalized.items():
-        update_dict_array(grouped, compiler, runtime)
+        update_dict_array(per_pattern, (compiler, pattern), runtime)
+
+    grouped = {}
+    for (compiler, pattern), runtimes in per_pattern.items():
+        update_dict_array(grouped, compiler, geometric_mean(runtimes))
 
     data = {}
     neg_errs = {}
@@ -145,12 +151,15 @@ def get_data_and_errors(n_patterns, raw_runtimes):
 
     for key, runtimes in grouped.items():
         val = geometric_mean(runtimes)
-        all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0, n_patterns)
-        ci95 = all_ci[1]
-
         data[key] = val
-        neg_errs[key] = val - ci95[0]
-        pos_errs[key] = ci95[1] - val
+        if len(runtimes) > normal_threshold:
+            all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0)
+            ci95 = all_ci[1]
+            neg_errs[key] = val - ci95[0]
+            pos_errs[key] = ci95[1] - val
+        else:
+            neg_errs[key] = None
+            pos_errs[key] = None
 
     interesting_cases = create_max_spread_cases()
     for (compiler, *rest), [min_outlier, max_outlier] in outliers.cases.items():
@@ -160,4 +169,42 @@ def get_data_and_errors(n_patterns, raw_runtimes):
         interesting_cases.merge((compiler, rest), normalized_pair, raw_pair)
     # print('runtime stability')
     # print(interesting_cases.pprint())
+
     return data, neg_errs, pos_errs, interesting_cases
+
+def get_grouped_normalized_runtimes(compilers, runtimes):
+    best_mutations = {}
+    for (compiler, mode, pattern, instance, mutation), runtime in runtimes.items():
+        if mode == 'fast':
+            merge_value(best_mutations, (compiler, pattern, instance), runtime, min)
+
+    normalized = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        if mode == 'fast':
+            key = (compiler, pattern, program, mutation)
+            normalized[key] = best_mutations[key[:-1]] / runtime
+
+    mins = {}
+    data = {}
+    for (compiler, *pim), r in normalized.items():
+        update_dict_array(data, compiler, r)
+        if compiler not in mins:
+            mins[compiler] = (r, pim)
+        else:
+            if r < mins[compiler][0]:
+                mins[compiler] = (r, pim)
+
+    for compiler, rs in data.items():
+        n, bins, patches = plot.plot_histogram(rs, 100)
+
+        n_tallest = max(n)
+        plot_height = ((n_tallest + 99) // 100) * 100
+        min_r, min_pim = mins[compiler]
+        (base_dir, p), i, m = min_pim
+        plt.annotate(f'scaled_runtime={min_r:.2f}\npattern={(p, i, m)}', (min_r, n_tallest / 2))
+        if min_r < 0.001:
+            min_r = 0.001
+        plt.plot((min_r, min_r), (0, plot_height), marker='None', linewidth=2, color='red')
+        plt.xlim(0, 1)
+        plt.ylim(0, plot_height)
+        plot.display_plot()

@@ -103,3 +103,6 @@ def plot_dict_array(da, stat, b=1000, output_path=None, display=True):
     if output_path is not None:
         save_plot(output_path)
     display_plot()
+
+def plot_histogram(data, bins):
+    return plt.hist(data, bins)

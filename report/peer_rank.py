@@ -1,5 +1,6 @@
 from stats import \
     calculate_ci_geometric, \
+    calculate_ci_arithmetic, \
     calculate_ci_proportion, \
     create_min_max_cases, \
     create_max_spread_cases, \
@@ -12,6 +13,10 @@ from loguru import logger
 import plot
 from random import choices
 from tqdm import tqdm
+from scipy.stats import probplot
+import matplotlib.pyplot as plt
+
+normal_threshold = 100
 
 def add(x, y):
     return x + y
@@ -211,11 +216,12 @@ def get_data_and_errors_top(compilers, patterns, runtimes):
 
     n_patterns = len(patterns)
 
+    percent_win_map = {c:win_count / n_patterns}
     data = {}
     neg_errs = {}
     pos_errs = {}
     for compiler, win_count in win_count_map.items():
-        all_ci = calculate_ci_proportion(win_count, n_patterns)
+        all_ci = calculate_ci_proportion(win_count/n_patterns, n_patterns)
         ci95 = all_ci[1]
 
         val = win_count / n_patterns
@@ -224,57 +230,234 @@ def get_data_and_errors_top(compilers, patterns, runtimes):
         pos_errs[compiler] = ci95[1] - val
     return data, neg_errs, pos_errs, None
 
-def get_rankings_v2(runtimes):
-    rankings = {}
-    for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
-        if is_approximate(r1, r2):
-            rankings[((c1, c2), pim)] = 0
-            rankings[((c2, c1), pim)] = 0
-        else:
-            if r1 < r2:
-                rankings[((c1, c2), pim)] = 1
-                rankings[((c2, c1), pim)] = 0
-            else:
-                rankings[((c1, c2), pim)] = 0
-                rankings[((c2, c1), pim)] = 1
-    return rankings
+def get_data_and_errors_top_v2(compilers, patterns, runtimes):
+    per_pattern_runtimes = {}
+    for (compiler, mode, p, i, m), r in runtimes.items():
+        if mode == 'fast':
+            update_dict_array(per_pattern_runtimes, (compiler, p), r)
 
-def get_data_and_errors_pair(compilers, patterns, runtimes):
-    p, instances = next(iter(patterns))
-    i, mutations = next(iter(instances))
-    n_mutations_per_pattern = len(instances) * len(mutations)
+    win_count_map = {}
+    for p, _ in patterns:
+        pattern_runtimess = [per_pattern_runtimes[(c, p)] for c in compilers]
+        winners = [min(compiler_wise) for compiler_wise in zip(*pattern_runtimess)]
+        for c in compilers:
+            pattern_runtimes = per_pattern_runtimes[(c, p)]
+            for r, winner in zip(pattern_runtimes, winners):
+                count = 1 if r < winner * 1.05 else 0
+                update_dict_array(win_count_map, (c, p), count)
 
-    pattern_sum_log_runtimes = get_per_pattern_sum_log_runtimes(runtimes)
-    pairs = get_compiler_pairs(compilers)
+    win_percentages_map = {}
+    for (compiler, _), counts in win_count_map.items():
+        update_dict_array(win_percentages_map, compiler, arithmetic_mean(counts))
 
-    win_counts = {}
-    for (c1, c2) in pairs:
-        win_counts[(c1, c2)] = 0
-        win_counts[(c2, c1)] = 0
-
-    for (c1, c2) in pairs:
-        for p, _ in patterns:
-            r1 = pattern_sum_log_runtimes[(c1, p)]
-            r2 = pattern_sum_log_runtimes[(c2, p)]
-            if (r1 - r2)/n_mutations_per_pattern > log(1.05):
-                if c2 == 'pgi' and c1 == 'icc':
-                    print('hey', p)
-                win_counts[(c2, c1)] += 1
-            if (r2 - r1)/n_mutations_per_pattern > log(1.05):
-                if c1 == 'pgi' and c2 == 'icc':
-                    print('yo', p)
-                win_counts[(c1, c2)] += 1
-
-    n_patterns = len(patterns)
     data = {}
     neg_errs = {}
     pos_errs = {}
-    for pair, win_count in win_counts.items():
-        all_ci = calculate_ci_proportion(win_count, n_patterns)
-        ci95 = all_ci[1]
+    for compiler, win_percentages in win_percentages_map.items():
+        assert(len(win_percentages) == len(patterns))
+        val = arithmetic_mean(win_percentages)
+        data[compiler] = val
+        if len(win_percentages) > normal_threshold:
+            all_ci = calculate_ci_arithmetic(win_percentages)
+            ci95 = all_ci[1]
+            neg_errs[compiler] = val - ci95[0]
+            pos_errs[compiler] = ci95[1] - val
+        else:
+            neg_errs[compiler] = None
+            pos_errs[compiler] = None
 
-        val = win_count / n_patterns
+    return data, neg_errs, pos_errs, None
+
+def get_data_and_errors_bottom(compilers, patterns, runtimes):
+    per_pattern_runtimes = {}
+    for (compiler, mode, p, i, m), r in runtimes.items():
+        if mode == 'fast':
+            update_dict_array(per_pattern_runtimes, (compiler, p), r)
+
+    lose_count_map = {}
+    for p, _ in patterns:
+        pattern_runtimess = [per_pattern_runtimes[(c, p)] for c in compilers]
+        losers = [max(compiler_wise) for compiler_wise in zip(*pattern_runtimess)]
+        for c in compilers:
+            pattern_runtimes = per_pattern_runtimes[(c, p)]
+            for r, loser in zip(pattern_runtimes, losers):
+                count = 1 if r * 1.05 > loser else 0
+                update_dict_array(lose_count_map, (c, p), count)
+
+    lose_percentages_map = {}
+    for (compiler, _), counts in lose_count_map.items():
+        update_dict_array(lose_percentages_map, compiler, arithmetic_mean(counts))
+
+    data = {}
+    neg_errs = {}
+    pos_errs = {}
+    for compiler, lose_percentages in lose_percentages_map.items():
+        assert(len(lose_percentages) == len(patterns))
+        val = arithmetic_mean(lose_percentages)
+        data[compiler] = val
+        if len(lose_percentages) > normal_threshold:
+            all_ci = calculate_ci_arithmetic(lose_percentages)
+            ci95 = all_ci[1]
+            neg_errs[compiler] = val - ci95[0]
+            pos_errs[compiler] = ci95[1] - val
+        else:
+            neg_errs[compiler] = None
+            pos_errs[compiler] = None
+    return data, neg_errs, pos_errs, None
+
+# def get_data_and_errors_pair(compilers, patterns, runtimes):
+#     p, instances = next(iter(patterns))
+#     i, mutations = next(iter(instances))
+#     n_mutations_per_pattern = len(instances) * len(mutations)
+
+#     pattern_sum_log_runtimes = get_per_pattern_sum_log_runtimes(runtimes)
+#     pairs = get_compiler_pairs(compilers)
+
+#     win_counts = {}
+#     for (c1, c2) in pairs:
+#         win_counts[(c1, c2)] = 0
+#         win_counts[(c2, c1)] = 0
+
+#     for (c1, c2) in pairs:
+#         for p, _ in patterns:
+#             r1 = pattern_sum_log_runtimes[(c1, p)]
+#             r2 = pattern_sum_log_runtimes[(c2, p)]
+#             if (r1 - r2)/n_mutations_per_pattern > log(1.05):
+#                 if c2 == 'pgi' and c1 == 'icc':
+#                     print('hey', p)
+#                 win_counts[(c2, c1)] += 1
+#             if (r2 - r1)/n_mutations_per_pattern > log(1.05):
+#                 if c1 == 'pgi' and c2 == 'icc':
+#                     print('yo', p)
+#                 win_counts[(c1, c2)] += 1
+
+#     n_patterns = len(patterns)
+#     data = {}
+#     neg_errs = {}
+#     pos_errs = {}
+#     for pair, win_count in win_counts.items():
+#         all_ci = calculate_ci_proportion(win_count, n_patterns)
+#         ci95 = all_ci[1]
+
+#         val = win_count / n_patterns
+#         data[pair] = val
+#         neg_errs[pair] = val - ci95[0]
+#         pos_errs[pair] = ci95[1] - val
+#     return data, neg_errs, pos_errs
+
+def get_data_and_errors_pair_v2(compilers, n_patterns, runtimes):
+    rankings_map = get_rankings_v2(runtimes)
+    rankings = {}
+    for (c1, r1), (c2, r2), (p, i, m) in iterate_compiler_runtime_pairs(runtimes):
+        if is_approximate(r1, r2):
+            update_dict_array(rankings, ((c1, c2), p), 0)
+            update_dict_array(rankings, ((c2, c1), p), 0)
+        else:
+            if r1 < r2:
+                update_dict_array(rankings, ((c1, c2), p), 1)
+                update_dict_array(rankings, ((c2, c1), p), 0)
+            else:
+                update_dict_array(rankings, ((c1, c2), p), 0)
+                update_dict_array(rankings, ((c2, c1), p), 1)
+    percentages_map = {}
+    for (pair, _), counts in rankings.items():
+        update_dict_array(percentages_map, pair, arithmetic_mean(counts))
+
+    data = {}
+    neg_errs = {}
+    pos_errs = {}
+    for pair, percentages in percentages_map.items():
+        val = arithmetic_mean(percentages)
         data[pair] = val
-        neg_errs[pair] = val - ci95[0]
-        pos_errs[pair] = ci95[1] - val
+        if len(percentages) > normal_threshold:
+            all_ci = calculate_ci_arithmetic(percentages)
+            ci95 = all_ci[1]
+            neg_errs[pair] = val - ci95[0]
+            pos_errs[pair] = ci95[1] - val
+        else:
+            neg_errs[pair] = None
+            pos_errs[pair] = None
+
     return data, neg_errs, pos_errs
+
+def top_plot_qq(compilers, patterns, runtimes):
+    per_pattern_runtimes = {}
+    for (compiler, mode, p, i, m), r in runtimes.items():
+        if mode == 'fast':
+            update_dict_array(per_pattern_runtimes, (compiler, p), r)
+
+    win_count_map = {}
+    for p, _ in patterns:
+        pattern_runtimess = [per_pattern_runtimes[(c, p)] for c in compilers]
+        winners = [min(compiler_wise) for compiler_wise in zip(*pattern_runtimess)]
+        for c in compilers:
+            pattern_runtimes = per_pattern_runtimes[(c, p)]
+            for r, winner in zip(pattern_runtimes, winners):
+                count = 1 if r < winner * 1.05 else 0
+                update_dict_array(win_count_map, (c, p), count)
+
+    win_percentages_map = {}
+    for (compiler, _), counts in win_count_map.items():
+        update_dict_array(win_percentages_map, compiler, arithmetic_mean(counts))
+    for vals in win_percentages_map.values():
+        data = []
+        for _ in tqdm(range(1000)):
+            samples = choices(vals, k=len(vals))
+            data.append(arithmetic_mean(samples))
+        probplot(data, plot=plt)
+        plt.show()
+
+def bottom_plot_qq(compilers, patterns, runtimes):
+    per_pattern_runtimes = {}
+    for (compiler, mode, p, i, m), r in runtimes.items():
+        if mode == 'fast':
+            update_dict_array(per_pattern_runtimes, (compiler, p), r)
+
+    lose_count_map = {}
+    for p, _ in patterns:
+        pattern_runtimess = [per_pattern_runtimes[(c, p)] for c in compilers]
+        losers = [max(compiler_wise) for compiler_wise in zip(*pattern_runtimess)]
+        for c in compilers:
+            pattern_runtimes = per_pattern_runtimes[(c, p)]
+            for r, loser in zip(pattern_runtimes, losers):
+                count = 1 if r * 1.05 > loser else 0
+                update_dict_array(lose_count_map, (c, p), count)
+
+    lose_percentages_map = {}
+    for (compiler, _), counts in lose_count_map.items():
+        update_dict_array(lose_percentages_map, compiler, arithmetic_mean(counts))
+
+    for vals in lose_percentages_map.values():
+        data = []
+        for _ in tqdm(range(1000)):
+            samples = choices(vals, k=len(vals))
+            data.append(arithmetic_mean(samples))
+        probplot(data, plot=plt)
+        plt.show()
+
+def pair_plot_qq(compilers, n_patterns, runtimes):
+    rankings_map = get_rankings_v2(runtimes)
+    rankings = {}
+    for (c1, r1), (c2, r2), (p, i, m) in iterate_compiler_runtime_pairs(runtimes):
+        if is_approximate(r1, r2):
+            update_dict_array(rankings, ((c1, c2), p), 0)
+            update_dict_array(rankings, ((c2, c1), p), 0)
+        else:
+            if r1 < r2:
+                update_dict_array(rankings, ((c1, c2), p), 1)
+                update_dict_array(rankings, ((c2, c1), p), 0)
+            else:
+                update_dict_array(rankings, ((c1, c2), p), 0)
+                update_dict_array(rankings, ((c2, c1), p), 1)
+    percentages_map = {}
+    for (pair, _), counts in rankings.items():
+        update_dict_array(percentages_map, pair, arithmetic_mean(counts))
+
+    for vals in percentages_map.values():
+        data = []
+        for _ in tqdm(range(1000)):
+            samples = choices(vals, k=len(vals))
+            data.append(arithmetic_mean(samples))
+        print(data[:10])
+        # probplot(data, plot=plt)
+        # plt.show()

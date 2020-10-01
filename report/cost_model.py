@@ -1,15 +1,19 @@
 from stats import \
     calculate_ci_geometric, \
+    calculate_ci_arithmetic, \
     calculate_ci_proportion, \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats, \
     arithmetic_mean
-from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation
+from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation, update_dict_array
 import plot
 from random import choices
 from tqdm import tqdm
+from scipy.stats import probplot
+import matplotlib.pyplot as plt
 
+normal_threshold=100
 def get_normalized_cost_model_performance(runtimes):
     grouped = {}
     compilers = set()
@@ -153,3 +157,138 @@ def get_data_and_errors(n_patterns, raw_runtimes):
     # print('cost model')
     # print(outliers.pprint())
     return proportions, neg_errs, pos_errs, outliers
+
+def get_data_and_errors_v2(compilers, patterns, runtimes):
+    outliers = create_max_spread_cases()
+    per_pattern_map = {}
+    for c in compilers:
+        for p, instances in patterns:
+            for i, mutations in instances:
+                best_no_predict = min([runtimes[(c, 'nopredict', p, i, m)] for m in mutations])
+
+                for m in mutations:
+                    pim = (p, i, m)
+                    with_cost_model_key = (c, 'fast', *pim)
+                    no_cost_model_key = (c, 'nopredict', *pim)
+                    assert(with_cost_model_key in runtimes)
+                    assert(no_cost_model_key in runtimes)
+                    no_cost_model = runtimes[no_cost_model_key]
+                    with_cost_model = runtimes[with_cost_model_key]
+
+                    is_good = with_cost_model < 1.05 * no_cost_model
+                    if is_good:
+                        good_count = 1
+                    else:
+                        good_count = 0
+                        spread = (best_no_predict/with_cost_model, best_no_predict/no_cost_model)
+                        raw = (no_cost_model, with_cost_model)
+                        outliers.merge((c, pim), spread, (raw, pim))
+                    update_dict_array(per_pattern_map, (c, p), good_count)
+
+    percentages_map = {}
+    for (compiler, _), counts in per_pattern_map.items():
+        update_dict_array(percentages_map, compiler, arithmetic_mean(counts))
+
+    data = {}
+    neg_errs = {}
+    pos_errs = {}
+    for compiler, percentages in percentages_map.items():
+        assert(len(percentages) == len(patterns))
+        val = arithmetic_mean(percentages)
+        data[compiler] = val
+        if len(percentages) > normal_threshold:
+            all_ci = calculate_ci_arithmetic(percentages)
+            ci95 = all_ci[1]
+            neg_errs[compiler] = val - ci95[0]
+            pos_errs[compiler] = ci95[1] - val
+        else:
+            neg_errs[compiler] = None
+            pos_errs[compiler] = None
+
+    # print('cost model')
+    # print(outliers.pprint())
+    return data, neg_errs, pos_errs, outliers
+
+def get_data_and_errors_v3(compilers, patterns, runtimes):
+    outliers = create_max_spread_cases()
+    per_pattern_map = {}
+    for c in compilers:
+        for p, instances in patterns:
+            for i, mutations in instances:
+                best_no_predict = min([runtimes[(c, 'nopredict', p, i, m)] for m in mutations])
+
+                for m in mutations:
+                    pim = (p, i, m)
+                    with_cost_model_key = (c, 'fast', *pim)
+                    no_cost_model_key = (c, 'nopredict', *pim)
+                    assert(with_cost_model_key in runtimes)
+                    assert(no_cost_model_key in runtimes)
+                    no_cost_model = runtimes[no_cost_model_key]
+                    with_cost_model = runtimes[with_cost_model_key]
+
+                    is_good = with_cost_model < 1.05 * no_cost_model
+                    if is_good:
+                        good_count = 1
+                    else:
+                        good_count = 0
+                        spread = (best_no_predict/with_cost_model, best_no_predict/no_cost_model)
+                        raw = (no_cost_model, with_cost_model)
+                        outliers.merge((c, pim), spread, (raw, pim))
+                    update_dict_array(per_pattern_map, (c, p), good_count)
+
+    percentages_map = {}
+    for (compiler, _), counts in per_pattern_map.items():
+        update_dict_array(percentages_map, compiler, arithmetic_mean(counts))
+
+    data = {}
+    neg_errs = {}
+    pos_errs = {}
+    for compiler, percentages in percentages_map.items():
+        assert(len(percentages) == len(patterns))
+        val = arithmetic_mean(percentages)
+        data[compiler] = val
+        if len(percentages) > normal_threshold:
+            all_ci = calculate_ci_arithmetic(percentages)
+            ci95 = all_ci[1]
+            neg_errs[compiler] = val - ci95[0]
+            pos_errs[compiler] = ci95[1] - val
+        else:
+            neg_errs[compiler] = None
+            pos_errs[compiler] = None
+
+    # print('cost model')
+    # print(outliers.pprint())
+    return data, neg_errs, pos_errs, outliers
+
+def plot_qq(compilers, patterns, runtimes):
+    per_pattern_map = {}
+    for c in compilers:
+        for p, instances in patterns:
+            for i, mutations in instances:
+                for m in mutations:
+                    pim = (p, i, m)
+                    with_cost_model_key = (c, 'fast', *pim)
+                    no_cost_model_key = (c, 'nopredict', *pim)
+                    assert(with_cost_model_key in runtimes)
+                    assert(no_cost_model_key in runtimes)
+                    no_cost_model = runtimes[no_cost_model_key]
+                    with_cost_model = runtimes[with_cost_model_key]
+
+                    is_good = with_cost_model < 1.05 * no_cost_model
+                    if is_good:
+                        good_count = 1
+                    else:
+                        good_count = 0
+                    update_dict_array(per_pattern_map, (c, p), good_count)
+
+    percentages_map = {}
+    for (compiler, _), counts in per_pattern_map.items():
+        update_dict_array(percentages_map, compiler, arithmetic_mean(counts))
+
+    for vals in percentages_map.values():
+        data = []
+        for _ in tqdm(range(1000)):
+            samples = choices(vals, k=len(vals))
+            data.append(arithmetic_mean(samples))
+        probplot(data, plot=plt)
+        plt.show()
