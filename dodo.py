@@ -116,7 +116,11 @@ def task_build():
             # Only the core is compiled with the needed setting
             core_path = pb.core_path()
             core_obj_path = pb.core_obj_path()
-            core_command = CommandBuilder().build_object(compiler, mode, core_path, core_obj_path)
+            # from compilers import report_flags
+            # extra_flags = report_flags[compiler]
+            extra_flags = None
+            core_command = CommandBuilder().build_object(compiler, mode, core_path, core_obj_path, extra_flags)
+            core_command = ['timeout', '120s'] + core_command
             yield {
                 'name': core_obj_path,
                 'file_dep': [core_path],
@@ -131,6 +135,7 @@ def task_build():
             objs = [main_obj_path, wrapper_obj_path, core_obj_path]
             exe_name = pb.exe_path()
             exe_command = CommandBuilder().link_objects(compiler, 'noopt', objs, math_lib[compiler], exe_name)
+            exe_command = ['timeout', '120s'] + exe_command
             yield {
                 'name': exe_name,
                 'file_dep': objs,

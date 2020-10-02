@@ -96,13 +96,36 @@ def find_max(constraints, expr, l = None):
         return Error.Z3_BUG
     return max_val
 
-def find_min(constraints, expr):
+def find_min(constraints, expr, l = None):
+    if l is None:
+        l = logger
+
+    if type(expr) == int:
+        return expr
+
+    constraint_strs = [f'{c}' for c in constraints]
+
     min_optimize = Optimize()
+    min_optimize.set('timeout', 10000)
     min_optimize.assert_exprs(*constraints)
     min_optimize.minimize(expr)
-    min_val = None
-    if sat == min_optimize.check():
-        min_val = min_optimize.model().eval(expr).as_long()
+    status = min_optimize.check()
+    if status != sat:
+        l.warning(f'Unable to find min ({status}) for:\n' + '\n'.join(constraint_strs))
+        return None
+
+    min_val = min_optimize.model().eval(expr).as_long()
+
+    # Make sure it's actually the min, since z3 has a bug
+    #   https://github.com/Z3Prover/z3/issues/4670
+    solver = Solver()
+    solver.set('timeout', 10000)
+    solver.add(constraints + [expr < min_val])
+    status = solver.check()
+
+    if status != unsat:
+        l.warning(f'Z3 bug\nFind min ({expr}) => {min_val} with status ({status}):\n' + '\n'.join(constraint_strs))
+        return Error.Z3_BUG
     return min_val
 
 def find_min_max(constraints, i):
@@ -147,6 +170,26 @@ def generate_bound_constraints(cvars, var_map):
         constraints.append(cvar <= current_max)
     return constraints
 
+class ArraySize:
+    def __init__(self, name, is_local, n_dimensions):
+        self.name = name
+        self.is_local = is_local
+        self.min_indices = [None] * n_dimensions
+        self.max_indices = [None] * n_dimensions
+        self.n_dimensions = n_dimensions
+    def new_min(self, dim, index):
+        if self.min_indices[dim] is None or index < self.min_indices[dim]:
+            self.min_indices[dim] = index
+    def new_max(self, dim, index):
+        if self.max_indices[dim] is None or index > self.max_indices[dim]:
+            self.max_indices[dim] = index
+    def check(self):
+        for dim in range(self.n_dimensions):
+            if self.min_indices[dim] is None:
+                self.min_indices[dim] = 0
+            if self.max_indices[dim] is None:
+                self.max_indices[dim] = 0
+
 def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
     if l is None:
         l = logger
@@ -156,15 +199,26 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
     array_sizes = {}
     cloned = var_map.clone()
     for decl in decls:
-        sizes = []
+        array = ArraySize(decl.name, decl.is_local, decl.n_dimensions)
+
         for dimension in range(decl.n_dimensions):
             dim_var = dimension_var(decl.name, dimension)
-            if cloned.has_min(dim_var):
-                sizes.append(cloned.get_min(dim_var))
+            if cloned.has_min(dim_var) and cloned.has_max(dim_var):
+                array.new_min(cloned.get_min(dim_var))
+                array.new_max(cloned.get_min(dim_var))
                 bypass_set.add(dim_var)
-            else:
-                sizes.append(1)
-        array_sizes[decl.name] = (decl.is_local, sizes)
+
+        array_sizes[decl.name] = array
+
+        # sizes = []
+        # for dimension in range(decl.n_dimensions):
+        #     dim_var = dimension_var(decl.name, dimension)
+        #     if cloned.has_min(dim_var):
+        #         sizes.append(cloned.get_min(dim_var))
+        #         bypass_set.add(dim_var)
+        #     else:
+        #         sizes.append(1)
+        # array_sizes[decl.name] = (decl.is_local, sizes)
 
     for access in accesses:
         for dimension, index in enumerate(access.indices):
@@ -177,20 +231,27 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
             if cexpr is None:
                 l.warning(f'Unable to analyze the max value of {index.pprint()} in {access.pprint()}')
                 max_val = cloned.default_max
+                min_val = cloned.default_min
             else:
                 max_val = find_max(constraints, cexpr, l)
                 if max_val is None or max_val == Error.Z3_BUG:
                     return max_val
-                max_val = min(max_val + 1, cloned.default_max)
+                min_val = find_min(constraints, cexpr, l)
+                if min_val is None or min_val == Error.Z3_BUG:
+                    return min_val
+            array_sizes[access.var].new_min(dimension, min_val)
+            array_sizes[access.var].new_max(dimension, max_val)
+                # max_val = min(max_val + 1, cloned.default_max)
 
             # var = dimension_var(access.var, dimension)
 
             # # Update the min value for the array size.
             # # Min array size must be large enough to
             # # hold the max index.
-            if max_val > array_sizes[access.var][1][dimension]:
-                array_sizes[access.var][1][dimension] = max_val
-
+            # if max_val > array_sizes[access.var][1][dimension]:
+            #     array_sizes[access.var][1][dimension] = max_val
+    for array in array_sizes.values():
+        array.check()
     return array_sizes
 
 def validate_var_map(program, var_map):
@@ -368,7 +429,7 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
                                             constraints,
                                             cloned_var_map, l)
         if array_sizes is None or array_sizes == Error.Z3_BUG:
-            return array_sizes
+            return None
 
         return Instance(random_pattern, array_sizes)
 

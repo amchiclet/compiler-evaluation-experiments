@@ -98,8 +98,9 @@ class PathBuilder:
 class CommandBuilder:
     def link_objects(self, compiler, mode, objects, libs, output):
         return compiler_command_map[mode][compiler] + ['-o', output] + objects + libs
-    def build_object(self, compiler, mode, source, output):
-        return compiler_command_map[mode][compiler] + ['-c', '-o', output, source]
+    def build_object(self, compiler, mode, source, output, extra_flags=None):
+        extra_flags = [] if extra_flags is None else extra_flags
+        return compiler_command_map[mode][compiler] + extra_flags + ['-c', '-o', output, source]
     def build_assembly(self, compiler, mode, source, output):
         return compiler_command_map[mode][compiler] + ['-S', '-o', output, source]
 
