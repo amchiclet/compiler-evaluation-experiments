@@ -66,7 +66,7 @@ for (pattern, program), checksums in checksums_db.items():
         print(f'FAIL: {pattern} {program} (checksums do not match)')
         print('\n'.join([f'{format_mutation(m)} ({v})' for (v, m) in outliers]))
         blacklist.append((pattern, program))
-    else:
+    elif (pattern, program) not in missing:
         print(f'PASS: {pattern} {program}')
 blacklist_path = 'blacklist.py'
 write_blacklist_file(blacklist, blacklist_path)
