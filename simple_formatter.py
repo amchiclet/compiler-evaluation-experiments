@@ -64,19 +64,20 @@ class SimpleFormatter:
         ws = spaces(self.indent)
         lines.append('struct Data {')
         self.indent += 1
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if not is_local:
-                lines.append(self.array_decl('float', array, sizes))
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            sizes = [max_index + 1 for max_index in array.max_indices]
+            if not array.is_local:
+                lines.append(self.array_decl('float', array_name, sizes))
         self.indent -= 1
         lines.append('};')
         return '\n'.join(lines)
 
-    def nested_loop(self, loop_vars, sizes, body_lines):
+    def nested_loop(self, loop_vars, min_indices, max_indices, body_lines):
         lines = []
         # loop headers
-        for loop_var, size in zip(loop_vars, sizes):
-            lines.append(loop_header(self.indent, loop_var, 0, size-1))
+        for loop_var, min_index, max_index in zip(loop_vars, min_indices, max_indices):
+            lines.append(loop_header(self.indent, loop_var, min_index, max_index))
             self.indent += 1
         ws = spaces(self.indent)
         for body_line in body_lines:
@@ -93,10 +94,11 @@ class SimpleFormatter:
         ws = spaces(self.indent)
 
         params = []
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if not is_local:
-                params.append(self.array_param('float', array, sizes))
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            sizes = [max_index + 1 for max_index in array.max_indices]
+            if not array.is_local:
+                params.append(self.array_param('float', array_name, sizes))
 
         lines.append(f'{ws}float checksum_inner({", ".join(params)}) {{')
 
@@ -105,18 +107,19 @@ class SimpleFormatter:
 
         lines.append(f'{ws}float total = 0.0;')
 
-        for array, (is_local, sizes) in self.array_sizes.items():
-            if is_local:
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            if array.is_local:
                 continue
-            loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
+            loop_vars = [f'i{dimension}' for dimension in range(array.n_dimensions)]
             indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
-            access = f'{array}{indices_str}'
+            access = f'{array_name}{indices_str}'
             body_lines = [
                 f'if (isnormal({access})) {{ total += {access}; }}',
                 f'else {{ total += 0.1; }}',
             ]
-            # body_lines = [f'total += {array}{indices_str};']
-            lines.append(self.nested_loop(loop_vars, sizes, body_lines))
+
+            lines.append(self.nested_loop(loop_vars, array.min_indices, array.max_indices, body_lines))
 
         lines.append(f'{ws}return total;')
         self.indent -= 1
@@ -130,13 +133,13 @@ class SimpleFormatter:
     def return_inner(self, function_name, scalar_as_array=False):
         ws = spaces(self.indent)
         params = []
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if not is_local:
-                if len(sizes) == 0 and scalar_as_array:
-                    params.append(f'*(float (*)[1])data->{array}')
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            if not array.is_local:
+                if array.n_dimensions == 0 and scalar_as_array:
+                    params.append(f'*(float (*)[1])data->{array_name}')
                 else:
-                    params.append(f'*data->{array}')
+                    params.append(f'*data->{array_name}')
 
         # params = [f'*data->{field}' for field in sorted(self.array_sizes.keys())]
         return f'{ws}return {function_name}({", ".join(params)});'
@@ -160,13 +163,14 @@ class SimpleFormatter:
         return self.wrapper('unsigned long long', 'kernel', 'core')
     def declare_core(self):
         params = []
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if not is_local:
-                params.append(self.array_param('float', array, sizes))
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            if not array.is_local:
+                sizes = [max_index + 1 for max_index in array.max_indices]
+                params.append(self.array_param('float', array_name, sizes))
         ws = spaces(self.indent)
         return f'{ws}unsigned long long core({", ".join(params)});'
-    def array_allocate(self, ty, arrays, sizes):
+    def array_allocate(self, ty, array_names, sizes):
         lines = []
         ws = spaces(self.indent)
         
@@ -175,20 +179,20 @@ class SimpleFormatter:
             total_size_str = '1'
         else:
             total_size_str = ' * '.join([f'{size}' for size in sizes])
-        for array in arrays:
-            lines.append(f'{ws}{array} = malloc(sizeof({ty}) * {total_size_str});')
+        for array_name in array_names:
+            lines.append(f'{ws}{array_name} = malloc(sizeof({ty}) * {total_size_str});')
         return '\n'.join(lines)
 
-    def array_init(self, ty, arrays, sizes, init_value):
+    def array_init(self, ty, array_names, min_indices, max_indices, init_value):
         lines = []
         ws = spaces(self.indent)
-        loop_vars = [f'i{dimension}' for dimension in range(len(sizes))]
+        loop_vars = [f'i{dimension}' for dimension in range(len(min_indices))]
         n_dimensions = len(loop_vars)
 
         # loop headers
         if n_dimensions > 0:
             for dimension, loop_var in enumerate(loop_vars):
-                lines.append(loop_header(self.indent, loop_var, 0, sizes[dimension]))
+                lines.append(loop_header(self.indent, loop_var, min_indices[dimension], max_indices[dimension]))
                 self.indent += 1
         else:
             lines.append(f'{ws}{{')
@@ -200,8 +204,8 @@ class SimpleFormatter:
         init_stmt = f'{ws}{ty} {init_var} = {init_value};'
         lines.append(init_stmt)
         indices_str = ''.join([f'[{loop_var}]' for loop_var in loop_vars])
-        for array in arrays:
-            lines.append(f'{ws}{array}{indices_str} = {init_var};')
+        for array_name in array_names:
+            lines.append(f'{ws}{array_name}{indices_str} = {init_var};')
 
         # close brackets
         if n_dimensions > 0:
@@ -220,10 +224,11 @@ class SimpleFormatter:
         self.indent += 1
         ws = spaces(self.indent)
         lines.append(f'{ws}struct Data *data = malloc(sizeof(struct Data));')
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if not is_local:
-                lhs = f'data->{array}'
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            if not array.is_local:
+                lhs = f'data->{array_name}'
+                sizes = [max_index + 1 for max_index in array.max_indices]
                 lines.append(self.array_allocate('float', [lhs], sizes))
         lines.append(f'{ws}return (void*)data;')
         self.indent -= 1
@@ -237,32 +242,37 @@ class SimpleFormatter:
 
         # array parameters
         params = []
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if not is_local:
-                if len(sizes) == 0:
-                    params.append(self.array_param('float', array, [1]))
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            if not array.is_local:
+                if array.n_dimensions == 0:
+                    params.append(self.array_param('float', array_name, [1]))
                 else:
-                    params.append(self.array_param('float', array, sizes))
-        
+                    sizes = [max_index + 1 for max_index in array.max_indices]
+                    params.append(self.array_param('float', array_name, sizes))
+    
         # function header
         lines.append(f'int init_inner({", ".join(params)}) {{')
         self.indent += 1
 
         # Seed the randomizer
         ws = spaces(self.indent)
-        lines.append(f'{ws}allocate();')
+        # lines.append(f'{ws}allocate();')
 
         init_value = 'frand(0.0, 1.0)'
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if not is_local:
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            if not array.is_local:
                 # for scalars, the initialization treats it as a one element array
-                if len(sizes) == 0:
-                    lines.append(self.array_init('float', [array], [0], init_value))
+                if array.n_dimensions == 0:
+                    lines.append(self.array_init('float', [array_name],
+                                                 [0], [0],
+                                                 init_value))
                 else:
                     loop_ends = [size - 1 for size in sizes]
-                    lines.append(self.array_init('float', [array], loop_ends, init_value))
+                    lines.append(self.array_init('float', [array_name],
+                                                 array.min_indices, array.max_indices,
+                                                 init_value))
 
         lines.append(f'{ws}return 0;')
 
@@ -282,17 +292,19 @@ class SimpleFormatter:
         ws = spaces(self.indent)
 
         params = []
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if not is_local:
-                params.append(self.array_param('float', array, sizes))
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            if not array.is_local:
+                sizes = [max_index + 1 for max_index in array.max_indices]
+                params.append(self.array_param('float', array_name, sizes))
         lines.append(f'{ws}unsigned long long core({", ".join(params)}) {{')
         self.indent += 1
         ws = spaces(self.indent)
-        for array in sorted(self.array_sizes.keys()):
-            is_local, sizes = self.array_sizes[array]
-            if is_local:
-                decl = self.array_local('float', array, sizes)
+        for array_name in sorted(self.array_sizes.keys()):
+            array = self.array_sizes[array_name]
+            if array.is_local:
+                sizes = [max_index + 1 for max_index in array.max_indices]
+                decl = self.array_local('float', array_name, sizes)
                 lines.append(f'{ws}{decl};')
         lines.append(f'{ws}struct timespec before, after;')
         lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &before);')
