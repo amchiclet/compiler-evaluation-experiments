@@ -375,6 +375,8 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
     for _ in range(max_tries):
         result = try_once()
         if result == Error.Z3_BUG:
+            return None
+        if result == Error.Z3_BUG:
             return Error.Z3_BUG
         if result is not None:
             return result

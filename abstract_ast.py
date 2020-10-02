@@ -48,7 +48,7 @@ class Const(Node):
     def clone(self):
         return Const(self.name, self.node_id)
     def is_syntactically_equal(self, other):
-        return self.name == other.name
+        return type(other) == Const and self.name == other.name
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
 
@@ -68,9 +68,12 @@ class Declaration(Node):
     def clone(self):
         return Declaration(self.name, self.n_dimensions, self.is_local, self.node_id)
     def is_syntactically_equal(self, other):
-        return self.name == other.name and \
-            self.n_dimensions == other.n_dimensions and \
+        return (
+            type(other) == Declaration and
+            self.name == other.name and
+            self.n_dimensions == other.n_dimensions and
             self.is_local == other.is_local
+        )
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
 
@@ -118,8 +121,11 @@ class Assignment(Node):
         cloned = Assignment(self.lhs.clone(), self.rhs.clone(), self.node_id)
         return cloned
     def is_syntactically_equal(self, other):
-        return self.lhs.is_syntactically_equal(other.lhs) and \
+        return (
+            type(other) == Assignment and
+            self.lhs.is_syntactically_equal(other.lhs) and
             self.rhs.is_syntactically_equal(other.rhs)
+        )
     def replace(self, replacer):
         self.lhs, self.rhs = replace_each([self.lhs, self.rhs], replacer)
         for access in get_accesses(self):
@@ -170,8 +176,11 @@ class Access(Node):
         cloned.is_write = self.is_write
         return cloned
     def is_syntactically_equal(self, other):
-        return self.var == other.var and \
+        return (
+            type(other) == Access and
+            self.var == other.var and
             is_list_syntactically_equal(self.indices, other.indices)
+        )
     def replace(self, replacer):
         self.var = replace(self.var, replacer)
         self.indices = replace_each(self.indices, replacer)
@@ -264,10 +273,13 @@ class LoopShape(Node):
             return '(' + ', '.join(parts) + ')'
 
     def is_syntactically_equal(self, other):
-        return all([self.loop_var.is_syntactically_equal(other.loop_var),
-                    self.greater_eq.is_syntactically_equal(other.greater_eq),
-                    self.less_eq.is_syntactically_equal(other.less_eq),
-                    self.step.is_syntactically_equal(other.step)])
+        return (
+            type(other) == LoopShape and
+            self.loop_var.is_syntactically_equal(other.loop_var) and
+            self.greater_eq.is_syntactically_equal(other.greater_eq) and
+            self.less_eq.is_syntactically_equal(other.less_eq) and
+            self.step.is_syntactically_equal(other.step)
+        )
     def replace(self, replacer):
         self.loop_var = replace(self.loop_var, replacer)
         self.greater_eq = replace(self.greater_eq, replacer)
@@ -343,8 +355,11 @@ class AbstractLoop(Node, LoopTrait):
         cloned_loop = AbstractLoop(cloned_loop_shapes, cloned_body, self.node_id)
         return cloned_loop
     def is_syntactically_equal(self, other):
-        return all([is_list_syntactically_equal(self.loop_shapes, other.loop_shapes),
-                    is_list_syntactically_equal(self.body, other.body)])
+        return (
+            type(other) == AbstractLoop and
+            is_list_syntactically_equal(self.loop_shapes, other.loop_shapes) and
+            is_list_syntactically_equal(self.body, other.body)
+        )
     def replace(self, replacer):
         self.loop_shapes = replace_each(self.loop_shapes, replacer)
         self.body = replace_each(self.body, replacer)
@@ -409,14 +424,11 @@ class Op(Node):
         cloned_args = [arg.clone() for arg in self.args]
         return Op(self.op, cloned_args, self.node_id)
     def is_syntactically_equal(self, other):
-        if self.op != other.op:
-            return False
-        if len(self.args) != len(other.args):
-            return False
-        for arg, other_arg in zip(self.args, other.args):
-            if not arg.is_syntactically_equal(other_arg):
-                return False
-        return True
+        return (
+            type(other) == Op and
+            self.op == other.op and
+            is_list_syntactically_equal(self.args, other.args)
+        )
     def replace(self, replacer):
         self.args = replace_each(self.args, replacer)
 
@@ -461,9 +473,12 @@ class Program(Node, LoopTrait):
         cloned_consts = [const.clone() for const in self.consts]
         return Program(cloned_decls, cloned_body, cloned_consts, self.node_id)
     def is_syntactically_equal(self, other):
-        return is_list_syntactically_equal(self.decls, other.decls) and \
-            is_list_syntactically_equal(self.body, other.body) and \
+        return (
+            type(other) == Program and
+            is_list_syntactically_equal(self.decls, other.decls) and
+            is_list_syntactically_equal(self.body, other.body) and
             is_list_syntactically_equal(self.consts, other.consts)
+        )
     def merge(self, other):
         cloned = other.clone()
 

@@ -5,12 +5,21 @@ class Dependence:
         self.source_ref = source_ref
         self.sink_ref = sink_ref
         self.direction_vector = direction_vector
+        self.loop_vars = None
+        self.distance_vector = None
     def pprint(self):
         stmt1 = self.source_ref.parent_stmt
         stmt2 = self.sink_ref.parent_stmt
-        return (f'From: {stmt1.dep_print([self.source_ref])}({self.source_ref.node_id})\n'
-                f'To:   {stmt2.dep_print([self.sink_ref])}({self.sink_ref.node_id})\n'
-                f'DV:   {self.direction_vector}')
+        lines = [
+            f'From: {stmt1.dep_print([self.source_ref])}({self.source_ref.node_id})',
+            f'To:   {stmt2.dep_print([self.sink_ref])}({self.sink_ref.node_id})',
+            f'DV:   {self.direction_vector}',
+        ]
+        if self.loop_vars is not None:
+            lines.append(f'LV:   {self.loop_vars}')
+        if self.distance_vector is not None:
+            lines.append(f'|DV|: {self.distance_vector}')
+        return '\n'.join(lines)
 
 class DependenceGraph:
     def __init__(self):
