@@ -317,7 +317,7 @@ def find_min(constraints, expr, default_min=0):
     min_optimize.minimize(expr)
     status = min_optimize.check()
     if status != sat:
-        l.warning(f'Unable to find min ({status}) for:\n' + '\n'.join(constraint_strs))
+        print(f'Unable to find min ({status}) for:\n' + '\n'.join(constraint_strs))
         return None
 
     min_val = min_optimize.model().eval(expr).as_long()
@@ -330,7 +330,7 @@ def find_min(constraints, expr, default_min=0):
     status = solver.check()
 
     if status != unsat:
-        l.warning(f'Z3 bug\nFind min ({expr}) => {min_val} with status ({status}):\n' + '\n'.join(constraint_strs))
+        print(f'Z3 bug\nFind min ({expr}) => {min_val} with status ({status}):\n' + '\n'.join(constraint_strs))
         return None
     return min_val
 
@@ -411,6 +411,8 @@ def get_min_distance(dep):
             cexpr += dim_cexpr
 
     min_val = find_min(constraints, cexpr)
+    if min_val is None:
+        return False
     print('min_val! ', min_val)
 
     min_val_dimensions = []
