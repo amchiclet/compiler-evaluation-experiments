@@ -6,7 +6,7 @@ from stats import \
     Stats, \
     geometric_mean
 import plot
-from report.util import update_dict_dict, merge_value, update_dict_array, get_paths_for_pair, format_spread_pair
+from report.util import update_dict_dict, merge_value, update_dict_array, get_paths_for_pair, format_spread_pair, Outlier
 from random import choices
 from tqdm import tqdm
 from scipy.stats import probplot
@@ -194,3 +194,60 @@ def plot_qq(compilers, patterns, runtimes):
             data.append(geometric_mean(samples))
         probplot(data, plot=plt)
         plt.show()
+
+def plot_scaled_speedups(compilers, patterns, runtimes, path_prefix=None):
+    def is_better_speedup(x, y):
+        return x > y
+
+    speedups = {}
+    best_speedups = {}
+    for c in compilers:
+        for p, instances in patterns:
+            for i, mutations in instances:
+                for m in mutations:
+                    fast_key = (c, 'fast', p, i, m)
+                    novec_key = (c, 'novec', p, i, m)
+                    if fast_key in runtimes and novec_key in runtimes:
+                        speedup = runtimes[novec_key] / runtimes[fast_key]
+                        speedups[(c, p, i, m)] = speedup
+                        if (c, p, i) not in best_speedups:
+                            best_speedups[(c, p, i)] = Outlier()
+                        best_speedups[(c, p, i)].merge(is_better_speedup, speedup, m)
+
+    def is_worse_speedup(x, y):
+        return x < y
+
+    mins = {}
+    data = {}
+    for (c, p, i, m), speedup in speedups.items():
+        scaled = speedups[(c, p, i, m)] / best_speedups[(c, p, i)].data
+
+        update_dict_array(data, c, scaled)
+
+        if c not in mins:
+            mins[c] = Outlier()
+        best_m = best_speedups[(c, p, i)].key
+        mins[c].merge(is_worse_speedup, scaled, (p, i, m, best_m))
+
+    for c, ss in data.items():
+        print(c, ss[:20])
+        n, bins, patches = plot.plot_histogram(ss, 100)
+
+        n_tallest = max(n)
+        plot_height = ((n_tallest + 99) // 100) * 100
+        min_speedup = mins[c].data
+        (base_dir, p), i, m, m_best = mins[c].key
+        plt.annotate(f'scaled_speedup={min_speedup:.6f}\npattern=({p}, {i}, {m}/{m_best})', (min_speedup, n_tallest / 2))
+        min_x = 0.001 if min_speedup < 0.001 else min_speedup
+        plt.plot((min_x, min_x), (0, plot_height), marker='None', linewidth=2, color='red')
+        plt.xlim(0, 1)
+        plt.ylim(0, plot_height)
+
+        title = f'Scaled vector speedup ({c})'
+        if path_prefix is None:
+            plot.display_plot(title=title, legend=False)
+        else:
+            path = f'{path_prefix}-{c}.png'
+            plot.save_plot(path, title, legend=False)
+            plot.clear_plot()
+

@@ -43,6 +43,7 @@ def display_plot(title=None, legend=True):
         plt.title(title)
     if legend:
         plt.legend()
+    plt.tight_layout()
     plt.show()
 
 def save_plot(path, title=None, legend=True):
@@ -50,6 +51,7 @@ def save_plot(path, title=None, legend=True):
         plt.title(title)
     if legend:
         plt.legend()
+    plt.tight_layout()
     plt.savefig(path)
 
 def clear_plot():

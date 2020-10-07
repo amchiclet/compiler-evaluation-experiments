@@ -4,7 +4,7 @@ from stats import \
     Stats, \
     geometric_mean, \
     arithmetic_mean
-from report.util import merge_value, update_dict_dict, update_dict_array, get_paths_for_pair, format_spread_pair, format_raw_single_mutation, get_paths_for_single
+from report.util import merge_value, update_dict_dict, update_dict_array, get_paths_for_pair, format_spread_pair, format_raw_single_mutation, get_paths_for_single, Outlier
 
 from scipy import log
 from scipy.stats import gmean, probplot
@@ -265,3 +265,72 @@ def plot_qq(compilers, patterns, runtimes):
         probplot(data, plot=plt)
         plt.title(f'{pair[0]}/{pair[1]} n_samples={len(vals)}')
         plt.show()
+
+def plot_peer_speedups_v2(compilers, patterns, runtimes, path_prefix=None):
+    def is_better_speedup(x, y):
+        return x > y
+    def is_worse_speedup(x, y):
+        return x < y
+
+    data = {}
+    mins = {}
+    maxs = {}
+    for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
+        p, i, m = pim
+        key = (c2, c1)
+        speedup = r2 / r1
+        key_inv = (c1, c2)
+        speedup_inv = r1 / r2
+        update_dict_array(data, key, speedup)
+        update_dict_array(data, key_inv, speedup_inv)
+
+        if key not in mins:
+            mins[key] = Outlier()
+        mins[key].merge(is_worse_speedup, speedup, pim)
+        if key_inv not in mins:
+            mins[key_inv] = Outlier()
+        mins[key_inv].merge(is_worse_speedup, speedup_inv, pim)
+
+        if key not in maxs:
+            maxs[key] = Outlier()
+        maxs[key].merge(is_better_speedup, speedup, pim)
+        if key_inv not in maxs:
+            maxs[key_inv] = Outlier()
+        maxs[key_inv].merge(is_better_speedup, speedup_inv, pim)
+
+    for c, ss in data.items():
+        n, bins, patches = plot.plot_histogram(ss, 100)
+
+        n_tallest = max(n)
+        plot_height = ((n_tallest + 99) // 100) * 100
+
+        # min value
+        min_speedup = mins[c].data
+        (base_dir, p), i, m = mins[c].key
+        plt.annotate(
+            f'{min_speedup:.6f}\npattern=({p}, {i}, {m})',
+            (min_speedup, plot_height*0.9)
+        )
+        min_x = 0.001 if min_speedup < 0.001 else min_speedup
+        plt.plot((min_x, min_x), (0, plot_height), marker='None', linewidth=2, color='red')
+
+        # max value
+        max_speedup = maxs[c].data
+        (base_dir, p), i, m = maxs[c].key
+        annotation = plt.annotate(
+            f'{max_speedup:.6f}\npattern=({p}, {i}, {m})',
+            (max_speedup, plot_height*0.9)
+        )
+        max_x = max_speedup
+        plt.plot((max_x, max_x), (0, plot_height), marker='None', linewidth=2, color='green')
+
+        plt.xlim(0, None)
+        plt.ylim(0, plot_height)
+
+        title = f'Speedup ({c[0]}/{c[1]})'
+        if path_prefix is None:
+            plot.display_plot(title=title, legend=False)
+        else:
+            path = f'{path_prefix}-{c[0]}-{c[1]}.png'
+            plot.save_plot(path, title, legend=False)
+            plot.clear_plot()

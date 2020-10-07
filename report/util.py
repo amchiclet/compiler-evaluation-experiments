@@ -78,3 +78,16 @@ def format_raw_single_mutation(single, is_fully_qualified=False):
         pattern = pattern[1]
     return (f'{raw:.2f}\n'
             f'({pattern}.{program}.{mutation})')
+
+class Outlier:
+    def __init__(self, data=None, key=None):
+        self.data = data
+        self.key = key
+    def merge(self, is_better, new_data, new_key):
+        if self.data is None:
+            self.data = new_data
+            self.key = new_key
+        else:
+            if is_better(new_data, self.data):
+                self.data = new_data
+                self.key = new_key

@@ -82,6 +82,7 @@ def plot_single_compiler_metrics(metrics, metrics_labels, title=None, path=None)
 
     if path is not None:
         plot.save_plot(path, title)
+        plot.clear_plot()
     else:
         plot.display_plot(title)
 
@@ -136,6 +137,7 @@ def plot_compiler_pair_metrics(metrics, title=None, path=None):
 
     if path is not None:
         plot.save_plot(path, title, legend=False)
+        plot.clear_plot()
     else:
         plot.display_plot(title, legend=False)
 
@@ -199,6 +201,7 @@ def plot_pair_speedup_metrics(metrics, title=None, path=None):
 
     if path is not None:
         plot.save_plot(path, legend=False)
+        plot.clear_plot()
     else:
         plot.display_plot(legend=False)
 
@@ -209,10 +212,6 @@ base_dirs = [os.getcwd()]
 patterns = read_patterns(base_dirs)
 runtimes = read_runtimes_database_fully_qualified(patterns)
 n_patterns = len(patterns)
-
-# report.runtime.get_grouped_normalized_runtimes(compilers, runtimes)
-# report.peer_speedup.plot_qq(compilers, patterns, runtimes)
-# exit(1)
 
 # Gather metrics
 runtime_metrics = report.runtime.get_data_and_errors(compilers, patterns, runtimes)
@@ -229,20 +228,26 @@ inter_compiler_labels = ['runtime', 'vec speedup', 'cost model']
 single_compiler_rank = [top_rank_metrics, bottom_rank_metrics]
 
 # save to file
-# plot_single_compiler_metrics(inter_compiler_metrics, inter_compiler_labels, 'Stability', 'stability.png')
-# single_compiler_rank_labels = ['top rank', 'bottom rank']
-# plot_single_compiler_metrics(single_compiler_rank, single_compiler_rank_labels, 'Top and bottom rank', 'top-bottom.png')
-# plot_compiler_pair_metrics(pair_comparison_metrics, 'Peer comparison', 'pairs.png')
-# plot_pair_speedup_metrics(peer_speedup_metrics, 'Peer speedup', 'speedup.png')
+plot_single_compiler_metrics(inter_compiler_metrics, inter_compiler_labels, 'Stability', 'stability.png')
+single_compiler_rank_labels = ['top rank', 'bottom rank']
+plot_single_compiler_metrics(single_compiler_rank, single_compiler_rank_labels, 'Top and bottom rank', 'top-bottom.png')
+plot_compiler_pair_metrics(pair_comparison_metrics, 'Peer comparison', 'peer-comparison.png')
+plot_pair_speedup_metrics(peer_speedup_metrics, 'Peer speedup', 'peer-speedup.png')
 
 # display
-plot_single_compiler_metrics(inter_compiler_metrics, inter_compiler_labels, 'Stability')
-single_compiler_rank_labels = ['top rank', 'bottom rank']
-plot_single_compiler_metrics(single_compiler_rank, single_compiler_rank_labels, 'Top and bottom rank')
-plot_compiler_pair_metrics(pair_comparison_metrics, 'Peer comparison')
-plot_pair_speedup_metrics(peer_speedup_metrics, 'Peer speedup')
+# plot_single_compiler_metrics(inter_compiler_metrics, inter_compiler_labels, 'Stability')
+# single_compiler_rank_labels = ['top rank', 'bottom rank']
+# plot_single_compiler_metrics(single_compiler_rank, single_compiler_rank_labels, 'Top and bottom rank')
+# plot_compiler_pair_metrics(pair_comparison_metrics, 'Peer comparison')
+# plot_pair_speedup_metrics(peer_speedup_metrics, 'Peer speedup')
 
+# Interesting cases
+report.runtime.plot_scaled_runtimes(compilers, patterns, runtimes, 'dist-scaled-runtimes')
+report.vector_speedup.plot_scaled_speedups(compilers, patterns, runtimes, 'dist-scaled-vector-speedup')
+report.cost_model.plot_cost_model_speedups(compilers, patterns, runtimes, 'dist-cost-model-speedup')
+report.peer_speedup.plot_peer_speedups_v2(compilers, patterns, runtimes, 'dist-peer-speedup')
 
+exit(0)
 def format_row(outliers, name, order, format_raw):
     row = [name]
     for key in order:

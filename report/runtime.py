@@ -172,39 +172,61 @@ def get_data_and_errors(compilers, patterns, raw_runtimes):
 
     return data, neg_errs, pos_errs, interesting_cases
 
-def get_grouped_normalized_runtimes(compilers, runtimes):
+def plot_scaled_runtimes(compilers, patterns, runtimes, path_prefix=None):
     best_mutations = {}
     for (compiler, mode, pattern, instance, mutation), runtime in runtimes.items():
         if mode == 'fast':
-            merge_value(best_mutations, (compiler, pattern, instance), runtime, min)
+            k = (compiler, pattern, instance)
+            if k not in best_mutations:
+                best_mutations[k] = (runtime, (pattern, instance, mutation))
+            else:
+                if runtime < best_mutations[k][0]:
+                    best_mutations[k] = (runtime, (pattern, instance, mutation))
 
     normalized = {}
     for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
         if mode == 'fast':
             key = (compiler, pattern, program, mutation)
-            normalized[key] = best_mutations[key[:-1]] / runtime
+            best_mutation_runtime = best_mutations[(compiler, pattern, program)][0]
+            normalized[key] = best_mutation_runtime / runtime
 
     mins = {}
     data = {}
-    for (compiler, *pim), r in normalized.items():
+    for (compiler, pattern, instance, mutation), r in normalized.items():
         update_dict_array(data, compiler, r)
+
+        # find outliers
+        pim = (pattern, instance, mutation)
+        best_pim = best_mutations[(compiler, pattern, instance)][1]
         if compiler not in mins:
-            mins[compiler] = (r, pim)
+            mins[compiler] = (r, pim, best_pim)
         else:
             if r < mins[compiler][0]:
-                mins[compiler] = (r, pim)
+                mins[compiler] = (r, pim, best_pim)
 
     for compiler, rs in data.items():
         n, bins, patches = plot.plot_histogram(rs, 100)
 
         n_tallest = max(n)
         plot_height = ((n_tallest + 99) // 100) * 100
-        min_r, min_pim = mins[compiler]
+        min_r, min_pim, best_pim = mins[compiler]
         (base_dir, p), i, m = min_pim
-        plt.annotate(f'scaled_runtime={min_r:.2f}\npattern={(p, i, m)}', (min_r, n_tallest / 2))
+        (base_dir_best, p_best), i_best, m_best = best_pim
+        assert(base_dir == base_dir_best)
+        assert(p == p_best)
+        assert(i == i_best)
+        plt.annotate(f'scaled_runtime={min_r:.6f}\npattern=({p}, {i}, {m}/{m_best})', (min_r, n_tallest / 2))
         if min_r < 0.001:
             min_r = 0.001
         plt.plot((min_r, min_r), (0, plot_height), marker='None', linewidth=2, color='red')
         plt.xlim(0, 1)
         plt.ylim(0, plot_height)
-        plot.display_plot()
+
+        title = f'Scaled runtime ({compiler})'
+        if path_prefix is None:
+            plot.display_plot(title=title, legend=False)
+        else:
+            path = f'{path_prefix}-{compiler}.png'
+            plot.save_plot(path, title, legend=False)
+            plot.clear_plot()
+

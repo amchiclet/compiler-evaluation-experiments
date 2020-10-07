@@ -6,7 +6,7 @@ from stats import \
     create_max_spread_cases, \
     Stats, \
     arithmetic_mean
-from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation, update_dict_array
+from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation, update_dict_array, Outlier
 import plot
 from random import choices
 from tqdm import tqdm
@@ -292,3 +292,66 @@ def plot_qq(compilers, patterns, runtimes):
             data.append(arithmetic_mean(samples))
         probplot(data, plot=plt)
         plt.show()
+
+def plot_cost_model_speedups(compilers, patterns, runtimes, path_prefix=None):
+    def is_better_speedup(x, y):
+        return x > y
+    def is_worse_speedup(x, y):
+        return x < y
+
+    mins = {}
+    maxs = {}
+    data = {}
+    for c in compilers:
+        for p, instances in patterns:
+            for i, mutations in instances:
+                for m in mutations:
+                    fast_key = (c, 'fast', p, i, m)
+                    nopredict_key = (c, 'nopredict', p, i, m)
+                    if fast_key in runtimes and nopredict_key in runtimes:
+                        speedup = runtimes[nopredict_key] / runtimes[fast_key]
+                        update_dict_array(data, c, speedup)
+                        if c not in mins:
+                            mins[c] = Outlier()
+                        mins[c].merge(is_worse_speedup, speedup, (p, i, m))
+                        if c not in maxs:
+                            maxs[c] = Outlier()
+                        maxs[c].merge(is_better_speedup, speedup, (p, i, m))
+
+    for c, ss in data.items():
+        n, bins, patches = plot.plot_histogram(ss, 100)
+
+        n_tallest = max(n)
+        plot_height = ((n_tallest + 99) // 100) * 100
+
+        # min value
+        min_speedup = mins[c].data
+        (base_dir, p), i, m = mins[c].key
+        plt.annotate(
+            f'{min_speedup:.6f}\npattern=({p}, {i}, {m})',
+            (min_speedup, plot_height*0.9)
+        )
+        min_x = 0.001 if min_speedup < 0.001 else min_speedup
+        plt.plot((min_x, min_x), (0, plot_height), marker='None', linewidth=2, color='red')
+
+        # max value
+        max_speedup = maxs[c].data
+        (base_dir, p), i, m = maxs[c].key
+        annotation = plt.annotate(
+            f'{max_speedup:.6f}\npattern=({p}, {i}, {m})',
+            (max_speedup, plot_height*0.9)
+        )
+        max_x = max_speedup
+        plt.plot((max_x, max_x), (0, plot_height), marker='None', linewidth=2, color='green')
+
+        plt.xlim(0, None)
+        plt.ylim(0, plot_height)
+
+        title = f'Cost model speedup ({c})'
+        if path_prefix is None:
+            plot.display_plot(title=title, legend=False)
+        else:
+            path = f'{path_prefix}-{c}.png'
+            plot.save_plot(path, title, legend=False)
+            plot.clear_plot()
+
