@@ -27,9 +27,12 @@ grammar = '''
     expr: conditional
     conditional: logical_or "?" logical_or ":" conditional | logical_or
     logical_or: logical_or "||" logical_and | logical_and
-    logical_and: logical_and "&&" equality | equality
+    logical_and: logical_and "&&" bitwise_xor | bitwise_xor
+    bitwise_xor: bitwise_xor "^" bitwise_and | bitwise_and
+    bitwise_and: bitwise_and "&" equality | equality
     equality: equality EQUAL relational | relational
-    relational: relational RELATION additive | additive
+    relational: relational RELATION bitwise_shift | bitwise_shift
+    bitwise_shift: bitwise_shift BITWISE_SHIFT additive | additive
     additive: additive ADDITIVE multiplicative | multiplicative
     multiplicative: multiplicative MULTIPLICATIVE unary | unary
     unary: UNARY unary | atom
@@ -38,19 +41,24 @@ grammar = '''
     access: scalar_access | array_access | literal
     scalar_access: scalar
     array_access: array ("[" expr "]")+
-    literal: float_literal | int_literal
+    literal: float_literal | int_literal | hex_literal
     float_literal: FLOAT
     int_literal: INT
+    hex_literal: HEX_NUMBER
 
     scalar: CNAME
     array: CNAME
 
     EQUAL: "==" | "!="
     RELATION: "<=" | ">=" | "<" | ">"
+    BITWISE_SHIFT: "<<" | ">>"
     ADDITIVE: "+" | "-"
-    MULTIPLICATIVE: "*" | "/"
-    UNARY: "+" | "-" | "!"
+    MULTIPLICATIVE: "*" | "/" | "%"
+    UNARY: "+" | "-" | "!" | "~"
 
+    HEX_NUMBER: /0x[\\da-f]*/i
+
+    COMMENT: /#[^\\n]*/
     %import common.WS
     %import common.LCASE_LETTER
     %import common.UCASE_LETTER
@@ -58,10 +66,19 @@ grammar = '''
     %import common.INT
     %import common.FLOAT
     %ignore WS
-
+    %ignore COMMENT
 '''
 
-from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder
+# _NEWLINE: ( /\r?\n[\t ]*/ | COMMENT )+
+
+
+# STRING : /[ubf]?r?("(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?')/i
+# LONG_STRING: /[ubf]?r?(""".*?(?<!\\)(\\\\)*?"""|'''.*?(?<!\\)(\\\\)*?''')/is
+
+# DEC_NUMBER: /0|[1-9]\d*/i
+
+
+from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder, Hex
 
 class TreeSimplifier(Transformer):
     def __init__(self, start_node_id=0):
@@ -93,6 +110,8 @@ class TreeSimplifier(Transformer):
         return Literal(float, float(args[0]), self.next_node_id())
     def int_literal(self, args):
         return Literal(int, int(args[0]), self.next_node_id())
+    def hex_literal(self, args):
+        return Hex(args[0], self.next_node_id())
     def scalar_access(self, args):
         return Access(args[0], node_id=self.next_node_id())
     def array_access(self, args):
@@ -130,6 +149,18 @@ class TreeSimplifier(Transformer):
         if len(args) == 1:
             return args[0]
         return Op(args[1], [args[0], args[2]], self.next_node_id())
+    def bitwise_shift(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op(args[1], [args[0], args[2]], self.next_node_id())
+    def bitwise_xor(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op('^', args, self.next_node_id())
+    def bitwise_and(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op('&', args, self.next_node_id())
     def unary(self, args):
         if len(args) == 1:
             return args[0]
@@ -167,6 +198,7 @@ class TreeSimplifier(Transformer):
                 merged.merge(loop_shape_builder)
         assert(merged is not None)
         assert(merged.loop_var is not None)
+        print(merged)
         loop_var = merged.loop_var.var
         default_greater_eq = Access(f'{loop_var}_greater_eq', node_id=self.next_node_id())
         default_less_eq = Access(f'{loop_var}_less_eq', node_id=self.next_node_id())

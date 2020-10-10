@@ -96,6 +96,29 @@ class Literal(Node):
     def dep_print(self, refs):
         return f'{self.val}'
 
+class Hex(Literal):
+    def __init__(self, str_val, node_id=0):
+        self.ty = bytes
+        self.str_val = str_val
+        self.val = bytes.fromhex(str_val[2:])  # remove the 0x
+        self.node_id = node_id
+    def cprint(self, indent=0):
+        return f'{self.str_val}'
+    def pprint(self, indent=0):
+        return f'{self.str_val}'
+    def clone(self):
+        return Hex(self.str_val, self.node_id)
+    def is_syntactically_equal(self, other):
+        return (type(other) == Hex and
+                self.ty == other.ty and
+                self.val == other.val)
+    def replace(self, replacer):
+        self.ty = replace(self.ty, replacer)
+        self.val = replace(self.val, replacer)
+        self.str_val = replace(self.str_val, replacer)
+    def dep_print(self, refs):
+        return f'{self.str_val}'
+
 class Assignment(Node):
     def __init__(self, lhs, rhs, node_id=0):
         self.node_id = node_id
@@ -373,21 +396,27 @@ class Op(Node):
         self.node_id = 0
     def precedence(self):
         if len(self.args) == 1:
-            return 100
+            return 200
         if self.op in ['*', '/', '%']:
-            return 99
+            return 150
         if self.op in ['+', '-']:
-            return 98
+            return 140
+        if self.op == '<<' or self.op == '>>':
+            return 130
         if self.op in ['<', '>', '<=', '>=']:
-            return 97
+            return 120
         if self.op in ['==', '!=']:
-            return 96
-        if self.op == '&&':
+            return 110
+        if self.op == '&':
+            return 100
+        if self.op == '^':
             return 95
+        if self.op == '&&':
+            return 90
         if self.op == '||':
-            return 94
+            return 80
         if self.op == '?:':
-            return 93
+            return 70
         raise RuntimeError(f'Unsupported op {self.op}')
     def generic_print(self, formatter):
         args = []

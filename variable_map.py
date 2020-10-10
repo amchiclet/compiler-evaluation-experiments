@@ -189,6 +189,10 @@ class ArraySize:
                 self.min_indices[dim] = 0
             if self.max_indices[dim] is None:
                 self.max_indices[dim] = 0
+    def pprint(self):
+        sizes = [max_index + 1 for max_index in self.max_indices]
+        brackets = [f'[{size}]' for size in sizes]
+        return f'{self.name}{"".join(brackets)}'
 
 def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
     if l is None:
@@ -281,7 +285,9 @@ class Instance:
         lines = []
         lines.append(self.pattern.pprint())
         for name in sorted(self.array_sizes.keys()):
-            lines.append(f'Array {name}: {self.array_sizes[name]}')
+            lines.append(f'Array {self.array_sizes[name].pprint()}')
+        # for name in sorted(self.array_sizes.keys()):
+        #     lines.append(f'Array {name}: {self.array_sizes[name]}')
         return '\n'.join(lines)
     def clone(self):
         return Instance(self.pattern.clone(),
@@ -315,10 +321,12 @@ def try_create_instance(pattern, var_map, l=None):
     l.debug('Index constraints:\n' + '\n'.join(map(str, index_constraints)))
     l.debug('Loop shape constraints:\n' + '\n'.join(map(str, loop_shape_constraints)))
 
+    bound_constraints = generate_bound_constraints(cvars, var_map)
+
     assert(len(index_constraints) > 0)
     invert_index_constraints = Not(And(index_constraints))
 
-    constraints = [invert_index_constraints] + loop_shape_constraints
+    constraints = [invert_index_constraints] + loop_shape_constraints + bound_constraints
 
     solver = Solver()
     solver.set('timeout', 10000)
@@ -332,7 +340,7 @@ def try_create_instance(pattern, var_map, l=None):
             l.debug(f'Model:\n{solver.model()}')
         return None
 
-    constraints = index_constraints + loop_shape_constraints
+    constraints = index_constraints + loop_shape_constraints + bound_constraints
     solver = Solver()
     solver.set('timeout', 10000)
     solver.add(constraints)
@@ -389,8 +397,12 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
                                                                       cvars,
                                                                       cloned_var_map)
 
+        bound_constraints = generate_bound_constraints(cvars, cloned_var_map)
+
         l.debug('Index constraints:\n' + '\n'.join(map(str, index_constraints)))
         l.debug('Loop shape constraints:\n' + '\n'.join(map(str, loop_shape_constraints)))
+        l.debug('Bound constraints:\n' + '\n'.join(map(str, bound_constraints)))
+
 
         assert(len(index_constraints) > 0)
         # conj_index_constraints = index_constraints[0]
@@ -399,7 +411,7 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
         # invert_index_constraints = Not(conj_index_constraints)
         invert_index_constraints = Not(And(index_constraints))
         
-        constraints = [invert_index_constraints] + loop_shape_constraints
+        constraints = [invert_index_constraints] + loop_shape_constraints + bound_constraints
 
         solver = Solver()
         solver.set('timeout', 10000)
@@ -408,18 +420,18 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
         if status != unsat:
             l.debug(f'Constraints are not unsatisfiable ({status}). '
                     'May result in index out of bound')
-            l.debug('Loop shape constraints:\n' + '\n'.join(map(str, constraints)))
+            l.debug('Constraints:\n' + '\n'.join(map(str, constraints)))
             if status == sat:
                 l.debug(f'Model:\n{solver.model()}')
             return None
 
-        constraints = index_constraints + loop_shape_constraints
+        constraints = index_constraints + loop_shape_constraints + bound_constraints
         solver = Solver()
         solver.set('timeout', 10000)
         solver.add(constraints)
         status = solver.check()
         if status != sat:
-            l.debug('Constraints are not satisfiable ({status}). '
+            l.debug(f'Constraints are not satisfiable ({status}). '
                     'May result in no iterations')
             l.debug('\n'.join(map(str, constraints)))
             return None

@@ -122,7 +122,6 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref):
     constraints += generate_loop_bound_constraints(source_loop_shapes,
                                                    source_cvars)
 
-    # source_steps = gather_loop_steps(source_loop_shapes)
     constraints += generate_step_constraints(source_loop_shapes,
                                              source_cvars,
                                              source_step_cvars)
@@ -213,7 +212,7 @@ def expr_to_cexpr(expr, cvars):
         args = expr.args
         op = expr.op
         if len(args) == 1:
-            cexpr = expr_to_cexpr(args[0])
+            cexpr = expr_to_cexpr(args[0], cvars)
             if expr.op == '+':
                 return cexpr
             elif expr.op == '-':
@@ -313,6 +312,7 @@ def find_min(constraints, expr, default_min=0):
 
     min_optimize = Optimize()
     min_optimize.set('timeout', 10000)
+
     min_optimize.assert_exprs(*constraints)
     min_optimize.minimize(expr)
     status = min_optimize.check()
@@ -348,7 +348,6 @@ def get_min_distance(dep):
     source_cvars, sink_cvars, source_step_cvars, sink_step_cvars \
         = generate_constraint_vars(source_loop_vars,
                                    sink_loop_vars)
-
     constraints = []
 
     constraints += generate_loop_bound_constraints(source_loop_shapes,
@@ -392,13 +391,12 @@ def get_min_distance(dep):
             return False
         width = shape.less_eq.val - shape.greater_eq.val + 1
         widths.append(width)
-    print(widths)
+
     strides = [1]
     for previous_index, width in enumerate(reversed(widths[1:])):
         strides.append(strides[previous_index] * width)
     strides.reverse()
 
-    print(strides)
     cexpr = None
 
     for dim, loop_var in enumerate(common_loop_vars):
@@ -424,7 +422,7 @@ def get_min_distance(dep):
     dep.loop_vars = common_loop_vars
 
     distances = {loop_var:distance for loop_var, distance in zip(common_loop_vars, min_val_dimensions)}
-    print(min_val_dimensions)
+
     # if min_val is not None:
     #     assert(loop_var not in distances)
     #     # distances[loop_var] = min_val
