@@ -9,10 +9,10 @@ from variable_map import create_instance, VariableMap
 from transformers.loop_unroll import LoopUnroll
 
 def get_next_batch(n):    
-    done_dir = '/mnt/d/real-patterns/patterns/done'
+    done_dir = 'real-patterns/patterns/done'
     existing = listdir(done_dir)
 
-    dst_dir = '/mnt/d/real-patterns/patterns'
+    dst_dir = 'real-patterns/patterns'
 
 
     cant_dir = f'{dst_dir}/cant'
@@ -20,7 +20,7 @@ def get_next_batch(n):
 
     blacklisted = cant + existing
 
-    src_dir = '/mnt/d/real-patterns/code'
+    src_dir = 'real-patterns/code'
     srcs = [name for name in listdir(src_dir)
             if name not in blacklisted]
     shuffle(srcs)
@@ -30,7 +30,7 @@ def get_next_batch(n):
 
 # get_next_batch(10)
 def test_parse():    
-    d = '/mnt/d/real-patterns/patterns'
+    d = 'real-patterns/patterns'
     loop_unroll = LoopUnroll(4)
     for s in listdir(d):
         if not s.endswith('.c'):
@@ -61,6 +61,8 @@ def test_parse():
             var_map.set_max('offset4', 5)
             var_map.set_min('offset5', 2)
             var_map.set_max('offset5', 5)
+            var_map.set_min('small', 1)
+            var_map.set_max('small', 30)
             var_map.set_min('small1_greater_eq', 1)
             var_map.set_max('small1_greater_eq', 30)
             var_map.set_min('small1_less_eq', 30)
@@ -77,6 +79,12 @@ def test_parse():
             var_map.set_max('small4_greater_eq', 30)
             var_map.set_min('small4_less_eq', 30)
             var_map.set_max('small4_less_eq', 60)
+            var_map.set_min('medium', 1)
+            var_map.set_max('medium', 100)
+            var_map.set_min('medium1', 1)
+            var_map.set_max('medium1', 100)
+            var_map.set_min('medium2', 1)
+            var_map.set_max('medium2', 100)
             var_map.set_min('medium1_greater_eq', 1)
             var_map.set_max('medium1_greater_eq', 10)
             var_map.set_min('medium1_less_eq', 100)
@@ -88,8 +96,11 @@ def test_parse():
             mutation = next(loop_unroll.transform(instance))
             logger.info('4')
             logger.info(mutation.pprint())
+        except AssertionError as e:
+            print('assertion error ' + str(e))
+            print(dir(e))
         except Exception as e:
-            print(e)
+            print('exception' + str(e))
 
 # get_next_batch(20)
 # exit(0)

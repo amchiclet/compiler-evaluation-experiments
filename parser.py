@@ -27,7 +27,8 @@ grammar = '''
     expr: conditional
     conditional: logical_or "?" logical_or ":" conditional | logical_or
     logical_or: logical_or "||" logical_and | logical_and
-    logical_and: logical_and "&&" bitwise_xor | bitwise_xor
+    logical_and: logical_and "&&" bitwise_or | bitwise_or
+    bitwise_or: bitwise_or "|" bitwise_xor | bitwise_xor
     bitwise_xor: bitwise_xor "^" bitwise_and | bitwise_and
     bitwise_and: bitwise_and "&" equality | equality
     equality: equality EQUAL relational | relational
@@ -153,6 +154,10 @@ class TreeSimplifier(Transformer):
         if len(args) == 1:
             return args[0]
         return Op(args[1], [args[0], args[2]], self.next_node_id())
+    def bitwise_or(self, args):
+        if len(args) == 1:
+            return args[0]
+        return Op('|', args, self.next_node_id())
     def bitwise_xor(self, args):
         if len(args) == 1:
             return args[0]
