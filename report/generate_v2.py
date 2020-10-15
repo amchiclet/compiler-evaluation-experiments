@@ -34,7 +34,29 @@ def read_patterns(base_dirs):
         all_patterns += get_ok_patterns_fully_qualified(base_dir)
     n_instances, n_mutations = get_popular_pattern_structure(all_patterns)
     all_patterns = limit_patterns(all_patterns, n_instances, n_mutations)
-    return all_patterns
+    return all_patterns, n_instances, n_mutations
+
+def filter_existing_patterns(patterns, runtimes):
+    filtered_patterns = []
+    for p, instances in patterns:
+        filtered_instances = []
+        for i, mutations in instances:
+            filtered_mutations = []
+            for m in mutations:
+                is_complete = True
+                for c in compilers:
+                    for mode in ['fast', 'novec', 'nopredict']:
+                        if (c, mode, p, i, m) not in runtimes:
+                            print(c, mode, p, i, m)
+                            is_complete = False
+                            break
+                if is_complete:
+                    filtered_mutations.append(m)
+            if len(filtered_mutations) > 0:
+                filtered_instances.append((i, filtered_mutations))
+        if len(filtered_instances) > 0:
+            filtered_patterns.append((p, filtered_instances))
+    return filtered_patterns
 
 def plot_single_compiler_metrics(metrics, metrics_labels, title=None, path=None):
     xticks = []
@@ -209,14 +231,19 @@ import os
 
 # base_dirs = [f'result-db/r{r:02d}/code' for r in range(1)]
 base_dirs = [os.getcwd()]
-patterns = read_patterns(base_dirs)
+patterns, n_instances, n_mutations = read_patterns(base_dirs)
 runtimes = read_runtimes_database_fully_qualified(patterns)
+patterns = filter_existing_patterns(patterns, runtimes)
+print(patterns)
+patterns = limit_patterns(patterns, n_instances, n_mutations)
+
 n_patterns = len(patterns)
+print(n_patterns)
 
 # Gather metrics
 runtime_metrics = report.runtime.get_data_and_errors(compilers, patterns, runtimes)
 vector_speedup_metrics = report.vector_speedup.get_data_and_errors(compilers, patterns, runtimes)
-cost_model_metrics = report.cost_model.get_data_and_errors_v2(compilers, patterns, runtimes)
+cost_model_metrics = report.cost_model.get_data_and_errors_v4(compilers, patterns, runtimes)
 top_rank_metrics = report.peer_rank.get_data_and_errors_top_v2(compilers, patterns, runtimes)
 bottom_rank_metrics = report.peer_rank.get_data_and_errors_bottom(compilers, patterns, runtimes)
 pair_comparison_metrics = report.peer_rank.get_data_and_errors_pair_v2(compilers, patterns, runtimes)

@@ -75,7 +75,9 @@ def read_runtime_fully_qualified(key):
             runtimes_str = f.read()
             runtime = tmean(list(map(int, runtimes_str.split())))
             return (key, runtime)
-    raise RuntimeError(f'File not found {full_path}')
+    # raise RuntimeError(f'File not found {full_path}')
+    print(f'File not found {full_path}')
+    return None
 
 def read_vector_rate(key):
     path = PathBuilder(*key).vector_rate_path()
@@ -94,7 +96,10 @@ def read_runtimes_database(base_dir, patterns):
     return dict(Pool(1).map(f, mutations(patterns)))
 
 def read_runtimes_database_fully_qualified(patterns):
-    return dict(Pool().map(read_runtime_fully_qualified, mutations(patterns)))
+    # return dict(Pool().map(read_runtime_fully_qualified, mutations(patterns)))
+    pairs = Pool().map(read_runtime_fully_qualified, mutations(patterns))
+    pairs[:] = [pair for pair in pairs if pair is not None]
+    return dict(pairs)
 
 def read_runtimes_database_multi_experiment(base_dir, patterns):
     f = partial(read_runtime_multi_experiment, base_dir)

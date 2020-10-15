@@ -5,7 +5,8 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats, \
-    arithmetic_mean
+    arithmetic_mean, \
+    geometric_mean
 from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation, update_dict_array, Outlier
 import plot
 from random import choices
@@ -52,6 +53,33 @@ def get_normalized_cost_model_performance(runtimes):
     for key, n_total in n_total_mutations.items():
         if n_total > 0:
             normalized[key] = (n_cost_model_good[key], n_total)
+
+    return normalized, outliers
+
+def get_cost_model_speedups(runtimes):
+    compilers = set()
+    grouped = {}
+    for (compiler, mode, pattern, program, mutation), runtime in runtimes.items():
+        compilers.add(compiler)
+        key = (compiler, pattern, program, mutation)
+        update_dict_dict(grouped, key, mode, runtime)
+
+    speedups = {}
+    for key, mode_runtimes in grouped.items():
+        if 'nopredict' in mode_runtimes and 'fast' in mode_runtimes:
+            speedups[key] = mode_runtimes['nopredict'] / mode_runtimes['fast']
+    best_speedups = {}
+    for key, speedup in speedups.items():
+        merge_value(best_speedups, key[:-1], speedup, max)
+    return compilers, speedups, best_speedups
+
+def get_normalized_cost_model_speedups(runtimes):
+    compilers, speedups, best_speedups = get_cost_model_speedups(runtimes)
+    outliers = create_min_max_cases()
+    normalized = {}
+    for key, speedup in speedups.items():
+        normalized[key] = speedup / best_speedups[key[:-1]]
+        outliers.merge(key, normalized[key], (speedup, key[-3:]))
 
     return normalized, outliers
 
@@ -259,6 +287,48 @@ def get_data_and_errors_v3(compilers, patterns, runtimes):
     # print('cost model')
     # print(outliers.pprint())
     return data, neg_errs, pos_errs, outliers
+
+def get_data_and_errors_v4(compilers, patterns, raw_runtimes):
+    normalized, outliers = get_normalized_cost_model_speedups(raw_runtimes)
+
+    per_pattern = {}
+    for (compiler, pattern, program, mutation), runtime in normalized.items():
+        update_dict_array(per_pattern, (compiler, pattern), runtime)
+
+    grouped = {}
+    for (compiler, pattern), runtimes in per_pattern.items():
+        update_dict_array(grouped, compiler, geometric_mean(runtimes))
+
+    # grouped = {}
+    # for (compiler, pattern, program, mutation), runtime in normalized.items():
+    #     update_dict_array(grouped, compiler, runtime)
+
+    data = {}
+    neg_errs = {}
+    pos_errs = {}
+
+    for key, runtimes in grouped.items():
+        val = geometric_mean(runtimes)
+        data[key] = val
+        if len(runtimes) > normal_threshold:
+            # all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0, n_patterns)
+            all_ci = calculate_ci_geometric(runtimes, 0.0, 1.0)
+            ci95 = all_ci[1]
+            neg_errs[key] = val - ci95[0]
+            pos_errs[key] = ci95[1] - val
+        else:
+            neg_errs[key] = None
+            pos_errs[key] = None
+
+    interesting_cases = create_max_spread_cases()
+    for (compiler, *rest), [min_outlier, max_outlier] in outliers.cases.items():
+        normalized_pair = (min_outlier.normalized, max_outlier.normalized)
+        raw_pair = (min_outlier.raw, max_outlier.raw)
+        interesting_cases.merge((compiler, rest), normalized_pair, raw_pair)
+
+    # print('vector speedup')
+    # print(interesting_cases.pprint())
+    return data, neg_errs, pos_errs, interesting_cases
 
 def plot_qq(compilers, patterns, runtimes):
     per_pattern_map = {}
