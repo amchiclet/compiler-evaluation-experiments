@@ -73,6 +73,9 @@ class LoopUnroll:
                 loop_var_index = None
                 unroll_shape = None
                 remainder_shape = None
+
+                is_unrollable = True
+
                 for i, shape in enumerate(loop.loop_shapes):
                     if shape.loop_var.var == loop_var:
                         loop_var_index = i
@@ -80,9 +83,14 @@ class LoopUnroll:
 
                         # Build the unroll shape
                         # only support literals for simplicity
-                        assert(type(shape.greater_eq) == Literal and shape.greater_eq.ty == int)
-                        assert(type(shape.less_eq) == Literal and shape.less_eq.ty == int)
-                        assert(type(shape.step) == Literal and shape.step.ty == int)
+                        logger.info('trying')
+                        if (type(shape.greater_eq) != Literal or shape.greater_eq.ty != int or
+                            type(shape.less_eq) != Literal or shape.less_eq.ty != int or
+                            type(shape.step) != Literal or shape.step.ty != int):
+                            is_unrollable = False
+                            break
+
+                        logger.info('passed')
 
                         unroll_greater_eq = shape.greater_eq.val
                         unroll_step = shape.step.val * factor
@@ -105,6 +113,9 @@ class LoopUnroll:
                     else:
                         loop_shapes_before.append(shape)
 
+                if not is_unrollable:
+                    print(f'{loop_var} is not unrollable')
+                    continue
                 assert(loop_var_index is not None)
                 assert(unroll_shape is not None)
                 assert(remainder_shape is not None)
