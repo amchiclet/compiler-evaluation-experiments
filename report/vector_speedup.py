@@ -6,11 +6,13 @@ from stats import \
     Stats, \
     geometric_mean
 import plot
-from report.util import update_dict_dict, merge_value, update_dict_array, get_paths_for_pair, format_spread_pair, Outlier
+from report.util import update_dict_dict, merge_value, update_dict_array, get_paths_for_pair, format_spread_pair, Outlier, normalize_compiler_name
 from random import choices
 from tqdm import tqdm
 from scipy.stats import probplot
 import matplotlib.pyplot as plt
+import math
+from loguru import logger
 
 normal_threshold = 100
 def get_vec_speedups(runtimes):
@@ -195,6 +197,9 @@ def plot_qq(compilers, patterns, runtimes):
         probplot(data, plot=plt)
         plt.show()
 
+def pure(p, i, m):
+    return p[1], i, m
+
 def plot_scaled_speedups(compilers, patterns, runtimes, path_prefix=None):
     def is_better_speedup(x, y):
         return x > y
@@ -219,35 +224,60 @@ def plot_scaled_speedups(compilers, patterns, runtimes, path_prefix=None):
 
     mins = {}
     data = {}
+    data_and_info = {}
     for (c, p, i, m), speedup in speedups.items():
         scaled = speedups[(c, p, i, m)] / best_speedups[(c, p, i)].data
 
         update_dict_array(data, c, scaled)
 
+        scaled_pim = scaled, (f'{speedups[(c, p, i, m)]:.3f}/{best_speedups[(c, p, i)].data:.3f}={scaled:.3f}', pure(p, i, m))
+        update_dict_array(data_and_info, c, scaled_pim)
+        
         if c not in mins:
             mins[c] = Outlier()
         best_m = best_speedups[(c, p, i)].key
         mins[c].merge(is_worse_speedup, scaled, (p, i, m, best_m))
 
-    for c, ss in data.items():
-        print(c, ss[:20])
-        n, bins, patches = plot.plot_histogram(ss, 100)
+    for a in data_and_info.values():
+        a.sort(key=lambda x: x[0])
 
-        n_tallest = max(n)
-        plot_height = ((n_tallest + 99) // 100) * 100
-        min_speedup = mins[c].data
-        (base_dir, p), i, m, m_best = mins[c].key
-        plt.annotate(f'scaled_speedup={min_speedup:.6f}\npattern=({p}, {i}, {m}/{m_best})', (min_speedup, n_tallest / 2))
-        min_x = 0.001 if min_speedup < 0.001 else min_speedup
-        plt.plot((min_x, min_x), (0, plot_height), marker='None', linewidth=2, color='red')
-        plt.xlim(0, 1)
-        plt.ylim(0, plot_height)
+    how_sparse = 1
+    sorted_compilers = sorted(data.keys())
 
-        title = f'Scaled vector speedup ({c})'
-        if path_prefix is None:
-            plot.display_plot(title=title, legend=False)
-        else:
-            path = f'{path_prefix}-{c}.png'
-            plot.save_plot(path, title, legend=False)
-            plot.clear_plot()
+    logger.info('Scaled vector speedup')
+    for c in sorted_compilers:
+        logger.info(c)
+        for rpim in data_and_info[c][:10]:
+            logger.info(rpim)
 
+    yticks = []
+    ytick_labels = []
+    for y_inv, compiler in enumerate(sorted_compilers):
+        y = len(sorted_compilers) - y_inv
+        yticks.append(y)
+        # uncomment for versionless experiments
+        # ytick_labels.append(normalize_compiler_name(compiler))
+        ytick_labels.append(compiler)
+
+        ss = [s for s, _ in data_and_info[compiler]]
+        sparse = sorted(ss)
+        sparse = [s for i, s in enumerate(sparse) if i % how_sparse == 0]
+
+        bottom_index = math.ceil(len(sparse)*0.1)
+        bottom = sparse[:bottom_index-1]
+        top = sparse[bottom_index:]
+        plt.plot(bottom, [y] * len(bottom), '.', color='red')
+        plt.plot(top, [y] * len(top), '.', color='green')
+
+    title = f'Scaled vector speedup distribution'
+    plt.yticks(yticks, ytick_labels)
+    xticks = [0.1 * i for i in range(11)]
+    xtick_labels = [f'{t:.1f}' for t in xticks]
+    plt.xticks(xticks, xtick_labels)
+    plt.xlim(0, 1)
+    if path_prefix is None:
+        plot.display_plot(title=title, legend=False)
+    else:
+        path = f'{path_prefix}-all-compilers.png'
+        plot.save_plot(path, title, legend=False)
+        plot.clear_plot()

@@ -1,5 +1,11 @@
 from build import PathBuilder
 
+def normalize_compiler_name(name):
+    if '-' in name:
+        return name[:name.index('-')]
+    else:
+        return name
+
 def debug(d):
     for k, v in d.items():
         print(f'{k} => {v}')

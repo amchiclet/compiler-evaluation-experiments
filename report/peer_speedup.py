@@ -4,7 +4,7 @@ from stats import \
     Stats, \
     geometric_mean, \
     arithmetic_mean
-from report.util import merge_value, update_dict_dict, update_dict_array, get_paths_for_pair, format_spread_pair, format_raw_single_mutation, get_paths_for_single, Outlier
+from report.util import merge_value, update_dict_dict, update_dict_array, get_paths_for_pair, format_spread_pair, format_raw_single_mutation, get_paths_for_single, Outlier, normalize_compiler_name
 
 from scipy import log
 from scipy.stats import gmean, probplot
@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from loguru import logger
 from random import choices
 from tqdm import tqdm
+import math
 
 normal_threshold = 100
 def get_peer_speedups(runtimes):
@@ -197,6 +198,10 @@ def get_data_and_errors_v2(compilers, patterns, runtimes):
     outliers = create_max_cases()
 
     for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
+        # uncomment for old version vs new version experiment
+        # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+        #     continue
+
         p, i, m = pim
         speedup = r2 / r1
 
@@ -220,7 +225,6 @@ def get_data_and_errors_v2(compilers, patterns, runtimes):
     neg_errs = {}
     pos_errs = {}
     for key, speedups in grouped.items():
-        print(len(speedups), 'vs', len(patterns))
         val = geometric_mean(speedups)
         all_ci = calculate_ci_geometric(speedups)
         ci95 = all_ci[1]
@@ -266,6 +270,9 @@ def plot_qq(compilers, patterns, runtimes):
         plt.title(f'{pair[0]}/{pair[1]} n_samples={len(vals)}')
         plt.show()
 
+def pure(p, i, m):
+    return p[1], i, m
+
 def plot_peer_speedups_v2(compilers, patterns, runtimes, path_prefix=None):
     def is_better_speedup(x, y):
         return x > y
@@ -275,7 +282,12 @@ def plot_peer_speedups_v2(compilers, patterns, runtimes, path_prefix=None):
     data = {}
     mins = {}
     maxs = {}
+    data_and_info = {}
     for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
+        # uncomment for old version vs new version experiment
+        # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+        #     continue
+
         p, i, m = pim
         key = (c2, c1)
         speedup = r2 / r1
@@ -283,6 +295,11 @@ def plot_peer_speedups_v2(compilers, patterns, runtimes, path_prefix=None):
         speedup_inv = r1 / r2
         update_dict_array(data, key, speedup)
         update_dict_array(data, key_inv, speedup_inv)
+
+        s_pim = (speedup, (f'{r2:.3f}/{r1:.3f}={speedup:.3f}', pure(*pim)))
+        update_dict_array(data_and_info, key, s_pim)
+        s_inv_pim = (speedup_inv, (f'{r1:.3f}/{r2:.3f}={speedup_inv:.3f}', pure(*pim)))
+        update_dict_array(data_and_info, key_inv, s_inv_pim)
 
         if key not in mins:
             mins[key] = Outlier()
@@ -298,39 +315,75 @@ def plot_peer_speedups_v2(compilers, patterns, runtimes, path_prefix=None):
             maxs[key_inv] = Outlier()
         maxs[key_inv].merge(is_better_speedup, speedup_inv, pim)
 
-    for c, ss in data.items():
-        n, bins, patches = plot.plot_histogram(ss, 100)
+    how_sparse = 1
+    sorted_compilers = sorted(compilers)
+    # sorted_compilers = sorted(data.keys(),
+    #                           key=lambda pair: (pair[1], pair[0]))
 
-        n_tallest = max(n)
-        plot_height = ((n_tallest + 99) // 100) * 100
+    for a in data_and_info.values():
+        a.sort(key=lambda x: x[0])
 
-        # min value
-        min_speedup = mins[c].data
-        (base_dir, p), i, m = mins[c].key
-        plt.annotate(
-            f'{min_speedup:.6f}\npattern=({p}, {i}, {m})',
-            (min_speedup, plot_height*0.9)
-        )
-        min_x = 0.001 if min_speedup < 0.001 else min_speedup
-        plt.plot((min_x, min_x), (0, plot_height), marker='None', linewidth=2, color='red')
+    logger.info('Peer speedups')
+    for c1 in sorted_compilers:
+        for c2 in sorted_compilers:
+            if c1 == c2:
+                continue
+            # uncomment for old version vs new version experiment
+            # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+            #     continue
+            logger.info(f'{c1}/{c2}')
 
-        # max value
-        max_speedup = maxs[c].data
-        (base_dir, p), i, m = maxs[c].key
-        annotation = plt.annotate(
-            f'{max_speedup:.6f}\npattern=({p}, {i}, {m})',
-            (max_speedup, plot_height*0.9)
-        )
-        max_x = max_speedup
-        plt.plot((max_x, max_x), (0, plot_height), marker='None', linewidth=2, color='green')
+            for rpim in data_and_info[(c1, c2)][:10]:
+                logger.info(rpim)
 
-        plt.xlim(0, None)
-        plt.ylim(0, plot_height)
+    x_limit = 10
+    for ref_compiler in sorted_compilers:
+        yticks = []
+        ytick_labels = []
+        y_inv = 0
+        for compiler in sorted_compilers:
+            if compiler == ref_compiler:
+                continue
+            # uncomment for old version vs new version experiment
+            # if normalize_compiler_name(ref_compiler) != normalize_compiler_name(compiler):
+            #     continue
 
-        title = f'Speedup ({c[0]}/{c[1]})'
+            y = len(sorted_compilers) - y_inv
+            yticks.append(y)
+            # uncomment for versionless experiments
+            ytick_labels.append(normalize_compiler_name(compiler))
+            # uncomment for old version vs new version experiment
+            # ytick_labels.append(compiler)
+
+            ss = data[(compiler, ref_compiler)]
+            collapsed = [s if s < x_limit else x_limit for s in ss]
+            sparse = sorted(collapsed)
+            sparse = [s for i, s in enumerate(sparse) if i % how_sparse == 0]
+
+            bottom_index = math.ceil(len(sparse)*0.1)
+            bottom = sparse[:bottom_index-1]
+            top = sparse[bottom_index:]
+            plt.plot(bottom, [y] * len(bottom), '.', color='red')
+            plt.plot(top, [y] * len(top), '.', color='green')
+            y_inv += 1
+
+        # uncomment for versionless experiments
+        title = f'{normalize_compiler_name(ref_compiler)} slowdown distribution vs other compilers'
+        # uncomment for old version vs new version experiment
+        # title = f'{ref_compiler} slowdown distribution vs other compilers'
+
+        xticks = [0.1 * i for i in range(11)]
+        xtick_labels = [f'{t:.1f}' for t in xticks]
+
+        plt.xticks(xticks, xtick_labels)
+        plt.yticks(yticks, ytick_labels)
+        plt.xlim(0, 1)
         if path_prefix is None:
             plot.display_plot(title=title, legend=False)
         else:
-            path = f'{path_prefix}-{c[0]}-{c[1]}.png'
+            # uncomment for versionless experiments
+            path = f'{path_prefix}-{normalize_compiler_name(ref_compiler)}.png'
+            # uncomment for old version vs new version experiment
+            # path = f'{path_prefix}-{ref_compiler}.png'
             plot.save_plot(path, title, legend=False)
             plot.clear_plot()

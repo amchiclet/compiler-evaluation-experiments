@@ -36,10 +36,10 @@ def create_pattern_info():
     return pattern_info
 
 def create_var_map():
-    var_map = VariableMap(default_max=20000000)
+    var_map = VariableMap()
     for v in ['a1', 'a2', 'a3']:
         var_map.set_min(v, 1)
-        var_map.set_max(v, 3)
+        var_map.set_max(v, 2)
     for v in ['z']:
         var_map.set_min(v, 0)
         var_map.set_max(v, 2)
@@ -121,7 +121,7 @@ def generate(pattern_name):
         return None
     return (pattern_name, pattern, instances)
 
-n_patterns = 10
+n_patterns = 200
 n_instances = 2
 n_mutations = 4
 pattern_info = create_pattern_info()
@@ -135,7 +135,7 @@ assert(max_factor >= n_mutations)
 loop_unroll_and_jam = LoopUnrollAndJam(max_factor)
 
 for repeat in range(1):
-    root_dir = f'big-unroll-jam.{n_patterns}.{n_instances}.{n_mutations}/r{repeat:02d}'
+    root_dir = f'unroll-jam.{n_patterns}.{n_instances}.{n_mutations}/r{repeat:02d}'
     pattern_dir = f'{root_dir}/patterns'
     code_dir = f'{root_dir}/code'
     codegen = CodeGen(code_dir)

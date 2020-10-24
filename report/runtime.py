@@ -4,12 +4,18 @@ from stats import \
     create_min_max_cases, \
     create_max_spread_cases, \
     Stats, \
-    geometric_mean
-from report.util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair, update_dddl, update_ddl
+    geometric_mean, \
+    arithmetic_mean
+from report.util import merge_value, update_dict_array, get_paths_for_pair, format_spread_pair, update_dddl, update_ddl, normalize_compiler_name
 import plot
 from tqdm import tqdm
 from random import choices, sample, shuffle
 import matplotlib.pyplot as plt
+from scipy import log
+from scipy.stats import probplot
+import math
+from loguru import logger
+import heapq
 
 normal_threshold = 100
 
@@ -172,6 +178,9 @@ def get_data_and_errors(compilers, patterns, raw_runtimes):
 
     return data, neg_errs, pos_errs, interesting_cases
 
+def pure(p, i, m):
+    return p[1], i, m
+
 def plot_scaled_runtimes(compilers, patterns, runtimes, path_prefix=None):
     best_mutations = {}
     for (compiler, mode, pattern, instance, mutation), runtime in runtimes.items():
@@ -188,45 +197,101 @@ def plot_scaled_runtimes(compilers, patterns, runtimes, path_prefix=None):
         if mode == 'fast':
             key = (compiler, pattern, program, mutation)
             best_mutation_runtime = best_mutations[(compiler, pattern, program)][0]
-            normalized[key] = best_mutation_runtime / runtime
+            normalized[key] = (best_mutation_runtime, runtime)
 
     mins = {}
     data = {}
-    for (compiler, pattern, instance, mutation), r in normalized.items():
+    data_and_info = {}
+    for (compiler, pattern, instance, mutation), (best_mutation_runtime, runtime) in normalized.items():
+        r = best_mutation_runtime / runtime
         update_dict_array(data, compiler, r)
 
         # find outliers
         pim = (pattern, instance, mutation)
         best_pim = best_mutations[(compiler, pattern, instance)][1]
+        r_pim = (r, (f'{best_mutation_runtime:.3f}/{runtime:.3f}={r:.3f}', pure(*pim), pure(*best_pim)))
+        update_dict_array(data_and_info, compiler, r_pim)
+
         if compiler not in mins:
             mins[compiler] = (r, pim, best_pim)
         else:
             if r < mins[compiler][0]:
                 mins[compiler] = (r, pim, best_pim)
 
-    for compiler, rs in data.items():
-        n, bins, patches = plot.plot_histogram(rs, 100)
+    for a in data_and_info.values():
+        a.sort(key=lambda x: x[0])
 
-        n_tallest = max(n)
-        plot_height = ((n_tallest + 99) // 100) * 100
-        min_r, min_pim, best_pim = mins[compiler]
-        (base_dir, p), i, m = min_pim
-        (base_dir_best, p_best), i_best, m_best = best_pim
-        assert(base_dir == base_dir_best)
-        assert(p == p_best)
-        assert(i == i_best)
-        plt.annotate(f'scaled_runtime={min_r:.6f}\npattern=({p}, {i}, {m}/{m_best})', (min_r, n_tallest / 2))
-        if min_r < 0.001:
-            min_r = 0.001
-        plt.plot((min_r, min_r), (0, plot_height), marker='None', linewidth=2, color='red')
-        plt.xlim(0, 1)
-        plt.ylim(0, plot_height)
+    how_sparse = 1
+    sorted_compilers = sorted(data.keys())
 
-        title = f'Scaled runtime ({compiler})'
-        if path_prefix is None:
-            plot.display_plot(title=title, legend=False)
+    logger.info('Scaled runtimes')
+    for c in sorted_compilers:
+        logger.info(c)
+        for rpim in data_and_info[c][:10]:
+            logger.info(rpim)
+
+    yticks = []
+    ytick_labels = []
+    for y_inv, compiler in enumerate(sorted_compilers):
+        y = len(sorted_compilers) - y_inv
+        yticks.append(y)
+        # uncomment for versionless experiments
+        # ytick_labels.append(normalize_compiler_name(compiler))
+        ytick_labels.append(compiler)
+
+        rs = [r for r, _ in data_and_info[compiler]]
+        sparse = sorted(rs)
+        sparse = [s for i, s in enumerate(sparse) if i % how_sparse == 0]
+
+        bottom_5_index = math.ceil(len(sparse)*0.1)
+        bottom_5 = sparse[:bottom_5_index-1]
+        top_95 = sparse[bottom_5_index:]
+        plt.plot(bottom_5, [y] * len(bottom_5), '.', color='red')
+        plt.plot(top_95, [y] * len(top_95), '.', color='green')
+
+    title = f'Scaled runtime distribution'
+    plt.yticks(yticks, ytick_labels)
+    xticks = [0.1 * i for i in range(11)]
+    xtick_labels = [f'{t:.1f}' for t in xticks]
+    plt.xticks(xticks, xtick_labels)
+    plt.xlim(0, 1)
+    if path_prefix is None:
+        plot.display_plot(title=title, legend=False)
+    else:
+        path = f'{path_prefix}-all-compilers.png'
+        plot.save_plot(path, title, legend=False)
+        plot.clear_plot()
+
+def plot_qq(compilers, patterns, raw_runtimes, sample_size=None):
+    normalized, outliers = get_normalized_runtimes(raw_runtimes)
+
+    per_pattern = {}
+    for (compiler, pattern, program, mutation), runtime in normalized.items():
+        update_dict_array(per_pattern, (compiler, pattern), runtime)
+
+    grouped = {}
+    for (compiler, pattern), runtimes in per_pattern.items():
+        update_dict_array(grouped, compiler, geometric_mean(runtimes))
+
+    for compiler, vals in grouped.items():
+        data = []
+        if sample_size is None:
+            sample_size = len(vals)
         else:
-            path = f'{path_prefix}-{compiler}.png'
-            plot.save_plot(path, title, legend=False)
-            plot.clear_plot()
+            sample_size = min(sample_size, len(vals))
+        for _ in tqdm(range(1000)):
+            samples = choices(vals, k=sample_size)
+            # data.append(geometric_mean(samples))
+
+            # test for arithmetic mean of logs
+            # samples = [log(s) for s in samples]
+            data.append(arithmetic_mean([log(s) for s in samples]))
+
+        probplot(data, plot=plt)
+        # plot.display_plot(title=f'{compiler} (n={sample_size})',
+        #                   legend=False)
+        plot.save_plot(f'runtime_{compiler}_{sample_size}.png',
+                       title=f'{compiler} (n={sample_size})',
+                       legend=False)
+        plot.clear_plot()
 

@@ -6,7 +6,7 @@ from stats import \
     create_max_spread_cases, \
     Stats, \
     arithmetic_mean
-from report.util import merge_value, update_dict_dict, update_dict_array
+from report.util import merge_value, update_dict_dict, update_dict_array, normalize_compiler_name
 from scipy import log
 from report.peer_metrics import iterate_compiler_runtime_pairs, x_faster_than_y_key, x_faster_than_y_pair, normalized_key_pair, is_approximate, x_approximates_y_key, is_faster_mention, is_approximate_mention, get_compiler_pairs, get_per_pattern_avg_runtimes, get_per_pattern_sum_log_runtimes
 from loguru import logger
@@ -349,6 +349,10 @@ def get_data_and_errors_pair_v2(compilers, n_patterns, runtimes):
     rankings_map = get_rankings_v2(runtimes)
     rankings = {}
     for (c1, r1), (c2, r2), (p, i, m) in iterate_compiler_runtime_pairs(runtimes):
+        # uncomment for old version vs new version experiment
+        # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+        #     continue
+
         if is_approximate(r1, r2):
             update_dict_array(rankings, ((c1, c2), p), 0)
             update_dict_array(rankings, ((c2, c1), p), 0)
@@ -380,7 +384,7 @@ def get_data_and_errors_pair_v2(compilers, n_patterns, runtimes):
 
     return data, neg_errs, pos_errs
 
-def top_plot_qq(compilers, patterns, runtimes):
+def top_plot_qq(compilers, patterns, runtimes, sample_size=None):
     per_pattern_runtimes = {}
     for (compiler, mode, p, i, m), r in runtimes.items():
         if mode == 'fast':
@@ -399,13 +403,22 @@ def top_plot_qq(compilers, patterns, runtimes):
     win_percentages_map = {}
     for (compiler, _), counts in win_count_map.items():
         update_dict_array(win_percentages_map, compiler, arithmetic_mean(counts))
-    for vals in win_percentages_map.values():
+    for compiler, vals in win_percentages_map.items():
         data = []
+        if sample_size is None:
+            sample_size = len(vals)
+        else:
+            sample_size = min(sample_size, len(vals))
         for _ in tqdm(range(1000)):
-            samples = choices(vals, k=len(vals))
+            samples = choices(vals, k=sample_size)
             data.append(arithmetic_mean(samples))
         probplot(data, plot=plt)
-        plt.show()
+        plot.save_plot(f'top_{compiler}_{sample_size}.png',
+                       title=f'{compiler} (n={sample_size})',
+                       legend=False)
+        plot.clear_plot()
+        # plot.display_plot(title=f'{compiler} (n={sample_size})',
+        #                   legend=False)
 
 def bottom_plot_qq(compilers, patterns, runtimes):
     per_pattern_runtimes = {}
@@ -435,7 +448,7 @@ def bottom_plot_qq(compilers, patterns, runtimes):
         probplot(data, plot=plt)
         plt.show()
 
-def pair_plot_qq(compilers, n_patterns, runtimes):
+def pair_plot_qq(compilers, n_patterns, runtimes, sample_size=None):
     rankings_map = get_rankings_v2(runtimes)
     rankings = {}
     for (c1, r1), (c2, r2), (p, i, m) in iterate_compiler_runtime_pairs(runtimes):
@@ -453,11 +466,18 @@ def pair_plot_qq(compilers, n_patterns, runtimes):
     for (pair, _), counts in rankings.items():
         update_dict_array(percentages_map, pair, arithmetic_mean(counts))
 
-    for vals in percentages_map.values():
+    for pair, vals in percentages_map.items():
         data = []
+        if sample_size is None:
+            sample_size = len(vals)
+        else:
+            sample_size = min(sample_size, len(vals))
         for _ in tqdm(range(1000)):
-            samples = choices(vals, k=len(vals))
+            samples = choices(vals, k=sample_size)
             data.append(arithmetic_mean(samples))
-        print(data[:10])
+        probplot(data, plot=plt)
+        plot.display_plot(title=f'{pair[0]} > {pair[1]} (n={sample_size})',
+                          legend=False)
+
         # probplot(data, plot=plt)
         # plt.show()

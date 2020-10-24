@@ -7,12 +7,14 @@ from stats import \
     Stats, \
     arithmetic_mean, \
     geometric_mean
-from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation, update_dict_array, Outlier
+from report.util import update_dict_dict, merge_value, get_paths_for_single, format_pair_raw_single_mutation, update_dict_array, Outlier, normalize_compiler_name
 import plot
 from random import choices
 from tqdm import tqdm
 from scipy.stats import probplot
 import matplotlib.pyplot as plt
+import math
+from loguru import logger
 
 normal_threshold=100
 def get_normalized_cost_model_performance(runtimes):
@@ -78,8 +80,8 @@ def get_normalized_cost_model_speedups(runtimes):
     outliers = create_min_max_cases()
     normalized = {}
     for key, speedup in speedups.items():
-        normalized[key] = speedup / best_speedups[key[:-1]]
-        outliers.merge(key, normalized[key], (speedup, key[-3:]))
+        normalized[key] = (speedup, best_speedups[key[:-1]])
+        outliers.merge(key, normalized[key][0] / normalized[key][1], (speedup, key[-3:]))
 
     return normalized, outliers
 
@@ -292,8 +294,9 @@ def get_data_and_errors_v4(compilers, patterns, raw_runtimes):
     normalized, outliers = get_normalized_cost_model_speedups(raw_runtimes)
 
     per_pattern = {}
-    for (compiler, pattern, program, mutation), runtime in normalized.items():
-        update_dict_array(per_pattern, (compiler, pattern), runtime)
+    for (compiler, pattern, program, mutation), (s, best_s) in normalized.items():
+        speedup = s / best_s
+        update_dict_array(per_pattern, (compiler, pattern), speedup)
 
     grouped = {}
     for (compiler, pattern), runtimes in per_pattern.items():
@@ -363,6 +366,9 @@ def plot_qq(compilers, patterns, runtimes):
         probplot(data, plot=plt)
         plt.show()
 
+def pure(p, i, m):
+    return p[1], i, m
+
 def plot_cost_model_speedups(compilers, patterns, runtimes, path_prefix=None):
     def is_better_speedup(x, y):
         return x > y
@@ -372,6 +378,7 @@ def plot_cost_model_speedups(compilers, patterns, runtimes, path_prefix=None):
     mins = {}
     maxs = {}
     data = {}
+    data_and_info = {}
     for c in compilers:
         for p, instances in patterns:
             for i, mutations in instances:
@@ -381,6 +388,10 @@ def plot_cost_model_speedups(compilers, patterns, runtimes, path_prefix=None):
                     if fast_key in runtimes and nopredict_key in runtimes:
                         speedup = runtimes[nopredict_key] / runtimes[fast_key]
                         update_dict_array(data, c, speedup)
+
+                        s_pim = speedup, (f'{runtimes[nopredict_key]:.3f}/{runtimes[fast_key]:.3f}={speedup:.3f}', pure(p, i, m))
+                        update_dict_array(data_and_info, c, s_pim)
+
                         if c not in mins:
                             mins[c] = Outlier()
                         mins[c].merge(is_worse_speedup, speedup, (p, i, m))
@@ -388,40 +399,115 @@ def plot_cost_model_speedups(compilers, patterns, runtimes, path_prefix=None):
                             maxs[c] = Outlier()
                         maxs[c].merge(is_better_speedup, speedup, (p, i, m))
 
-    for c, ss in data.items():
-        n, bins, patches = plot.plot_histogram(ss, 100)
+    for a in data_and_info.values():
+        a.sort(key=lambda x: x[0])
 
-        n_tallest = max(n)
-        plot_height = ((n_tallest + 99) // 100) * 100
+    how_sparse = 1
+    sorted_compilers = sorted(data.keys())
 
-        # min value
-        min_speedup = mins[c].data
-        (base_dir, p), i, m = mins[c].key
-        plt.annotate(
-            f'{min_speedup:.6f}\npattern=({p}, {i}, {m})',
-            (min_speedup, plot_height*0.9)
-        )
-        min_x = 0.001 if min_speedup < 0.001 else min_speedup
-        plt.plot((min_x, min_x), (0, plot_height), marker='None', linewidth=2, color='red')
+    logger.info('Scaled cost model')
+    for c in sorted_compilers:
+        logger.info(c)
+        for rpim in data_and_info[c][:10]:
+            logger.info(rpim)
 
-        # max value
-        max_speedup = maxs[c].data
-        (base_dir, p), i, m = maxs[c].key
-        annotation = plt.annotate(
-            f'{max_speedup:.6f}\npattern=({p}, {i}, {m})',
-            (max_speedup, plot_height*0.9)
-        )
-        max_x = max_speedup
-        plt.plot((max_x, max_x), (0, plot_height), marker='None', linewidth=2, color='green')
+    yticks = []
+    ytick_labels = []
+    for y_inv, compiler in enumerate(sorted_compilers):
+        y = len(sorted_compilers) - y_inv
+        yticks.append(y)
+        ytick_labels.append(normalize_compiler_name(compiler))
 
-        plt.xlim(0, None)
-        plt.ylim(0, plot_height)
+        ss = data[compiler]
+        sparse = sorted(ss)
+        sparse = [s for i, s in enumerate(sparse) if i % how_sparse == 0]
 
-        title = f'Cost model speedup ({c})'
-        if path_prefix is None:
-            plot.display_plot(title=title, legend=False)
-        else:
-            path = f'{path_prefix}-{c}.png'
-            plot.save_plot(path, title, legend=False)
-            plot.clear_plot()
+        bottom_index = math.ceil(len(sparse)*0.1)
+        bottom = sparse[:bottom_index-1]
+        top = sparse[bottom_index:]
 
+        plt.plot(bottom, [y] * len(bottom), '.', color='red')
+        plt.plot(top, [y] * len(top), '.', color='green')
+
+    title = f'Cost model speedup distribution'
+    plt.yticks(yticks, ytick_labels)
+    plt.xlim(0, 1)
+    if path_prefix is None:
+        plot.display_plot(title=title, legend=False)
+    else:
+        path = f'{path_prefix}-all-compilers.png'
+        plot.save_plot(path, title, legend=False)
+        plot.clear_plot()
+
+def plot_cost_model_speedups_v2(compilers, patterns, runtimes, path_prefix=None):
+    def is_better_speedup(x, y):
+        return x > y
+
+    speedups = {}
+    best_speedups = {}
+    for c in compilers:
+        for p, instances in patterns:
+            for i, mutations in instances:
+                for m in mutations:
+                    fast_key = (c, 'fast', p, i, m)
+                    nopredict_key = (c, 'nopredict', p, i, m)
+                    if fast_key in runtimes and nopredict_key in runtimes:
+                        speedup = runtimes[nopredict_key] / runtimes[fast_key]
+                        speedups[(c, p, i, m)] = speedup
+                        if (c, p, i) not in best_speedups:
+                            best_speedups[(c, p, i)] = Outlier()
+                        best_speedups[(c, p, i)].merge(is_better_speedup, speedup, m)
+
+    def is_worse_speedup(x, y):
+        return x < y
+
+    data_and_info = {}
+    for (c, p, i, m), speedup in speedups.items():
+        scaled = speedups[(c, p, i, m)] / best_speedups[(c, p, i)].data
+        scaled_pim = scaled, (f'{speedups[(c, p, i, m)]:.3f}/{best_speedups[(c, p, i)].data:.3f}={scaled:.3f}', pure(p, i, m))
+        update_dict_array(data_and_info, c, scaled_pim)
+
+    for a in data_and_info.values():
+        a.sort(key=lambda x: x[0])
+
+    how_sparse = 1
+    sorted_compilers = sorted(data_and_info.keys())
+
+    logger.info('Scaled cost model speedup')
+    for c in sorted_compilers:
+        logger.info(c)
+        for rpim in data_and_info[c][:10]:
+            logger.info(rpim)
+
+    yticks = []
+    ytick_labels = []
+    for y_inv, compiler in enumerate(sorted_compilers):
+        y = len(sorted_compilers) - y_inv
+        yticks.append(y)
+        # uncomment for versionless experiments
+        # ytick_labels.append(normalize_compiler_name(compiler))
+        ytick_labels.append(compiler)
+
+        ss = [s for s, _ in data_and_info[compiler]]
+        sparse = sorted(ss)
+        sparse = [s for i, s in enumerate(sparse) if i % how_sparse == 0]
+
+        bottom_index = math.ceil(len(sparse)*0.1)
+        bottom = sparse[:bottom_index-1]
+        top = sparse[bottom_index:]
+        plt.plot(bottom, [y] * len(bottom), '.', color='red')
+        plt.plot(top, [y] * len(top), '.', color='green')
+
+
+    title = f'Cost model speedup distribution'
+    plt.yticks(yticks, ytick_labels)
+    xticks = [0.1 * i for i in range(11)]
+    xtick_labels = [f'{t:.1f}' for t in xticks]
+    plt.xticks(xticks, xtick_labels)
+    plt.xlim(0, 1)
+    if path_prefix is None:
+        plot.display_plot(title=title, legend=False)
+    else:
+        path = f'{path_prefix}-all-compilers.png'
+        plot.save_plot(path, title, legend=False)
+        plot.clear_plot()
