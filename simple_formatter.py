@@ -37,6 +37,9 @@ def spaces(indent):
 class SimpleFormatter:
     def __init__(self, instance):
         self.pattern = instance.pattern
+        self.sorted_decl_names = sorted([decl.name for decl in self.pattern.decls])
+        self.decl_map = {decl.name:decl for decl in self.pattern.decls}
+
         self.array_sizes = instance.array_sizes
         self.indent = 0
 
@@ -161,13 +164,21 @@ class SimpleFormatter:
         return self.wrapper('float', 'checksum', 'checksum_inner')
     def kernel(self):
         return self.wrapper('unsigned long long', 'kernel', 'core')
+    # def declare_core(self):
+    #     params = []
+    #     for array_name in sorted(self.array_sizes.keys()):
+    #         array = self.array_sizes[array_name]
+    #         if not array.is_local:
+    #             sizes = [max_index + 1 for max_index in array.max_indices]
+    #             params.append(self.array_param('float', array_name, sizes))
+    #     ws = spaces(self.indent)
+    #     return f'{ws}unsigned long long core({", ".join(params)});'
     def declare_core(self):
         params = []
-        for array_name in sorted(self.array_sizes.keys()):
-            array = self.array_sizes[array_name]
-            if not array.is_local:
-                sizes = [max_index + 1 for max_index in array.max_indices]
-                params.append(self.array_param('float', array_name, sizes))
+        for name in self.sorted_decl_names:
+            decl = self.decl_map[name]
+            if not decl.is_local:
+                params.append(self.array_param('float', name, decl.sizes))
         ws = spaces(self.indent)
         return f'{ws}unsigned long long core({", ".join(params)});'
     def array_allocate(self, ty, array_names, sizes):
@@ -292,20 +303,18 @@ class SimpleFormatter:
         ws = spaces(self.indent)
 
         params = []
-        for array_name in sorted(self.array_sizes.keys()):
-            array = self.array_sizes[array_name]
-            if not array.is_local:
-                sizes = [max_index + 1 for max_index in array.max_indices]
-                params.append(self.array_param('float', array_name, sizes))
+        for name in self.sorted_decl_names:
+            decl = self.decl_map[name]
+            if not decl.is_local:
+                params.append(self.array_param('float', name, decl.sizes))
         lines.append(f'{ws}unsigned long long core({", ".join(params)}) {{')
         self.indent += 1
         ws = spaces(self.indent)
-        for array_name in sorted(self.array_sizes.keys()):
-            array = self.array_sizes[array_name]
-            if array.is_local:
-                sizes = [max_index + 1 for max_index in array.max_indices]
-                decl = self.array_local('float', array_name, sizes)
-                lines.append(f'{ws}{decl};')
+        for name in self.sorted_decl_names:
+            decl = self.decl_map[name]
+            if decl.is_local:
+                local_decl = self.array_local('float', name, decl.sizes)
+                lines.append(f'{ws}{local_decl};')
         lines.append(f'{ws}struct timespec before, after;')
         lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &before);')
         # lines.append(self.c_test_program.pprint(self.indent))

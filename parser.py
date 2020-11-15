@@ -10,7 +10,7 @@ grammar = '''
     declaration: param | local
     param: "declare" array (dimension)* ";"
     local: "local" array (dimension)* ";"
-    dimension: "[" "]"
+    dimension: "[" INT? "]"
     abstract_loop: "for" "[" loop_shapes "]" "{" statement+ "}"
 
     loop_shapes: loop_shape ("," loop_shape)*
@@ -87,16 +87,23 @@ class TreeSimplifier(Transformer):
     def next_node_id(self):
         self.current_node_id += 1
         return self.current_node_id
+    def dimension(self, args):
+        if len(args) > 0:
+            return int(args[0])
+        else:
+            return None
     def declaration(self, args):
         return args[0]
         # n_dimensions = len(args) - 1
         # return Declaration(args[0], n_dimensions, self.next_node_id())    
     def param(self, args):
+        sizes = args[1:]
         n_dimensions = len(args) - 1
-        return Declaration(args[0], n_dimensions, is_local=False, node_id=self.next_node_id())
+        return Declaration(args[0], n_dimensions, sizes, is_local=False, node_id=self.next_node_id())
     def local(self, args):
+        sizes = args[1:]
         n_dimensions = len(args) - 1
-        return Declaration(args[0], n_dimensions, is_local=True, node_id=self.next_node_id())
+        return Declaration(args[0], n_dimensions, sizes, is_local=True, node_id=self.next_node_id())
     def array(self, args):
         return ''.join(args)
     def const(self, args):
@@ -203,7 +210,7 @@ class TreeSimplifier(Transformer):
                 merged.merge(loop_shape_builder)
         assert(merged is not None)
         assert(merged.loop_var is not None)
-        print(merged)
+        # print(merged)
         loop_var = merged.loop_var.var
         default_greater_eq = Access(f'{loop_var}_greater_eq', node_id=self.next_node_id())
         default_less_eq = Access(f'{loop_var}_less_eq', node_id=self.next_node_id())
