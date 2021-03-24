@@ -262,15 +262,28 @@ def validate_var_map(program, var_map):
 class Instance:
     def __init__(self, pattern, array_sizes):
         self.pattern = pattern
-        for name, array in array_sizes.items():
-            decl = next(d for d in pattern.decls if d.name == name)
-            for dim, max_index in enumerate(array.max_indices):
-                size = max_index + 1
-                if decl.sizes[dim] is None:
-                    decl.sizes[dim] = size
-                else:
-                    assert(decl.sizes[dim] == size)
-        self.array_sizes = array_sizes
+        if array_sizes is None:
+            self.array_sizes = {}
+            for decl in self.pattern.decls:
+                array_size = ArraySize(decl.name, decl.is_local, decl.n_dimensions)
+                array_size.min_indices = [0] * decl.n_dimensions
+                array_size.max_indices = []
+                for size in decl.sizes:
+                    if size is None:
+                        array_size.max_indices.append(None)
+                    else:
+                        array_size.max_indices.append(size - 1)
+                self.array_sizes[decl.name] = array_size
+        else:
+            for name, array in array_sizes.items():
+                decl = next(d for d in pattern.decls if d.name == name)
+                for dim, max_index in enumerate(array.max_indices):
+                    size = max_index + 1
+                    if decl.sizes[dim] is None:
+                        decl.sizes[dim] = size
+                    else:
+                        assert(decl.sizes[dim] == size)
+            self.array_sizes = array_sizes
     def pprint(self):
         lines = []
         lines.append(self.pattern.pprint())
@@ -291,30 +304,48 @@ def get_scalar_cvars(pattern):
                 cvars[access.var] = Int(access.var)
     return cvars
 
+def create_instance_blindly(pattern, var_map):
+    cloned = pattern.clone()
+    replace_map = {}
+    for const in cloned.consts:
+        var = const.name
+        min_val = var_map.get_min(var)
+        max_val = var_map.get_max(var)
+        # TODO: support other types than int
+        if type(min_val) == int:
+            val = randint(min_val, max_val)
+        elif type(min_val) == float:
+            val = uniform(min_val, max_val)
+        replace_map[const.name] = val
+    replacer = ConstReplacer(replace_map)
+    cloned.replace(replacer)
+    cloned.consts = []
+    return Instance(cloned, None)
+
 def create_instance(pattern, var_map, max_tries=10000, l=None):
     if l is None:
         l = logger
 
-    def randomly_replace_consts():
-        cloned = pattern.clone()
-        replace_map = {}
-        for const in cloned.consts:
-            var = const.name
-            min_val = var_map.get_min(var)
-            max_val = var_map.get_max(var)
-            # TODO: support other types than int
-            if type(min_val) == int:
-                val = randint(min_val, max_val)
-            elif type(min_val) == float:
-                val = uniform(min_val, max_val)
-            replace_map[const.name] = val
-        replacer = ConstReplacer(replace_map)
-        cloned.replace(replacer)
-        cloned.consts = []
-        return cloned
+    # def randomly_replace_consts():
+    #     cloned = pattern.clone()
+    #     replace_map = {}
+    #     for const in cloned.consts:
+    #         var = const.name
+    #         min_val = var_map.get_min(var)
+    #         max_val = var_map.get_max(var)
+    #         # TODO: support other types than int
+    #         if type(min_val) == int:
+    #             val = randint(min_val, max_val)
+    #         elif type(min_val) == float:
+    #             val = uniform(min_val, max_val)
+    #         replace_map[const.name] = val
+    #     replacer = ConstReplacer(replace_map)
+    #     cloned.replace(replacer)
+    #     cloned.consts = []
+    #     return cloned
 
     def try_once():
-        random_pattern = randomly_replace_consts()
+        random_pattern = create_instance_blindly(pattern, var_map).pattern
         cvars = get_scalar_cvars(random_pattern)
         accesses = get_accesses(random_pattern)
         cloned_var_map = var_map.clone()
@@ -346,7 +377,6 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
         l.debug('Index constraints:\n' + '\n'.join(map(str, index_constraints)))
         l.debug('Loop shape constraints:\n' + '\n'.join(map(str, loop_shape_constraints)))
         l.debug('Bound constraints:\n' + '\n'.join(map(str, bound_constraints)))
-
 
         assert(len(index_constraints) > 0)
         # conj_index_constraints = index_constraints[0]

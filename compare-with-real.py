@@ -14,7 +14,6 @@ def get_next_batch(n):
 
     dst_dir = 'real-patterns/patterns'
 
-
     cant_dir = f'{dst_dir}/cant'
     cant = listdir(cant_dir)
 
@@ -89,6 +88,8 @@ def test_parse():
             var_map.set_max('medium1_greater_eq', 10)
             var_map.set_min('medium1_less_eq', 100)
             var_map.set_max('medium1_less_eq', 110)
+            var_map.set_min('tile_size', 1)
+            var_map.set_max('tile_size', 100)
 
             pattern, _ = parse_file(path)
             instance = create_instance(pattern, var_map)

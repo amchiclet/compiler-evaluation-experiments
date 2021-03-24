@@ -15,6 +15,7 @@ from random import choices
 from tqdm import tqdm
 from scipy.stats import probplot
 import matplotlib.pyplot as plt
+from report.mode import is_comparing_versions
 
 normal_threshold = 100
 
@@ -131,6 +132,7 @@ def get_stats(runtimes):
 def get_rankings_v2(runtimes):
     rankings = {}
     for (c1, r1), (c2, r2), pim in iterate_compiler_runtime_pairs(runtimes):
+        # print(pim)
         if is_approximate(r1, r2):
             rankings[((c1, c2), pim)] = 0
             rankings[((c2, c1), pim)] = 0
@@ -345,13 +347,41 @@ def get_data_and_errors_bottom(compilers, patterns, runtimes):
 #         pos_errs[pair] = ci95[1] - val
 #     return data, neg_errs, pos_errs
 
+
+def get_better_rank_per_pattern(compilers, n_patterns, runtimes):
+    rankings_map = get_rankings_v2(runtimes)
+
+    rankings = {}
+    for (c1, r1), (c2, r2), (p, i, m) in iterate_compiler_runtime_pairs(runtimes):
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+                continue
+
+        if is_approximate(r1, r2):
+            update_dict_array(rankings, ((c1, c2), p), 0)
+            update_dict_array(rankings, ((c2, c1), p), 0)
+        else:
+            if r1 < r2:
+                update_dict_array(rankings, ((c1, c2), p), 1)
+                update_dict_array(rankings, ((c2, c1), p), 0)
+            else:
+                update_dict_array(rankings, ((c1, c2), p), 0)
+                update_dict_array(rankings, ((c2, c1), p), 1)
+    percentages_map = {}
+    for (pair, _), counts in rankings.items():
+        update_dict_array(percentages_map, pair, arithmetic_mean(counts))
+
+    return percentages_map
+
 def get_data_and_errors_pair_v2(compilers, n_patterns, runtimes):
     rankings_map = get_rankings_v2(runtimes)
     rankings = {}
     for (c1, r1), (c2, r2), (p, i, m) in iterate_compiler_runtime_pairs(runtimes):
-        # uncomment for old version vs new version experiment
-        # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
-        #     continue
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+                continue
 
         if is_approximate(r1, r2):
             update_dict_array(rankings, ((c1, c2), p), 0)

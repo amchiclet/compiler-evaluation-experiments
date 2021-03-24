@@ -65,6 +65,19 @@ class Declaration(Node):
 
         # self.surrounding_loop = None
     def cprint(self, indent=0):
+        if not self.is_local:
+            brackets = ''
+            is_first = True
+            for size in self.sizes:
+                if is_first:
+                    brackets += f'[restrict {size}]'
+                    is_first = False
+                else:
+                    brackets += f'[{size}]'
+            return f'{self.name}{brackets}'
+        else:
+            brackets = ''.join([f'[{size}]' for size in self.sizes])
+            return f'{self.name}{brackets}'
         raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
         localness = 'local' if self.is_local else 'declare'

@@ -13,6 +13,7 @@ from scipy.stats import probplot
 import matplotlib.pyplot as plt
 import math
 from loguru import logger
+from report.mode import is_comparing_versions
 
 normal_threshold = 100
 def get_vec_speedups(runtimes):
@@ -255,9 +256,10 @@ def plot_scaled_speedups(compilers, patterns, runtimes, path_prefix=None):
     for y_inv, compiler in enumerate(sorted_compilers):
         y = len(sorted_compilers) - y_inv
         yticks.append(y)
-        # uncomment for versionless experiments
-        # ytick_labels.append(normalize_compiler_name(compiler))
-        ytick_labels.append(compiler)
+        if is_comparing_versions:
+            ytick_labels.append(compiler)
+        else:
+            ytick_labels.append(normalize_compiler_name(compiler))
 
         ss = [s for s, _ in data_and_info[compiler]]
         sparse = sorted(ss)

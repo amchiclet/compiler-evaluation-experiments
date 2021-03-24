@@ -54,6 +54,14 @@ def save_plot(path, title=None, legend=True):
     plt.tight_layout()
     plt.savefig(path)
 
+def save_plot_custom_legend(path, title=None, legend_handles=None, legend_labels=None):
+    if title is not None:
+        plt.title(title)
+    if legend_handles is not None and legend_labels is not None:
+        plt.legend(legend_handles, legend_labels)
+    plt.tight_layout()
+    plt.savefig(path)
+
 def clear_plot():
     plt.close()
     # plt.clf()

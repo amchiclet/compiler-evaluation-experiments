@@ -15,6 +15,7 @@ from scipy.stats import probplot
 import matplotlib.pyplot as plt
 import math
 from loguru import logger
+from report.mode import is_comparing_versions
 
 normal_threshold=100
 def get_normalized_cost_model_performance(runtimes):
@@ -170,125 +171,125 @@ def get_paths(stats):
 def format_raw(raw):
     return format_pair_raw_single_mutation(raw)
 
-def get_data_and_errors(n_patterns, raw_runtimes):
-    normalized, outliers = get_normalized_cost_model_performance(raw_runtimes)
+# def get_data_and_errors(n_patterns, raw_runtimes):
+#     normalized, outliers = get_normalized_cost_model_performance(raw_runtimes)
 
-    proportions = {}
-    neg_errs = {}
-    pos_errs = {}
-    for compiler, (occurrences, total) in normalized.items():
-        all_ci = calculate_ci_proportion(occurrences, total, n_patterns)
-        ci95 = all_ci[1]
-        val = occurrences / total
-        proportions[compiler] = val
-        neg_errs[compiler] = val - ci95[0]
-        pos_errs[compiler] = ci95[1] - val
+#     proportions = {}
+#     neg_errs = {}
+#     pos_errs = {}
+#     for compiler, (occurrences, total) in normalized.items():
+#         all_ci = calculate_ci_proportion(occurrences, total, n_patterns)
+#         ci95 = all_ci[1]
+#         val = occurrences / total
+#         proportions[compiler] = val
+#         neg_errs[compiler] = val - ci95[0]
+#         pos_errs[compiler] = ci95[1] - val
 
-    # print('cost model')
-    # print(outliers.pprint())
-    return proportions, neg_errs, pos_errs, outliers
+#     # print('cost model')
+#     # print(outliers.pprint())
+#     return proportions, neg_errs, pos_errs, outliers
 
-def get_data_and_errors_v2(compilers, patterns, runtimes):
-    outliers = create_max_spread_cases()
-    per_pattern_map = {}
-    for c in compilers:
-        for p, instances in patterns:
-            for i, mutations in instances:
-                best_no_predict = min([runtimes[(c, 'nopredict', p, i, m)] for m in mutations])
+# def get_data_and_errors_v2(compilers, patterns, runtimes):
+#     outliers = create_max_spread_cases()
+#     per_pattern_map = {}
+#     for c in compilers:
+#         for p, instances in patterns:
+#             for i, mutations in instances:
+#                 best_no_predict = min([runtimes[(c, 'nopredict', p, i, m)] for m in mutations])
 
-                for m in mutations:
-                    pim = (p, i, m)
-                    with_cost_model_key = (c, 'fast', *pim)
-                    no_cost_model_key = (c, 'nopredict', *pim)
-                    assert(with_cost_model_key in runtimes)
-                    assert(no_cost_model_key in runtimes)
-                    no_cost_model = runtimes[no_cost_model_key]
-                    with_cost_model = runtimes[with_cost_model_key]
+#                 for m in mutations:
+#                     pim = (p, i, m)
+#                     with_cost_model_key = (c, 'fast', *pim)
+#                     no_cost_model_key = (c, 'nopredict', *pim)
+#                     assert(with_cost_model_key in runtimes)
+#                     assert(no_cost_model_key in runtimes)
+#                     no_cost_model = runtimes[no_cost_model_key]
+#                     with_cost_model = runtimes[with_cost_model_key]
 
-                    is_good = with_cost_model < 1.05 * no_cost_model
-                    if is_good:
-                        good_count = 1
-                    else:
-                        good_count = 0
-                        spread = (best_no_predict/with_cost_model, best_no_predict/no_cost_model)
-                        raw = (no_cost_model, with_cost_model)
-                        outliers.merge((c, pim), spread, (raw, pim))
-                    update_dict_array(per_pattern_map, (c, p), good_count)
+#                     is_good = with_cost_model < 1.05 * no_cost_model
+#                     if is_good:
+#                         good_count = 1
+#                     else:
+#                         good_count = 0
+#                         spread = (best_no_predict/with_cost_model, best_no_predict/no_cost_model)
+#                         raw = (no_cost_model, with_cost_model)
+#                         outliers.merge((c, pim), spread, (raw, pim))
+#                     update_dict_array(per_pattern_map, (c, p), good_count)
 
-    percentages_map = {}
-    for (compiler, _), counts in per_pattern_map.items():
-        update_dict_array(percentages_map, compiler, arithmetic_mean(counts))
+#     percentages_map = {}
+#     for (compiler, _), counts in per_pattern_map.items():
+#         update_dict_array(percentages_map, compiler, arithmetic_mean(counts))
 
-    data = {}
-    neg_errs = {}
-    pos_errs = {}
-    for compiler, percentages in percentages_map.items():
-        assert(len(percentages) == len(patterns))
-        val = arithmetic_mean(percentages)
-        data[compiler] = val
-        if len(percentages) > normal_threshold:
-            all_ci = calculate_ci_arithmetic(percentages)
-            ci95 = all_ci[1]
-            neg_errs[compiler] = val - ci95[0]
-            pos_errs[compiler] = ci95[1] - val
-        else:
-            neg_errs[compiler] = None
-            pos_errs[compiler] = None
+#     data = {}
+#     neg_errs = {}
+#     pos_errs = {}
+#     for compiler, percentages in percentages_map.items():
+#         assert(len(percentages) == len(patterns))
+#         val = arithmetic_mean(percentages)
+#         data[compiler] = val
+#         if len(percentages) > normal_threshold:
+#             all_ci = calculate_ci_arithmetic(percentages)
+#             ci95 = all_ci[1]
+#             neg_errs[compiler] = val - ci95[0]
+#             pos_errs[compiler] = ci95[1] - val
+#         else:
+#             neg_errs[compiler] = None
+#             pos_errs[compiler] = None
 
-    # print('cost model')
-    # print(outliers.pprint())
-    return data, neg_errs, pos_errs, outliers
+#     # print('cost model')
+#     # print(outliers.pprint())
+#     return data, neg_errs, pos_errs, outliers
 
-def get_data_and_errors_v3(compilers, patterns, runtimes):
-    outliers = create_max_spread_cases()
-    per_pattern_map = {}
-    for c in compilers:
-        for p, instances in patterns:
-            for i, mutations in instances:
-                best_no_predict = min([runtimes[(c, 'nopredict', p, i, m)] for m in mutations])
+# def get_data_and_errors_v3(compilers, patterns, runtimes):
+#     outliers = create_max_spread_cases()
+#     per_pattern_map = {}
+#     for c in compilers:
+#         for p, instances in patterns:
+#             for i, mutations in instances:
+#                 best_no_predict = min([runtimes[(c, 'nopredict', p, i, m)] for m in mutations])
 
-                for m in mutations:
-                    pim = (p, i, m)
-                    with_cost_model_key = (c, 'fast', *pim)
-                    no_cost_model_key = (c, 'nopredict', *pim)
-                    assert(with_cost_model_key in runtimes)
-                    assert(no_cost_model_key in runtimes)
-                    no_cost_model = runtimes[no_cost_model_key]
-                    with_cost_model = runtimes[with_cost_model_key]
+#                 for m in mutations:
+#                     pim = (p, i, m)
+#                     with_cost_model_key = (c, 'fast', *pim)
+#                     no_cost_model_key = (c, 'nopredict', *pim)
+#                     assert(with_cost_model_key in runtimes)
+#                     assert(no_cost_model_key in runtimes)
+#                     no_cost_model = runtimes[no_cost_model_key]
+#                     with_cost_model = runtimes[with_cost_model_key]
 
-                    is_good = with_cost_model < 1.05 * no_cost_model
-                    if is_good:
-                        good_count = 1
-                    else:
-                        good_count = 0
-                        spread = (best_no_predict/with_cost_model, best_no_predict/no_cost_model)
-                        raw = (no_cost_model, with_cost_model)
-                        outliers.merge((c, pim), spread, (raw, pim))
-                    update_dict_array(per_pattern_map, (c, p), good_count)
+#                     is_good = with_cost_model < 1.05 * no_cost_model
+#                     if is_good:
+#                         good_count = 1
+#                     else:
+#                         good_count = 0
+#                         spread = (best_no_predict/with_cost_model, best_no_predict/no_cost_model)
+#                         raw = (no_cost_model, with_cost_model)
+#                         outliers.merge((c, pim), spread, (raw, pim))
+#                     update_dict_array(per_pattern_map, (c, p), good_count)
 
-    percentages_map = {}
-    for (compiler, _), counts in per_pattern_map.items():
-        update_dict_array(percentages_map, compiler, arithmetic_mean(counts))
+#     percentages_map = {}
+#     for (compiler, _), counts in per_pattern_map.items():
+#         update_dict_array(percentages_map, compiler, arithmetic_mean(counts))
 
-    data = {}
-    neg_errs = {}
-    pos_errs = {}
-    for compiler, percentages in percentages_map.items():
-        assert(len(percentages) == len(patterns))
-        val = arithmetic_mean(percentages)
-        data[compiler] = val
-        if len(percentages) > normal_threshold:
-            all_ci = calculate_ci_arithmetic(percentages)
-            ci95 = all_ci[1]
-            neg_errs[compiler] = val - ci95[0]
-            pos_errs[compiler] = ci95[1] - val
-        else:
-            neg_errs[compiler] = None
-            pos_errs[compiler] = None
+#     data = {}
+#     neg_errs = {}
+#     pos_errs = {}
+#     for compiler, percentages in percentages_map.items():
+#         assert(len(percentages) == len(patterns))
+#         val = arithmetic_mean(percentages)
+#         data[compiler] = val
+#         if len(percentages) > normal_threshold:
+#             all_ci = calculate_ci_arithmetic(percentages)
+#             ci95 = all_ci[1]
+#             neg_errs[compiler] = val - ci95[0]
+#             pos_errs[compiler] = ci95[1] - val
+#         else:
+#             neg_errs[compiler] = None
+#             pos_errs[compiler] = None
 
-    # print('cost model')
-    # print(outliers.pprint())
-    return data, neg_errs, pos_errs, outliers
+#     # print('cost model')
+#     # print(outliers.pprint())
+#     return data, neg_errs, pos_errs, outliers
 
 def get_data_and_errors_v4(compilers, patterns, raw_runtimes):
     normalized, outliers = get_normalized_cost_model_speedups(raw_runtimes)
@@ -369,75 +370,75 @@ def plot_qq(compilers, patterns, runtimes):
 def pure(p, i, m):
     return p[1], i, m
 
-def plot_cost_model_speedups(compilers, patterns, runtimes, path_prefix=None):
-    def is_better_speedup(x, y):
-        return x > y
-    def is_worse_speedup(x, y):
-        return x < y
+# def plot_cost_model_speedups(compilers, patterns, runtimes, path_prefix=None):
+#     def is_better_speedup(x, y):
+#         return x > y
+#     def is_worse_speedup(x, y):
+#         return x < y
 
-    mins = {}
-    maxs = {}
-    data = {}
-    data_and_info = {}
-    for c in compilers:
-        for p, instances in patterns:
-            for i, mutations in instances:
-                for m in mutations:
-                    fast_key = (c, 'fast', p, i, m)
-                    nopredict_key = (c, 'nopredict', p, i, m)
-                    if fast_key in runtimes and nopredict_key in runtimes:
-                        speedup = runtimes[nopredict_key] / runtimes[fast_key]
-                        update_dict_array(data, c, speedup)
+#     mins = {}
+#     maxs = {}
+#     data = {}
+#     data_and_info = {}
+#     for c in compilers:
+#         for p, instances in patterns:
+#             for i, mutations in instances:
+#                 for m in mutations:
+#                     fast_key = (c, 'fast', p, i, m)
+#                     nopredict_key = (c, 'nopredict', p, i, m)
+#                     if fast_key in runtimes and nopredict_key in runtimes:
+#                         speedup = runtimes[nopredict_key] / runtimes[fast_key]
+#                         update_dict_array(data, c, speedup)
 
-                        s_pim = speedup, (f'{runtimes[nopredict_key]:.3f}/{runtimes[fast_key]:.3f}={speedup:.3f}', pure(p, i, m))
-                        update_dict_array(data_and_info, c, s_pim)
+#                         s_pim = speedup, (f'{runtimes[nopredict_key]:.3f}/{runtimes[fast_key]:.3f}={speedup:.3f}', pure(p, i, m))
+#                         update_dict_array(data_and_info, c, s_pim)
 
-                        if c not in mins:
-                            mins[c] = Outlier()
-                        mins[c].merge(is_worse_speedup, speedup, (p, i, m))
-                        if c not in maxs:
-                            maxs[c] = Outlier()
-                        maxs[c].merge(is_better_speedup, speedup, (p, i, m))
+#                         if c not in mins:
+#                             mins[c] = Outlier()
+#                         mins[c].merge(is_worse_speedup, speedup, (p, i, m))
+#                         if c not in maxs:
+#                             maxs[c] = Outlier()
+#                         maxs[c].merge(is_better_speedup, speedup, (p, i, m))
 
-    for a in data_and_info.values():
-        a.sort(key=lambda x: x[0])
+#     for a in data_and_info.values():
+#         a.sort(key=lambda x: x[0])
 
-    how_sparse = 1
-    sorted_compilers = sorted(data.keys())
+#     how_sparse = 1
+#     sorted_compilers = sorted(data.keys())
 
-    logger.info('Scaled cost model')
-    for c in sorted_compilers:
-        logger.info(c)
-        for rpim in data_and_info[c][:10]:
-            logger.info(rpim)
+#     logger.info('Scaled cost model')
+#     for c in sorted_compilers:
+#         logger.info(c)
+#         for rpim in data_and_info[c][:10]:
+#             logger.info(rpim)
 
-    yticks = []
-    ytick_labels = []
-    for y_inv, compiler in enumerate(sorted_compilers):
-        y = len(sorted_compilers) - y_inv
-        yticks.append(y)
-        ytick_labels.append(normalize_compiler_name(compiler))
+#     yticks = []
+#     ytick_labels = []
+#     for y_inv, compiler in enumerate(sorted_compilers):
+#         y = len(sorted_compilers) - y_inv
+#         yticks.append(y)
+#         ytick_labels.append(normalize_compiler_name(compiler))
 
-        ss = data[compiler]
-        sparse = sorted(ss)
-        sparse = [s for i, s in enumerate(sparse) if i % how_sparse == 0]
+#         ss = data[compiler]
+#         sparse = sorted(ss)
+#         sparse = [s for i, s in enumerate(sparse) if i % how_sparse == 0]
 
-        bottom_index = math.ceil(len(sparse)*0.1)
-        bottom = sparse[:bottom_index-1]
-        top = sparse[bottom_index:]
+#         bottom_index = math.ceil(len(sparse)*0.1)
+#         bottom = sparse[:bottom_index-1]
+#         top = sparse[bottom_index:]
 
-        plt.plot(bottom, [y] * len(bottom), '.', color='red')
-        plt.plot(top, [y] * len(top), '.', color='green')
+#         plt.plot(bottom, [y] * len(bottom), '.', color='red')
+#         plt.plot(top, [y] * len(top), '.', color='green')
 
-    title = f'Cost model speedup distribution'
-    plt.yticks(yticks, ytick_labels)
-    plt.xlim(0, 1)
-    if path_prefix is None:
-        plot.display_plot(title=title, legend=False)
-    else:
-        path = f'{path_prefix}-all-compilers.png'
-        plot.save_plot(path, title, legend=False)
-        plot.clear_plot()
+#     title = f'Cost model speedup distribution'
+#     plt.yticks(yticks, ytick_labels)
+#     plt.xlim(0, 1)
+#     if path_prefix is None:
+#         plot.display_plot(title=title, legend=False)
+#     else:
+#         path = f'{path_prefix}-all-compilers.png'
+#         plot.save_plot(path, title, legend=False)
+#         plot.clear_plot()
 
 def plot_cost_model_speedups_v2(compilers, patterns, runtimes, path_prefix=None):
     def is_better_speedup(x, y):
@@ -484,9 +485,10 @@ def plot_cost_model_speedups_v2(compilers, patterns, runtimes, path_prefix=None)
     for y_inv, compiler in enumerate(sorted_compilers):
         y = len(sorted_compilers) - y_inv
         yticks.append(y)
-        # uncomment for versionless experiments
-        # ytick_labels.append(normalize_compiler_name(compiler))
-        ytick_labels.append(compiler)
+        if is_comparing_versions:
+            ytick_labels.append(compiler)
+        else:
+            ytick_labels.append(normalize_compiler_name(compiler))
 
         ss = [s for s, _ in data_and_info[compiler]]
         sparse = sorted(ss)

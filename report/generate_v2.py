@@ -4,6 +4,7 @@ import report.vector_speedup
 import report.vectorizable
 import report.cost_model
 import report.peer_rank
+import report.transformation_speedup
 import plot
 from report.generate import \
     get_ok_patterns_fully_qualified, \
@@ -14,7 +15,7 @@ from report.util import normalize_compiler_name
 from compilers import compilers
 from report.peer_metrics import get_compiler_pairs
 from scipy.stats import probplot
-
+from report.mode import is_comparing_versions
 from tabulate import tabulate
 from loguru import logger
 
@@ -67,7 +68,7 @@ def filter_existing_patterns(patterns, runtimes):
             filtered_patterns.append((p, filtered_instances))
     return filtered_patterns
 
-def plot_single_compiler_metrics(metrics, metrics_labels, title=None, path=None):
+def plot_single_compiler_metrics(metrics, metrics_labels, title=None, path=None, is_normalized=True):
     xticks = []
     for mi in range(len(metrics)):
         xticks.append(mi * 1.0)
@@ -77,7 +78,8 @@ def plot_single_compiler_metrics(metrics, metrics_labels, title=None, path=None)
 
     ax.set_xticks(xticks)
     ax.set_xticklabels(xlabels)
-    ax.set_ylim([0, 1])
+    if is_normalized:
+        ax.set_ylim([0, 1])
 
     for ci, compiler in enumerate(compilers):
         xs = []
@@ -89,6 +91,8 @@ def plot_single_compiler_metrics(metrics, metrics_labels, title=None, path=None)
         outlier_xs = []
         outlier_ys = []
         for mi, (data, neg_errs, pos_errs, interesting_cases) in enumerate(metrics):
+            if compiler not in data:
+                continue
             x = mi * 1.0 + ci * 0.1
             xs.append(x)
             y = data[compiler]
@@ -99,10 +103,12 @@ def plot_single_compiler_metrics(metrics, metrics_labels, title=None, path=None)
                 all_neg_errs.append(neg_errs[compiler])
                 all_pos_errs.append(pos_errs[compiler])
 
-        # uncomment for versionless experiments
-        ax.bar(xs, ys, 0.1, label=normalize_compiler_name(compiler), color=compiler_color(compiler))
-        # uncomment for old version vs new version experiment
-        # ax.bar(xs, ys, 0.1, label=compiler, color=compiler_color(compiler))
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            ax.bar(xs, ys, 0.1, label=compiler, color=compiler_color(compiler))
+        else:
+            # uncomment for versionless experiments
+            ax.bar(xs, ys, 0.1, label=normalize_compiler_name(compiler), color=compiler_color(compiler))
         ax.errorbar(err_xs, err_ys, yerr=(all_neg_errs, all_pos_errs), ecolor='black', capsize=10, linestyle='None')
 
     if path is not None:
@@ -121,17 +127,20 @@ def plot_compiler_pair_metrics(metrics, title=None, path=None):
     right_ylabels = []
 
     for ys, (c1, c2) in enumerate(get_compiler_pairs(compilers)):
-        # uncomment for old version vs new version experiment
-        # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
-        #     continue
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+                continue
 
         yticks.append(ys)
-        # uncomment for versionless experiments
-        left_ylabels.append(normalize_compiler_name(c1))
-        right_ylabels.append(normalize_compiler_name(c2))
-        # uncomment for old version vs new verion experiment
-        # left_ylabels.append(c1)
-        # right_ylabels.append(c2)
+        if is_comparing_versions:
+            # uncomment for old version vs new verion experiment
+            left_ylabels.append(c1)
+            right_ylabels.append(c2)
+        else:
+            # uncomment for versionless experiments
+            left_ylabels.append(normalize_compiler_name(c1))
+            right_ylabels.append(normalize_compiler_name(c2))
 
         left_key = (c1, c2)
         if left_key in data:
@@ -182,17 +191,20 @@ def plot_pair_speedup_metrics(metrics, title=None, path=None):
     xticks = []
     xlabels = []
     for x, (c1, c2) in enumerate(get_compiler_pairs(compilers)):
-        # uncomment for old version vs new version experiment
-        # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
-        #     continue
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+                continue
 
         key = (c1, c2)
         xtick = x*n_pairs
         xticks.append(xtick)
-        # uncomment for versionless experiments
-        xlabels.append(f'{normalize_compiler_name(c1)}/{normalize_compiler_name(c2)}')
-        # uncomment for old version vs new version experiment
-        # xlabels.append(f'{c1}/{c2}')
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            xlabels.append(f'{c1}/{c2}')
+        else:
+            # uncomment for versionless experiments
+            xlabels.append(f'{normalize_compiler_name(c1)}/{normalize_compiler_name(c2)}')
         if key in data:
             ax.bar(xtick, data[key], width=1, color=compiler_color(c2))
             neg_err = neg_errs[key]
@@ -203,10 +215,12 @@ def plot_pair_speedup_metrics(metrics, title=None, path=None):
         key_inv = (c2, c1)
         xtick = x*n_pairs + 1
         xticks.append(xtick)
-        # uncomment for versionless experiments
-        xlabels.append(f'{normalize_compiler_name(c2)}/{normalize_compiler_name(c1)}')
-        # uncomment for old version vs new version experiment
-        # xlabels.append(f'{c2}/{c1}')
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            xlabels.append(f'{c2}/{c1}')
+        else:
+            # uncomment for versionless experiments
+            xlabels.append(f'{normalize_compiler_name(c2)}/{normalize_compiler_name(c1)}')
         if key_inv in data:
             ax.bar(xtick, data[key_inv],
                    width=1, capsize = 10, color=compiler_color(c1))
@@ -262,33 +276,46 @@ peer_speedup_metrics = report.peer_speedup.get_data_and_errors_v2(compilers, pat
 logger.info(f'runtime confidence intervals')
 for c in compilers:
     data, neg_errs, pos_errs, _ = runtime_metrics
-    logger.info(f'{c} [{data[c] - neg_errs[c]} {data[c] + pos_errs[c]}]')
+    if c not in data or c not in neg_errs or c not in pos_errs:
+        continue
+    logger.info(f'{c} {data[c]}, [{data[c] - neg_errs[c]} {data[c] + pos_errs[c]}]')
 logger.info(f'vector speedup confidence intervals')
 for c in compilers:
     data, neg_errs, pos_errs, _ = vector_speedup_metrics
+    if c not in data:
+        continue
     logger.info(f'{c} [{data[c] - neg_errs[c]} {data[c] + pos_errs[c]}]')
 logger.info(f'cost model confidence intervals')
 for c in compilers:
     data, neg_errs, pos_errs, _ = cost_model_metrics
+    if c not in data:
+        continue
     logger.info(f'{c} [{data[c] - neg_errs[c]} {data[c] + pos_errs[c]}]')
 logger.info(f'top rank confidence intervals')
 for c in compilers:
     data, neg_errs, pos_errs, _ = top_rank_metrics
+    if c not in data:
+        continue
     logger.info(f'{c} [{data[c] - neg_errs[c]} {data[c] + pos_errs[c]}]')
 logger.info(f'bottom rank confidence intervals')
 for c in compilers:
     data, neg_errs, pos_errs, _ = bottom_rank_metrics
+    if c not in data:
+        continue
     logger.info(f'{c} [{data[c] - neg_errs[c]} {data[c] + pos_errs[c]}]')
 logger.info(f'peer comparison confidence intervals')
 for c1 in compilers:
     for c2 in compilers:
         if c1 == c2:
             continue
-        # uncomment for old version vs new version experiment
-        # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
-        #     continue
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+                continue
         c = (c1, c2)
         data, neg_errs, pos_errs = pair_comparison_metrics
+        if c not in data:
+            continue
         logger.info(f'{c} [{data[c] - neg_errs[c]} {data[c] + pos_errs[c]}]')
 
 logger.info(f'peer speedup confidence intervals')
@@ -296,9 +323,10 @@ for c1 in compilers:
     for c2 in compilers:
         if c1 == c2:
             continue
-        # uncomment for old version vs new version experiment
-        # if normalize_compiler_name(c1) != normalize_compiler_name(c2):
-        #     continue
+        if is_comparing_versions:
+            # uncomment for old version vs new version experiment
+            if normalize_compiler_name(c1) != normalize_compiler_name(c2):
+                continue
         c = (c1, c2)
         data, neg_errs, pos_errs, _ = peer_speedup_metrics
         if c not in data:
@@ -327,6 +355,15 @@ single_compiler_rank_labels = ['top rank', 'bottom rank']
 plot_single_compiler_metrics(single_compiler_rank, single_compiler_rank_labels, 'Top and bottom rank', 'top-bottom.png')
 plot_compiler_pair_metrics(pair_comparison_metrics, 'Better rank', 'peer-comparison.png')
 plot_pair_speedup_metrics(peer_speedup_metrics, 'Peer speedup', 'peer-speedup.png')
+
+# transformation_speedup_metrics = report.transformation_speedup.get_data_and_errors(compilers, patterns, runtimes)
+# transformation = 'Unroll'
+# plot_single_compiler_metrics([transformation_speedup_metrics,],
+#                              [f'{transformation} speedup',],
+#                              f'{transformation} speedup',
+#                              f'{transformation.lower()}-speedup.png',
+#                              is_normalized=False)
+# report.transformation_speedup.plot_qq(compilers, patterns, runtimes)
 
 # Interesting cases
 report.runtime.plot_scaled_runtimes(compilers, patterns, runtimes, 'dist-scaled-runtimes')

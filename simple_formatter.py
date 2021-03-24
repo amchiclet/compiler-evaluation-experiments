@@ -1,5 +1,5 @@
 from math import floor
-from variable_map import dimension_var
+from variable_map import dimension_var, ArraySize
 
 def loop_header(indent, loop_var, begin, end):
     return '  ' * indent + \
@@ -39,8 +39,15 @@ class SimpleFormatter:
         self.pattern = instance.pattern
         self.sorted_decl_names = sorted([decl.name for decl in self.pattern.decls])
         self.decl_map = {decl.name:decl for decl in self.pattern.decls}
-
         self.array_sizes = instance.array_sizes
+        # if instance.array_sizes is None:
+        #     self.array_sizes = {}
+        #     for decl in self.pattern.decls:
+        #         array_size = ArraySize(decl.name, decl.is_local, decl.n_dimensions)
+        #         array_size.min_indices = [0] * decl.n_dimensions
+        #         array_size.max_indices = [size - 1 for size in decl.sizes]
+        # else:
+        #     self.array_sizes = instance.array_sizes
         self.indent = 0
 
     def array_param(self, ty, name, sizes):

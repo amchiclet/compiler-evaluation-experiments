@@ -16,7 +16,7 @@ from scipy.stats import probplot
 import math
 from loguru import logger
 import heapq
-
+from report.mode import is_comparing_versions
 normal_threshold = 100
 
 def plot_ci_bar(n_patterns, raw_runtimes, fig_path=None):
@@ -79,7 +79,7 @@ def plot_normalized_runtimes(n_patterns, n_instances, runtimes):
 
 def add_plot_normalized_runtimes_v2(compilers, patterns, runtimes, fig_path=None):
     normalized, _ = get_normalized_runtimes(runtimes)
-    print(normalized)
+    # print(normalized)
     plots = {}
     for c in compilers:
         plots[c] = []
@@ -140,6 +140,18 @@ def get_paths(stats):
 def format_raw(raw):
     return format_spread_pair(raw)
 
+def get_per_pattern(compilers, patterns, raw_runtimes):
+    normalized, outliers = get_normalized_runtimes(raw_runtimes)
+
+    per_pattern = {}
+    for (compiler, pattern, program, mutation), runtime in normalized.items():
+        update_dict_array(per_pattern, (compiler, pattern), runtime)
+
+    grouped = {}
+    for (compiler, pattern), runtimes in per_pattern.items():
+        update_dict_array(grouped, compiler, geometric_mean(runtimes))
+    return grouped
+
 def get_data_and_errors(compilers, patterns, raw_runtimes):
     normalized, outliers = get_normalized_runtimes(raw_runtimes)
 
@@ -180,6 +192,9 @@ def get_data_and_errors(compilers, patterns, raw_runtimes):
 
 def pure(p, i, m):
     return p[1], i, m
+
+def pure(p, i, m):
+    return p, i, m
 
 def plot_scaled_runtimes(compilers, patterns, runtimes, path_prefix=None):
     best_mutations = {}
@@ -235,9 +250,10 @@ def plot_scaled_runtimes(compilers, patterns, runtimes, path_prefix=None):
     for y_inv, compiler in enumerate(sorted_compilers):
         y = len(sorted_compilers) - y_inv
         yticks.append(y)
-        # uncomment for versionless experiments
-        # ytick_labels.append(normalize_compiler_name(compiler))
-        ytick_labels.append(compiler)
+        if is_comparing_versions:
+            ytick_labels.append(compiler)
+        else:
+            ytick_labels.append(normalize_compiler_name(compiler))
 
         rs = [r for r, _ in data_and_info[compiler]]
         sparse = sorted(rs)

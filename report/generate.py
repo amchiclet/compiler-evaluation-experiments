@@ -204,6 +204,7 @@ def check_structure(pattern, n_instances, n_mutations):
         return False
     for i, mutations in instances:
         if len(mutations) != n_mutations:
+            print('BAD', p, i, mutations, f'wanted {n_mutations} but got {len(mutations)}')
             return False
     return True
 
