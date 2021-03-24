@@ -1,1 +1,1 @@
-# compiler-test-generator
+Compiler evaluation experiments related to my PhD thesis.
