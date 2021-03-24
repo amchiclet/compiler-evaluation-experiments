@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=two-statement-2550
+code name=_set_Aij_mul__mul_AijBijc_then__set_Eij_add_Bij_mul_XBij.c
+codelet name=_set_Aij_mul__mul_AijBijc_then__set_Eij_add_Bij_mul_XBij_2550.c_de

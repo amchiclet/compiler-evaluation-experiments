@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=matmul-variations-2550
+code name=_set_Aij_add_Aij_mul__add_BikX_mul_CkjX.c
+codelet name=_set_Aij_add_Aij_mul__add_BikX_mul_CkjX_2550.c_de
