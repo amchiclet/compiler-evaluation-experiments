@@ -1,0 +1,62 @@
+=====================
+matmul-variations
+=====================
+
+Similar to matmul A = A + B * C, except B and C becomes
+(B + D) or (B * D) or their commuted version where D is
+either another array or a constant.
+
+Example of possibly generated code
+
+A = A + (B + D) * (1.5 + C)
+
+(Uppercase = matrix)
+
+=====================
+two-statements
+=====================
+
+Doubly-nested loop with two statements inside them.
+
+Each statement looks like
+
+A = _ * _ * _
+
+Where A is always an array access, but _ can be either
+an array access, a scalar, or a constant.
+
+Also * can be either + or *
+
+Example of possibly generated code
+
+A = B * c + 1.5
+C = c + c + D
+
+=====================
+two-statements-common-access
+=====================
+
+Similar to two-statements.
+
+Except that the two statments are guaranteed to include at least one common array.
+
+Example of possibly generated code
+
+A = B * c + 1.5
+C = c + c + B
+
+Note that B appears in both statements.
+
+Example of code that cannot be generated
+
+A = B * c + 1.5
+C = c + c + D
+
+Note that the first statement has arrays A and B, while the second has C and D.
+No array in common.
+
+=====================
+two-statements-mixed
+=====================
+
+A mixture of two-statements and two-statements-common-access
