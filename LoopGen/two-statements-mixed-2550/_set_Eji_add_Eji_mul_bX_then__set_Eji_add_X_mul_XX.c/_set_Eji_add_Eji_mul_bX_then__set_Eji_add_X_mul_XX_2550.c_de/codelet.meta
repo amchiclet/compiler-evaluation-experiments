@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=two-statements-mixed-2550
+code name=_set_Eji_add_Eji_mul_bX_then__set_Eji_add_X_mul_XX.c
+codelet name=_set_Eji_add_Eji_mul_bX_then__set_Eji_add_X_mul_XX_2550.c_de
