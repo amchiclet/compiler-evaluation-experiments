@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=vector-850
+code name=_set_Ai_mul__mul_AiAiBi.c
+codelet name=_set_Ai_mul__mul_AiAiBi_850.c_de

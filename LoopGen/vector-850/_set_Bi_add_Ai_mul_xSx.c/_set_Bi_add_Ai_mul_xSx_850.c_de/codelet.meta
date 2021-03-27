@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=vector-850
+code name=_set_Bi_add_Ai_mul_xSx.c
+codelet name=_set_Bi_add_Ai_mul_xSx_850.c_de

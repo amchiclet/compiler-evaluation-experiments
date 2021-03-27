@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=vector-2550
+code name=_set_Bi_add_Ci_mul_xa.c
+codelet name=_set_Bi_add_Ci_mul_xa_2550.c_de

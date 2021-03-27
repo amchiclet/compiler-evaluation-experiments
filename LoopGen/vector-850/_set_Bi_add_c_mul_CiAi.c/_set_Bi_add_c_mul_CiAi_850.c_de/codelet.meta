@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=vector-850
+code name=_set_Bi_add_c_mul_CiAi.c
+codelet name=_set_Bi_add_c_mul_CiAi_850.c_de
