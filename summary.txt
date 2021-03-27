@@ -2,7 +2,9 @@
 matmul-variations
 =====================
 
-Similar to matmul A = A + B * C, except B and C becomes
+N=100
+
+Similar to matmul (A = A + B * C), except B and C becomes
 (B + D) or (B * D) or their commuted version where D is
 either another array or a constant.
 
@@ -15,6 +17,8 @@ A = A + (B + D) * (1.5 + C)
 =====================
 two-statements
 =====================
+
+N=100
 
 Doubly-nested loop with two statements inside them.
 
@@ -35,6 +39,8 @@ C = c + c + D
 =====================
 two-statements-common-access
 =====================
+
+N=100
 
 Similar to two-statements.
 
@@ -59,4 +65,33 @@ No array in common.
 two-statements-mixed
 =====================
 
-A mixture of two-statements and two-statements-common-access
+N=250 two-statements
+N=50 two-statements-common-access
+
+=====================
+vector
+=====================
+
+N=300
+
+Vector (1D) operations
+  A = B @ C @ D
+
+@ can be either + or *.
+
+Left hand size is always memory access.
+If left hand side is scalar, it is in the form S[0].
+(Otherwise scalar variables are passed by value and can't be output.)
+
+Right hand side includes
+* array read, A[i], B[i], C[i], S[0]
+* scalar read a, b, c
+* literal 2.0
+
+Note that this space includes
+* dot product
+    S[0] = S[0] + A[i] * B[i]
+* axpy
+    A[i] = a * B[i] + C[i]
+* scale
+    A[i] = (a + b) * B[i]
