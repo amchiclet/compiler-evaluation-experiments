@@ -42,7 +42,7 @@ def name(node):
     from pattern_ast import Hex, Assignment, AbstractLoop, Literal, Access, Program, Op
     ty = type(node)
     if ty == Literal:
-        return 'X'
+        return 'x'
     if ty == Hex:
         return node.str_val
     if ty == Assignment:

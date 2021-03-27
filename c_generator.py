@@ -46,7 +46,7 @@ class CGenerator:
         self.pattern = instance.pattern
         self.sorted_decl_names = sorted([decl.name for decl in self.pattern.decls])
         self.decl_map = {decl.name:decl for decl in self.pattern.decls}
-        self.array_sizes = instance.array_sizes
+        self.array_sizes = instance.array_access_bounds
         self.indent = 0
 
     def array_param(self, ty, name, sizes):
