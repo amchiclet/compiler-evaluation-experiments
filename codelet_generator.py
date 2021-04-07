@@ -1,5 +1,9 @@
 from pathlib import Path
+<<<<<<< HEAD
 from c_generator import CGenerator
+=======
+from codegen.c_generator import CGenerator
+>>>>>>> Added template files to help generate experiments
 from shutil import copytree
 
 def conf_contents(codelet):
@@ -42,7 +46,11 @@ def name(node):
     from pattern_ast import Hex, Assignment, AbstractLoop, Literal, Access, Program, Op
     ty = type(node)
     if ty == Literal:
+<<<<<<< HEAD
         return 'x'
+=======
+        return 'X'
+>>>>>>> Added template files to help generate experiments
     if ty == Hex:
         return node.str_val
     if ty == Assignment:
@@ -62,27 +70,15 @@ def name(node):
         return name(node.body[0])
     print(ty)
 
-def generate_codelet_full(application, batch, code, codelet, n_iterations, instance):
+from codegen.c_generator import generate_code
+def generate_codelet_full(application, batch, code, codelet, n_iterations, instance, init_value_map=None):
     dst_dir = codelet_dir(application, batch, code, codelet)
-    prepare_output_dir(dst_dir)
+    Path(dst_dir).mkdir(parents=True, exist_ok=True)
+    # prepare_output_dir(dst_dir)
 
     Path(meta_file(dst_dir)).write_text(meta_contents(batch, code, codelet))
     Path(conf_file(dst_dir)).write_text(conf_contents(codelet))
     Path(data_file(dst_dir)).write_text(data_contents(n_iterations))
 
-    cgen = CGenerator(instance)
-    print(cgen.core())
-    wrapper_path = f'{dst_dir}/wrapper.c'
-    cgen.write_kernel_wrapper(wrapper_path)
-    core_path = f'{dst_dir}/core.c'
-    cgen.write_core(core_path)
+    generate_code(dst_dir, instance, init_value_map=init_value_map, template_dir='codelet-template')
 
-def generate_codelet(batch, instance):
-    # C code generation
-    application = 'LoopGen'
-    code_prefix = f'{name(instance.pattern)}'
-    code = f'{code_prefix}.c'
-    codelet = f'{code_prefix}.c_de'
-    n_iterations = 10
-
-    generate_codelet_full(application, batch, code, codelet, n_iterations, instance)
