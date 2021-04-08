@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=2-2-ops-2550
+code name=_set_Aij_add__add_AijAijAij_then__set_Bij_add__add_bDijAij.c
+codelet name=_set_Aij_add__add_AijAijAij_then__set_Bij_add__add_bDijAij_2550.c_de

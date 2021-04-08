@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=3-ops-2550
+code name=_set_Dij_add__add_CijDij_mul_Xb.c
+codelet name=_set_Dij_add__add_CijDij_mul_Xb_2550.c_de

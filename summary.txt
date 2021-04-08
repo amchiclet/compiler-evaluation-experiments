@@ -95,3 +95,40 @@ Note that this space includes
     A[i] = a * B[i] + C[i]
 * scale
     A[i] = (a + b) * B[i]
+
+=====================
+3-ops
+=====================
+
+N=10
+
+(Random seed 0)
+
+Doubly nested loops with 1 statement.
+Right hand side of each statement has 3 ops.
+2 operands are guaranteed to be (2D) arrays.
+Index is always [i][j].
+The rest can be either scalars or literals.
+
+Example:
+
+A = B * C + D
+B = a + B + A
+
+=====================
+2-2-ops
+=====================
+
+N=10
+
+(Random seed 0)
+
+Doubly nested loops with 2 statement.
+Right hand side of each statement has 2 ops.
+2 operands are guaranteed to be (2D) arrays.
+Index is always [i][j].
+The rest can be either scalars or literals.
+
+Example:
+A = B * C + 1.5 + b
+

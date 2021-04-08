@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=3-ops-2-arrs-2550
+code name=_set_Cij_add__add__mul_XBijCijAij.c
+codelet name=_set_Cij_add__add__mul_XBijCijAij_2550.c_de

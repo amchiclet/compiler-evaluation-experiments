@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=3-ops-2-arrs-850
+code name=_set_Bij_add__mul__mul_bAijaCij.c
+codelet name=_set_Bij_add__mul__mul_bAijaCij_850.c_de

@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=3-ops-600
+code name=_set_Cij_add__add__mul_bBijCijBij.c
+codelet name=_set_Cij_add__add__mul_bBijCijBij_600.c_de

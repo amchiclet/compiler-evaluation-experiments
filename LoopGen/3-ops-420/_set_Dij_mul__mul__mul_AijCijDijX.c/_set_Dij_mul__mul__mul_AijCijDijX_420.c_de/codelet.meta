@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=3-ops-420
+code name=_set_Dij_mul__mul__mul_AijCijDijX.c
+codelet name=_set_Dij_mul__mul__mul_AijCijDijX_420.c_de

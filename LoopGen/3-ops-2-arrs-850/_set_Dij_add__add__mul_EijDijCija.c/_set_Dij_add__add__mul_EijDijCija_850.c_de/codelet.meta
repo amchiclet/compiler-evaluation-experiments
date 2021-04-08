@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=3-ops-2-arrs-850
+code name=_set_Dij_add__add__mul_EijDijCija.c
+codelet name=_set_Dij_add__add__mul_EijDijCija_850.c_de
