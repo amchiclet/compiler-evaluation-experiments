@@ -11,7 +11,6 @@ from constant_assignment import VariableMap
 from type_assignment import TypeAssignment
 
 from instance import create_instance
-# from codelet_generator import generate_codelet_full, name
 from populator import PopulateParameters, populate_name, populate_stmt, populate_expr, populate_op
 
 seed(0)
@@ -72,30 +71,31 @@ def generate(skeleton):
     return code
 
 skeleton = parse_skeleton(skeleton_code)
-# print(skeleton.pprint())
-# exit()
+
 patterns = []
 hashes = set()
 
 patterns += generate_patterns_from_skeleton(
     generate,
     skeleton,
-    n_wanted = 10,
+    n_wanted = 1,
     existing_hashes = hashes)
 
 for pattern in patterns:
     print(pattern.pprint())
 
-types = TypeAssignment()
-for v in array_names + scalar_names:
-    types.set(v, 'double')
-types.set('n', 'int')
-
-def create_value_map(size):
-    init_value_map = VariableMap()
+def create_type_assignment():
+    types = TypeAssignment()
     for v in array_names + scalar_names:
-        init_value_map.set_range(v, 0.0, 1.0)
-    init_value_map.set_value('n', size-1)
+        types.set(v, 'double')
+    types.set('n', 'int')
+    return types
+
+def create_init_value_map():
+    init_value_map = {}
+    for v in array_names + scalar_names:
+        init_value_map[v] = 'drand(0.0, 1.0)'
+    init_value_map['n'] = 'n_elements'
     return init_value_map
 
 def create_var_map(size):
@@ -106,17 +106,20 @@ def create_var_map(size):
 from codelet_generator import name, generate_codelet_full
 
 application = 'LoopGen'
-sizes = [420, 600, 850, 2550]
-n_iterations = 10
 
-for size in sizes:
-    for pattern in patterns:
-        var_map = create_var_map(size)
-        value_map = create_value_map(size)
-        instance = create_instance(pattern, var_map, types=types)
-        print(instance.pattern.pprint())
-        code_prefix = f'{name(instance.pattern)}'
-        code = f'{code_prefix}.c'
-        codelet = f'{code_prefix}_{size}.c_de'
+n_iterations = 1
+n_elements = 850
 
-        generate_codelet_full(application, f'3-ops-{size}', code, codelet, n_iterations, instance, value_map)
+types = create_type_assignment()
+var_map = create_var_map(n_elements)
+value_map = create_init_value_map()
+
+for pattern in patterns:
+    instance = create_instance(pattern, var_map, types=types)
+    print(instance.pattern.pprint())
+    code_prefix = f'{name(instance.pattern)}'
+    code = f'{code_prefix}.c'
+    codelet = f'{code_prefix}.c_de'
+
+    generate_codelet_full(application, '3-ops-n', code, codelet,
+                          n_iterations, n_elements, instance, value_map)

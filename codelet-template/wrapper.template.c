@@ -11,8 +11,8 @@
 
 ${data_defs}
 
-void allocate_heap_vars() {
-${allocate_heap_vars_code}
+void allocate_arrays() {
+${allocate_arrays_code}
 }
 
 float frand(float min, float max) {
@@ -29,24 +29,34 @@ double drand(double min, double max) {
   return min + scale * (max - min);
 }
 
-void init() {
-  srand(0);
-${initialize_values_code}
+void init_scalars(int n_elements) {
+${init_scalars_code}
+}
+
+void init_arrays(${array_params}) {
+${init_arrays_code}
+}
+
+void init_array_ptrs() {
+  init_arrays(${array_args});
 }
 
 void measure_init_();
 void measure_start_();
 void measure_stop_();
 
-int core(${core_params});
+int core(${array_params});
 
-void measure(int n_iterations) {
-  allocate_heap_vars();
-  init();
+void measure(int n_iterations, int n_elements) {
+  srand(0);
+  init_scalars(n_elements);
+  allocate_arrays();
+  init_array_ptrs();
+
   measure_init_();
   measure_start_();
   for (int i = 0; i < n_iterations; ++i) {
-    core(${core_args});
+    core(${array_args});
   }
   measure_stop_();
 }

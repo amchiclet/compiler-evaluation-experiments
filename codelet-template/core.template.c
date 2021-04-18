@@ -9,9 +9,9 @@
 #include <math.h>
 #include <string.h>
 
-${core_externs}
+${scalar_externs}
 
-int core(${core_params}) {
+int core(${array_params}) {
 ${core_code}
   return 0;
 }

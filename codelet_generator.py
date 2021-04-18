@@ -1,9 +1,5 @@
 from pathlib import Path
-<<<<<<< HEAD
-from c_generator import CGenerator
-=======
-from codegen.c_generator import CGenerator
->>>>>>> Added template files to help generate experiments
+from codegen.c_generator import generate_code
 from shutil import copytree
 
 def conf_contents(codelet):
@@ -21,8 +17,8 @@ def meta_contents(batch, code, codelet):
             f'code name={code}\n'
             f'codelet name={codelet}\n')
 
-def data_contents(n_iterations):
-    return f'{n_iterations} 0\n'
+def data_contents(n_iterations, n_elements):
+    return f'{n_iterations} {n_elements}\n'
 
 def codelet_dir(application, batch, code, codelet, base='.'):
     return f'{base}/{application}/{batch}/{code}/{codelet}'
@@ -46,11 +42,7 @@ def name(node):
     from pattern_ast import Hex, Assignment, AbstractLoop, Literal, Access, Program, Op
     ty = type(node)
     if ty == Literal:
-<<<<<<< HEAD
         return 'x'
-=======
-        return 'X'
->>>>>>> Added template files to help generate experiments
     if ty == Hex:
         return node.str_val
     if ty == Assignment:
@@ -70,15 +62,16 @@ def name(node):
         return name(node.body[0])
     print(ty)
 
-from codegen.c_generator import generate_code
-def generate_codelet_full(application, batch, code, codelet, n_iterations, instance, init_value_map=None):
+def generate_codelet_full(application, batch, code, codelet,
+                          n_iterations, n_elements, instance,
+                          init_value_map=None):
     dst_dir = codelet_dir(application, batch, code, codelet)
     Path(dst_dir).mkdir(parents=True, exist_ok=True)
     # prepare_output_dir(dst_dir)
 
     Path(meta_file(dst_dir)).write_text(meta_contents(batch, code, codelet))
     Path(conf_file(dst_dir)).write_text(conf_contents(codelet))
-    Path(data_file(dst_dir)).write_text(data_contents(n_iterations))
+    Path(data_file(dst_dir)).write_text(data_contents(n_iterations, n_elements))
 
     generate_code(dst_dir, instance, init_value_map=init_value_map, template_dir='codelet-template')
 
