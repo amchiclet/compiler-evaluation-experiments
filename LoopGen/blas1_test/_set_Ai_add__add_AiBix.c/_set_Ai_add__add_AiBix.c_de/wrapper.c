@@ -9,6 +9,7 @@
 #include <math.h>
 #include <string.h>
 
+int ii;
 int n;
 double (*A_ptr);
 double (*B_ptr);
@@ -33,14 +34,15 @@ double drand(double min, double max) {
 }
 
 void init_scalars(int n_elements) {
+  ii = 0;
   n = n_elements;
 }
 
 void init_arrays(double A[restrict n], double B[restrict n]) {
-  for (int i0 = 0; i0 <= 999999; ++i0) {
+  for (int i0 = 0; i0 <= n; ++i0) {
     A[i0] = drand(0.0, 1.0);
   }
-  for (int i0 = 0; i0 <= 999999; ++i0) {
+  for (int i0 = 0; i0 <= n; ++i0) {
     B[i0] = drand(0.0, 1.0);
   }
 }

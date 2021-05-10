@@ -12,6 +12,7 @@
 ${scalar_externs}
 
 int core(${array_params}) {
+${locals}
 ${core_code}
   return 0;
 }
