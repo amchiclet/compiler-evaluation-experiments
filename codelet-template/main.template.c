@@ -19,7 +19,7 @@ int read_arguments (int *n_iterations, int *n_elements) {
   return n_read == 2;
 }
 
-void measure(int n_iterations);
+void measure(int n_iterations, int n_elements);
 
 int main(int argc, char **argv) {
   // read arguments
