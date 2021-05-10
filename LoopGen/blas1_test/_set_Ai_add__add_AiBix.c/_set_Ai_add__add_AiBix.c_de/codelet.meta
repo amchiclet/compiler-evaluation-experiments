@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=blas1_test
+code name=_set_Ai_add__add_AiBix.c
+codelet name=_set_Ai_add__add_AiBix.c_de
