@@ -6,12 +6,12 @@ from codegen.c_generator import generate_code
 from codelet_generator import generate_codelet_full, name
 
 code = """
-declare A[n+1];
-declare B[n+1];
+declare A[n];
+declare B[n];
 declare x;
 declare n;
 
-for [(i, >=0, <=n)] {
+for [(i, >=0, <=n-1)] {
   A[i] = (B[i] + x) * 0.5;
   x = B[i];
 }
@@ -19,7 +19,7 @@ for [(i, >=0, <=n)] {
 
 pattern = parse_pattern(code)
 
-artificial_size_limit = 999999
+artificial_size_limit = 1000000
 var_map = VariableMap()
 var_map.set_value('n', artificial_size_limit)
 var_map.set_value('m', artificial_size_limit)
