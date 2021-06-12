@@ -6,8 +6,10 @@ from codegen.c_generator import generate_code
 from codelet_generator import generate_codelet_full, name
 
 nrm261 = """
-declare grid_points[];
+declare grid_points[3];
 declare add;
+declare rhs[64 / 2 * 2 + 1][64 / 2 * 2 + 1][64 / 2 * 2 + 1][5];
+declare rms[5];
 
 for [(i, >=1, <=grid_points[0]-2), 
      (j, >=1, <=grid_points[1]-2),
@@ -19,8 +21,8 @@ for [(i, >=1, <=grid_points[0]-2),
 """
 
 cnv243 = """
-declare tmort[];
-declare mormult[];
+declare tmort[92700];
+declare mormult[92700];
 declare nmor;
 
 for [(i, >=0, <=nmor-1)] {
@@ -29,12 +31,12 @@ for [(i, >=0, <=nmor-1)] {
 """
 
 s242 = """
-declare a[];
+declare a[32000];
 declare s1;
 declare s2;
-declare b[];
-declare c[];
-declare d[];
+declare b[32000];
+declare c[32000];
+declare d[32000];
 
 for [(i, >=1, <=31999)] {
   a[i] = a[i-1] + s1 + s2 + b[i] + c[i] + d[i];
