@@ -132,3 +132,26 @@ The rest can be either scalars or literals.
 Example:
 A = B * C + 1.5 + b
 
+=====================
+nrm261
+=====================
+
+N=15
+seed=0
+
+In summary, the original nrm261 loop:
+
+for [(i, j, k, m)] {
+  add = rhs[i][j][k][m];
+  rms[m] = rms[m] + add * add;
+}
+
+is modified a bit.
+
+Loops i, j, k can be modified to have 1 iterations
+Loops m has between 2 and 16 iterations.
+
+Example naming:
+
+The name "nrm261_j_k_m_13" means loops j and k have more than 1
+iterations, and loop m has 13 iterations.
