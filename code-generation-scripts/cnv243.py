@@ -33,7 +33,7 @@ for [(i, >=0, <=nmor-1)] {
 stmt = [
     'tmort[i] = (#_:tmort#) / (#_:mormult#);',
     'tmort[i] = (#_:tmort#) / (#_:mormult#);',
-    #';'
+    ';',
 ]
 
 tmort = [
@@ -51,12 +51,14 @@ mormult = [
 ]
 
 def name_cnv(node):
-    from pattern_ast import Hex, Assignment, AbstractLoop, Literal, Access, Program, Op
+    from pattern_ast import Hex, Assignment, AbstractLoop, Literal, Access, Program, Op, NoOp
     ty = type(node)
     if ty == Assignment:
         return name_cnv(node.rhs)
     if ty == Access:
         return f'{node.var}'
+    if ty == NoOp:
+        return ''
     if ty == AbstractLoop:
         return '_'.join([name_cnv(stmt) for stmt in node.body])
     if ty == Op:
