@@ -155,3 +155,39 @@ Example naming:
 
 The name "nrm261_j_k_m_13" means loops j and k have more than 1
 iterations, and loop m has 13 iterations.
+
+=====================
+s242
+=====================
+
+N=15
+seed=0
+
+Original program:
+
+for [(i, >=1, <=31999)] {
+  a[i] = a[i-1] + s1 + s2 + b[i] + c[i] + d[i];
+}
+
+New program:
+
+for [(i, >=1, <=31999)] {
+  a[i] = a[i-1] + s1 + s2 + b[i] + c[i] + d[i] + e[i] + f[i] + g[i];
+}
+
+for [(i, >=1, <=31999)] {
+  a[i] = a[i-1] + s1 + s2 + b[i] + c[i] + d[i] + e[i] + f[i] + g[i];
+}
+
+Where one loop may be removed, and s1, s2, b[i], c[i], d[i], e[i], f[i], g[i] may be replaced by 0.
+
+Example naming:
+
+s242_aas1bce_aabc means
+* two loops (loops are separated by underscores)
+* the rhs of the first loop contains s1, b, c, e. (The first two a's are part of the recurrence.)
+* the rhs of the second loop contains b, c
+
+s242_aas1g_noop means
+* one loop (the other is a no-op)
+* the loop contains s1 and g
