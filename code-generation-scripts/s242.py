@@ -13,7 +13,7 @@ from skeleton_ast import Op, Var
 from populator import PopulateParameters, populate_stmt, populate_expr, populate_op, populate_name, ChoiceRecorder
 from random import randint, seed
 
-# seed(0)
+seed(0)
 
 size = 32000
 main = """
@@ -108,7 +108,7 @@ instances = {}
 generate_from_skeleton(
     generate,
     skeleton,
-    n_wanted = 1,
+    n_wanted = 15,
     outputs=instances)
 
 init_value_map = {
