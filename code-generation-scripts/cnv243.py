@@ -31,45 +31,35 @@ for [(i, >=0, <=nmor-1)] {
 """
 
 stmt = [
-    'tmort[i] = (#_:tmort#) / (#_:mormult#);',
-    'tmort[i] = (#_:tmort#) / (#_:mormult#);',
+    'tmort[i] = (tmort[i] * #_# * #_# * #_#) / (mormult[i] * #_# * #_# * #_#);',
+    'tmort[i] = (tmort[i] * #_# * #_# * #_#) / (mormult[i] * #_# * #_# * #_#);',
     ';',
 ]
 
-tmort = [
-    'tmort[i]',
-    'tmort[i] * `_`[i]',
-    'tmort[i] * `_`[i] * `_`[i]',
-    'tmort[i] * `_`[i] * `_`[i] * `_`[i]',
-]
+expr = [ '1', '1', '1', 'A[i]', 'B[i]', 'C[i]']
 
-mormult = [
-    'mormult[i]',
-    'mormult[i] * `_`[i]',
-    'mormult[i] * `_`[i] * `_`[i]',
-    'mormult[i] * `_`[i] * `_`[i] * `_`[i]',
-]
-
-def name_cnv(node):
+def name(node):
     from pattern_ast import Hex, Assignment, AbstractLoop, Literal, Access, Program, Op, NoOp
     ty = type(node)
     if ty == Assignment:
-        return name_cnv(node.rhs)
+        return name(node.rhs)
     if ty == Access:
         return f'{node.var}'
     if ty == NoOp:
-        return ''
+        return 'noop'
     if ty == AbstractLoop:
-        return '_'.join([name_cnv(stmt) for stmt in node.body])
+        return '_'.join([name(stmt) for stmt in node.body])
     if ty == Op:
         if node.op == '/':
-            return name_cnv(node.args[0]) + '_' + name_cnv(node.args[1])
+            return name(node.args[0]) + '_' + name(node.args[1])
         else:
             assert(node.op == '*')
-            return name_cnv(node.args[0]) + name_cnv(node.args[1])
+            return name(node.args[0]) + name(node.args[1])
     if ty == Program:
         assert(len(node.body) == 1)
-        return name_cnv(node.body[0])
+        return name(node.body[0])
+    if ty == Literal:
+        return ''
     raise RuntimeError(f'Unsupport type {ty}')
 
 def generate(skeleton):
@@ -78,18 +68,8 @@ def generate(skeleton):
     skeleton = populate_stmt(skeleton, parameters.populate)
 
     parameters = PopulateParameters()
-    parameters.add('tmort', [parse_expr(code) for code in tmort])
-    parameters.add('mormult', [parse_expr(code) for code in mormult])
+    parameters.add('_', [parse_expr(code) for code in expr])
     skeleton = populate_expr(skeleton, parameters.populate)
-
-    parameters = PopulateParameters()
-    parameters.add('_', [Op('+'), Op('*')])
-    skeleton = populate_op(skeleton, parameters.populate)
-
-    parameters = PopulateParameters()
-    arrays = ['A', 'B', 'C']
-    parameters.add('_', [Var(v) for v in arrays])
-    skeleton = populate_name(skeleton, parameters.populate)
 
     pattern = parse_pattern(skeleton.pprint())
 
@@ -108,9 +88,9 @@ def generate(skeleton):
     if instance is None:
         return None
 
-    name = 'cnv243_' + name_cnv(instance.pattern)
+    instance_name = 'cnv243_' + name(instance.pattern)
 
-    return instance, name
+    return instance, instance_name
 
 skeleton = parse_skeleton(main)
 
@@ -119,7 +99,7 @@ instances = {}
 generate_from_skeleton(
     generate,
     skeleton,
-    n_wanted = 1,
+    n_wanted = 15,
     outputs=instances)
 
 init_value_map = {
