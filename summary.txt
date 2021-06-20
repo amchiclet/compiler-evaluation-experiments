@@ -191,3 +191,44 @@ s242_aas1bce_aabc means
 s242_aas1g_noop means
 * one loop (the other is a no-op)
 * the loop contains s1 and g
+
+=====================
+cnv243
+=====================
+
+Original program:
+
+for [(i, >=0, <=nmor-1)] {
+  tmort[i] = tmort[i] / mormult[i];
+}
+
+New program:
+
+for [(i, >=0, <=nmor-1)] {
+  tmort[i] = (tmort[i] * _ * _ * _) / (mormult[i] * _ * _ * _);
+  tmort[i] = (tmort[i] * _ * _ * _) / (mormult[i] * _ * _ * _);
+}
+
+Where one of the assignments can be replaced by a no-op.
+And each _ can be replaced by 1, A[i], B[i], or C[i].
+
+Example naming
+
+cnv243_noop_tmort_mormultCBC means
+* one loop (the first is a no-op)
+* the assignment is
+    tmort[i] = tmort[i] / (mormult[i] * C[i] * B[i] * C[i]) 
+
+cnv243_tmortB_mormultA_tmortBA_mormultB means
+* two loops
+* the assignment in the first loop
+    tmort[i] = tmort[i] * B[i]) / (mormult[i] * A[i])
+* the assignment in the second loop
+    tmort[i] = tmort[i] * B[i] * A[i]) / (mormult[i] * B[i])
+
+Note that 1s are omitted from the name, which means
+  1 * 1 * B[i]
+and
+  B[i] * 1 * 1
+will have the same name and in the code generator's point of view,
+they are the same program.
