@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=lshape
+code name=lshape_08_01x01_04x01.c
+codelet name=lshape_08_01x01_04x01.c_de
