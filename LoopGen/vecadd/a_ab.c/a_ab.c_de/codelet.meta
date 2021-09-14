@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=vecadd
+code name=a_ab.c
+codelet name=a_ab.c_de
