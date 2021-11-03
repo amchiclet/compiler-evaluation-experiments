@@ -20,6 +20,10 @@ def meta_contents(batch, code, codelet):
 def data_contents(n_iterations, n_elements):
     return f'{n_iterations} {n_elements}\n'
 
+def data_contents_var_ints(n_iterations, var_ints):
+    int_inputs_str = ' '.join([str(i) for i in var_ints])
+    return f'{n_iterations} {int_inputs_str}\n'
+
 def codelet_dir(application, batch, code, codelet, base='.'):
     return f'{base}/{application}/{batch}/{code}/{codelet}'
 
@@ -74,4 +78,17 @@ def generate_codelet_full(application, batch, code, codelet,
     Path(data_file(dst_dir)).write_text(data_contents(n_iterations, n_elements))
 
     generate_code(dst_dir, instance, init_value_map=init_value_map, template_dir='codelet-template')
+
+def generate_codelet_var_ints(application, batch, code, codelet,
+                              n_iterations, int_inputs, instance,
+                              init_value_map=None):
+    dst_dir = codelet_dir(application, batch, code, codelet)
+    Path(dst_dir).mkdir(parents=True, exist_ok=True)
+    # prepare_output_dir(dst_dir)
+
+    Path(meta_file(dst_dir)).write_text(meta_contents(batch, code, codelet))
+    Path(conf_file(dst_dir)).write_text(conf_contents(codelet))
+    Path(data_file(dst_dir)).write_text(data_contents_var_ints(n_iterations, int_inputs))
+
+    generate_code(dst_dir, instance, init_value_map=init_value_map, template_dir='codelet-template-int-inputs')
 
