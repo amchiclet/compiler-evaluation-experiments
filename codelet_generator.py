@@ -92,3 +92,12 @@ def generate_codelet_var_ints(application, batch, code, codelet,
 
     generate_code(dst_dir, instance, init_value_map=init_value_map, template_dir='codelet-template-int-inputs')
 
+def generate_codelet_files(application, batch, code, codelet, n_iterations, int_inputs):
+    dst_dir = codelet_dir(application, batch, code, codelet)
+    Path(dst_dir).mkdir(parents=True, exist_ok=True)
+    # prepare_output_dir(dst_dir)
+
+    Path(meta_file(dst_dir)).write_text(meta_contents(batch, code, codelet))
+    Path(conf_file(dst_dir)).write_text(conf_contents(codelet))
+    Path(data_file(dst_dir)).write_text(data_contents_var_ints(n_iterations, int_inputs))
+    return dst_dir
