@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction
+code name=4_scalars_14_arrays
+codelet name=4_scalars_14_arrays_de
