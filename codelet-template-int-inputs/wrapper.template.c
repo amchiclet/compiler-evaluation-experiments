@@ -33,19 +33,19 @@ void init_scalars(int inputs[16]) {
 ${init_scalars_code}
 }
 
-void init_arrays(${array_params}) {
-${init_arrays_code}
+void init_arrays(${array_params_as_ptr}) {
+${init_arrays_code_as_ptr}
 }
 
 void init_array_ptrs() {
-  init_arrays(${array_args});
+  init_arrays(${array_args_as_ptr});
 }
 
 void measure_init_();
 void measure_start_();
 void measure_stop_();
 
-int core(${array_params});
+int core(${array_params_as_ptr});
 
 void measure(int n_iterations, int inputs[16]) {
   srand(0);
@@ -56,7 +56,7 @@ void measure(int n_iterations, int inputs[16]) {
   measure_init_();
   measure_start_();
   for (int i = 0; i < n_iterations; ++i) {
-    core(${array_args});
+    core(${array_args_as_ptr});
   }
   measure_stop_();
 }

@@ -10,7 +10,7 @@
 
 ${scalar_externs}
 
-int core(${array_params}) {
+int core(${array_params_as_ptr}) {
 ${locals}
 ${core_code}
   return 0;
