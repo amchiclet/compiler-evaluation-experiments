@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-rose
+code name=4_scalars_13_arrays
+codelet name=4_scalars_13_arrays_de
