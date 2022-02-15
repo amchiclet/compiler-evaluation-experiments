@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-unique-arrays
+code name=2_scalars_06_uniq_arrs
+codelet name=2_scalars_06_uniq_arrs_de
