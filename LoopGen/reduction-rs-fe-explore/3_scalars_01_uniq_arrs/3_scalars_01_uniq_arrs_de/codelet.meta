@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-rs-fe-explore
+code name=3_scalars_01_uniq_arrs
+codelet name=3_scalars_01_uniq_arrs_de
