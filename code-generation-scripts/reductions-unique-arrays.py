@@ -1,6 +1,7 @@
 from api import Skeleton, Mapping, CodegenConfig
 from random import randint, seed
-from codelet_generator import codelet_dir, generate_codelet_files
+from codelet_generator import codelet_dir, generate_codelet_files, generate_batch_summary, SourceInfo
+from pattern_ast import get_ordered_assignments, get_accesses
 
 skeleton_code = """
 declare size;
@@ -78,11 +79,11 @@ There can be up to 5 statements, each statement will have a unique scalar.
 '''
 
 programs = set()
+source_infos = []
 for n_stmts in range(1, 6):
     max_unique_arrs = n_stmts * 5
     for n_unique_arrs in range(max_unique_arrs - 5 + 1, max_unique_arrs + 1):
-        print (n_stmts, n_unique_arrs)
-        program = gen_program(n_stmts, n_unique_arrs)
+        skeleton = gen_program(n_stmts, n_unique_arrs)
         code = f'{n_stmts}_scalars_{n_unique_arrs:02d}_uniq_arrs'
         codelet = f'{code}_de'
 
@@ -99,4 +100,23 @@ for n_stmts in range(1, 6):
         config.template_dir = 'codelet-template-int-inputs'
         config.output_dir = generate_codelet_files(application, batch, code, codelet, 10, [])
         config.array_as_ptr = True
-        program.generate_code(config)
+        skeleton.generate_code(config)
+
+        # Gather source information
+        si = SourceInfo()
+        si.name = code
+        si.n_stmts = n_stmts
+        for assignment in get_ordered_assignments(skeleton.program):
+            n_arrays = 0
+            for access in get_accesses(assignment, ignore_indices=True):
+                if not access.is_scalar():
+                    n_arrays += 1
+            # All statement looks like: scalar = scalar x A[] x B[] x C[] ...
+            # One unique scalar per statement. All arrays are unique.
+            # And n_ops actually matches n_arrays
+            si.scalars.append(1)
+            si.arrays.append(n_arrays)
+            si.ops.append(n_arrays)
+        source_infos.append(si)
+
+generate_batch_summary(application, batch, source_infos)
