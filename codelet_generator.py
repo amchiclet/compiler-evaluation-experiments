@@ -1,6 +1,7 @@
 from pathlib import Path
 from codegen.c_generator import generate_code
 from shutil import copytree
+from csv import writer
 
 def conf_contents(codelet):
     return (f'<?xml version="1.0" ?>\n'
@@ -24,8 +25,14 @@ def data_contents_var_ints(n_iterations, var_ints):
     int_inputs_str = ' '.join([str(i) for i in var_ints])
     return f'{n_iterations} {int_inputs_str}\n'
 
+def batch_dir(application, batch, base='.'):
+    return f'{base}/{application}/{batch}'
+
 def codelet_dir(application, batch, code, codelet, base='.'):
-    return f'{base}/{application}/{batch}/{code}/{codelet}'
+    return f'{batch_dir(base, application, batch)}/{code}/{codelet}'
+
+def source_info_file(codelet_dir):
+    return f'{codelet_dir}/src_info.csv'
 
 def meta_file(codelet_dir):
     return f'{codelet_dir}/codelet.meta'
@@ -100,4 +107,44 @@ def generate_codelet_files(application, batch, code, codelet, n_iterations, int_
     Path(meta_file(dst_dir)).write_text(meta_contents(batch, code, codelet))
     Path(conf_file(dst_dir)).write_text(conf_contents(codelet))
     Path(data_file(dst_dir)).write_text(data_contents_var_ints(n_iterations, int_inputs))
+
     return dst_dir
+
+class SourceInfo:
+    def __init__(self):
+        self.name = ''
+        self.n_stmts = 0
+        self.scalars = []
+        self.arrays = []
+        self.ops = []
+
+    def header():
+        return ['name',
+                '# stmts',
+                'scalars',
+                'arrays',
+                'ops']
+
+    def columns(self):
+        # print_sum formats a list representing a summation
+        # Example: given [3, 5, 2], returns '3+5+2 = 10'
+        def print_sum(l):
+            if len(l) == 1:
+                return str(l[0])
+            return f'{"+".join(map(str, l))} = {sum(l)}'
+
+        return [self.name,
+                str(self.n_stmts),
+                print_sum(self.scalars),
+                print_sum(self.arrays),
+                print_sum(self.ops)]
+
+def generate_batch_summary(application, batch, source_infos):
+    dst_dir = batch_dir(application, batch)
+    Path(dst_dir).mkdir(parents=True, exist_ok=True)
+
+    with open(source_info_file(dst_dir), 'w', newline='') as csvfile:
+        w = writer(csvfile, dialect='excel')
+        w.writerow(SourceInfo.header())
+        for si in source_infos:
+            w.writerow(si.columns())
