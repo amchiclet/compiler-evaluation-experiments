@@ -1,0 +1,26 @@
+name,# stmts,scalars,arrays,ops
+1_scalars_01_uniq_arrs,1,1,1,1
+1_scalars_02_uniq_arrs,1,1,2,2
+1_scalars_03_uniq_arrs,1,1,3,3
+1_scalars_04_uniq_arrs,1,1,4,4
+1_scalars_05_uniq_arrs,1,1,5,5
+2_scalars_06_uniq_arrs,2,1+1 = 2,3+3 = 6,3+3 = 6
+2_scalars_07_uniq_arrs,2,1+1 = 2,5+2 = 7,5+2 = 7
+2_scalars_08_uniq_arrs,2,1+1 = 2,3+5 = 8,3+5 = 8
+2_scalars_09_uniq_arrs,2,1+1 = 2,5+4 = 9,5+4 = 9
+2_scalars_10_uniq_arrs,2,1+1 = 2,5+5 = 10,5+5 = 10
+3_scalars_11_uniq_arrs,3,1+1+1 = 3,3+3+5 = 11,3+3+5 = 11
+3_scalars_12_uniq_arrs,3,1+1+1 = 3,5+3+4 = 12,5+3+4 = 12
+3_scalars_13_uniq_arrs,3,1+1+1 = 3,5+4+4 = 13,5+4+4 = 13
+3_scalars_14_uniq_arrs,3,1+1+1 = 3,5+4+5 = 14,5+4+5 = 14
+3_scalars_15_uniq_arrs,3,1+1+1 = 3,5+5+5 = 15,5+5+5 = 15
+4_scalars_16_uniq_arrs,4,1+1+1+1 = 4,3+4+5+4 = 16,3+4+5+4 = 16
+4_scalars_17_uniq_arrs,4,1+1+1+1 = 4,5+4+3+5 = 17,5+4+3+5 = 17
+4_scalars_18_uniq_arrs,4,1+1+1+1 = 4,5+4+5+4 = 18,5+4+5+4 = 18
+4_scalars_19_uniq_arrs,4,1+1+1+1 = 4,5+5+4+5 = 19,5+5+4+5 = 19
+4_scalars_20_uniq_arrs,4,1+1+1+1 = 4,5+5+5+5 = 20,5+5+5+5 = 20
+5_scalars_21_uniq_arrs,5,1+1+1+1+1 = 5,5+4+3+5+4 = 21,5+4+3+5+4 = 21
+5_scalars_22_uniq_arrs,5,1+1+1+1+1 = 5,4+5+5+4+4 = 22,4+5+5+4+4 = 22
+5_scalars_23_uniq_arrs,5,1+1+1+1+1 = 5,4+4+5+5+5 = 23,4+4+5+5+5 = 23
+5_scalars_24_uniq_arrs,5,1+1+1+1+1 = 5,5+5+4+5+5 = 24,5+5+4+5+5 = 24
+5_scalars_25_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25
