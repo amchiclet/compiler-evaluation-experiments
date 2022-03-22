@@ -29,7 +29,8 @@ def batch_dir(application, batch, base='.'):
     return f'{base}/{application}/{batch}'
 
 def codelet_dir(application, batch, code, codelet, base='.'):
-    return f'{batch_dir(base, application, batch)}/{code}/{codelet}'
+    print(f'batch dir = {batch_dir(application, batch, base)}')
+    return f'{batch_dir(application, batch, base)}/{code}/{codelet}'
 
 def source_info_file(codelet_dir):
     return f'{codelet_dir}/src_info.csv'
@@ -117,13 +118,14 @@ class SourceInfo:
         self.scalars = []
         self.arrays = []
         self.ops = []
+        self.extra_columns = []
 
-    def header():
+    def header(extra_headers):
         return ['name',
                 '# stmts',
                 'scalars',
                 'arrays',
-                'ops']
+                'ops'] + extra_headers
 
     def columns(self):
         # print_sum formats a list representing a summation
@@ -137,14 +139,15 @@ class SourceInfo:
                 str(self.n_stmts),
                 print_sum(self.scalars),
                 print_sum(self.arrays),
-                print_sum(self.ops)]
+                print_sum(self.ops)] + self.extra_columns
 
-def generate_batch_summary(application, batch, source_infos):
+def generate_batch_summary(application, batch, source_infos, extra_headers=None):
     dst_dir = batch_dir(application, batch)
     Path(dst_dir).mkdir(parents=True, exist_ok=True)
 
     with open(source_info_file(dst_dir), 'w', newline='') as csvfile:
         w = writer(csvfile, dialect='excel')
-        w.writerow(SourceInfo.header())
+        extra_headers = [] if extra_headers is None else extra_headers
+        w.writerow(SourceInfo.header(extra_headers))
         for si in source_infos:
             w.writerow(si.columns())
