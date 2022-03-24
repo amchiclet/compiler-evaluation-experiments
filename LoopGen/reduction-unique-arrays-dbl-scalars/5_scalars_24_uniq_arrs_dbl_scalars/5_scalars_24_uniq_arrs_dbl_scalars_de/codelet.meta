@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-unique-arrays-dbl-scalars
+code name=5_scalars_24_uniq_arrs_dbl_scalars
+codelet name=5_scalars_24_uniq_arrs_dbl_scalars_de

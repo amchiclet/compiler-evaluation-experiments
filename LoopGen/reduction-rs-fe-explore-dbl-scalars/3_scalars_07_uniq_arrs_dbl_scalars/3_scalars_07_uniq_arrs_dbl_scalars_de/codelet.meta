@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-rs-fe-explore-dbl-scalars
+code name=3_scalars_07_uniq_arrs_dbl_scalars
+codelet name=3_scalars_07_uniq_arrs_dbl_scalars_de
