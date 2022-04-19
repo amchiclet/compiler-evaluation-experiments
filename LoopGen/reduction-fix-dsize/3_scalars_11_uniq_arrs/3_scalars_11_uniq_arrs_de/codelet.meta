@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-fix-dsize
+code name=3_scalars_11_uniq_arrs
+codelet name=3_scalars_11_uniq_arrs_de
