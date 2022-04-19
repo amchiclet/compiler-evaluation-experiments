@@ -40,7 +40,7 @@ def gen_program(n_stmts, n_arrs):
 
 seed(0)
 application = 'LoopGen'
-batch = o'reduction-unique-arrays-int-scalars'
+batch = 'reduction-unique-arrays-int-scalars'
 
 info = '''Each statement is s = s + _ + _ + _ + _ + _;
 Each hole can be a unique array or 0
