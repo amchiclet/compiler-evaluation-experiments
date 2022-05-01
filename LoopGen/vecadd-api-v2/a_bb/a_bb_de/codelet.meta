@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=vecadd-api-v2
+code name=a_bb
+codelet name=a_bb_de
