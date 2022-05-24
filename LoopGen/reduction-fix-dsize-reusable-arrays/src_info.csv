@@ -1,0 +1,26 @@
+name,# stmts,scalars,arrays,ops,scalar type,# total unique arrays
+1_scalars_max_01_uniq_arrs,1,1,0,0,double,0
+1_scalars_max_02_uniq_arrs,1,1,2,2,double,1
+1_scalars_max_03_uniq_arrs,1,1,3,3,double,2
+1_scalars_max_04_uniq_arrs,1,1,3,3,double,1
+1_scalars_max_05_uniq_arrs,1,1,5,5,double,4
+2_scalars_max_06_uniq_arrs,2,1+1 = 2,4+2 = 6,4+2 = 6,double,3
+2_scalars_max_07_uniq_arrs,2,1+1 = 2,4+5 = 9,4+5 = 9,double,6
+2_scalars_max_08_uniq_arrs,2,1+1 = 2,4+5 = 9,4+5 = 9,double,5
+2_scalars_max_09_uniq_arrs,2,1+1 = 2,4+4 = 8,4+4 = 8,double,7
+2_scalars_max_10_uniq_arrs,2,1+1 = 2,5+5 = 10,5+5 = 10,double,7
+3_scalars_max_11_uniq_arrs,3,1+1+1 = 3,5+2+3 = 10,5+2+3 = 10,double,6
+3_scalars_max_12_uniq_arrs,3,1+1+1 = 3,1+4+5 = 10,1+4+5 = 10,double,8
+3_scalars_max_13_uniq_arrs,3,1+1+1 = 3,4+4+4 = 12,4+4+4 = 12,double,8
+3_scalars_max_14_uniq_arrs,3,1+1+1 = 3,5+5+5 = 15,5+5+5 = 15,double,9
+3_scalars_max_15_uniq_arrs,3,1+1+1 = 3,5+5+5 = 15,5+5+5 = 15,double,9
+4_scalars_max_16_uniq_arrs,4,1+1+1+1 = 4,4+3+5+4 = 16,4+3+5+4 = 16,double,13
+4_scalars_max_17_uniq_arrs,4,1+1+1+1 = 4,4+4+4+5 = 17,4+4+4+5 = 17,double,11
+4_scalars_max_18_uniq_arrs,4,1+1+1+1 = 4,3+4+3+5 = 15,3+4+3+5 = 15,double,11
+4_scalars_max_19_uniq_arrs,4,1+1+1+1 = 4,4+5+4+4 = 17,4+5+4+4 = 17,double,11
+4_scalars_max_20_uniq_arrs,4,1+1+1+1 = 4,5+5+5+5 = 20,5+5+5+5 = 20,double,13
+5_scalars_max_21_uniq_arrs,5,1+1+1+1+1 = 5,5+5+2+3+5 = 20,5+5+2+3+5 = 20,double,10
+5_scalars_max_22_uniq_arrs,5,1+1+1+1+1 = 5,5+4+5+4+5 = 23,5+4+5+4+5 = 23,double,15
+5_scalars_max_23_uniq_arrs,5,1+1+1+1+1 = 5,4+5+5+4+5 = 23,4+5+5+4+5 = 23,double,17
+5_scalars_max_24_uniq_arrs,5,1+1+1+1+1 = 5,5+4+5+5+5 = 24,5+4+5+5+5 = 24,double,15
+5_scalars_max_25_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,15
