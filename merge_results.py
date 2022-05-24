@@ -62,15 +62,11 @@ for runtime_xlsx_path, batch_path in codelet_info:
     cores_xlsx['name'] = 'LoopGen: ' + cores_xlsx['name'] + '_de'
     cores_xlsx.columns = pd.MultiIndex.from_product([['Code'], cores_xlsx.columns])
 
-    print(joined.columns)
-
     joined.set_index(('Src Info', 'name'), inplace=True)
     cores_xlsx.set_index(('Code', 'name'), inplace=True)
     joined = joined.merge(cores_xlsx, left_index=True, right_index=True, how='left')
     joined.reset_index(inplace=True)
-    print(joined.columns)
     joined.drop(('Code', 'Unnamed: 0'), axis=1, inplace=True)
-    print(joined)
 
     # accumulate (union) results
     if merged is None:
@@ -78,6 +74,8 @@ for runtime_xlsx_path, batch_path in codelet_info:
     else:
         merged = pd.concat([merged, joined])
 
+# clean up the index of concatenated results (they may restart at 0)
 merged.reset_index(inplace=True)
 merged.drop(('index', ''), axis=1, inplace=True)
+
 merged.to_excel(output_path)
