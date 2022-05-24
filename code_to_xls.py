@@ -2,7 +2,7 @@ import pandas as pd
 
 from pathlib import Path
 
-batch = 'LoopGen/reduction-unique-arrays-dbl-scalars'
+batch = 'LoopGen/reduction-fix-dsize-reusable-arrays'
 
 names = []
 codes = []
@@ -31,4 +31,4 @@ for path in sorted(Path(batch).glob('*/*/core.c')):
 df = pd.DataFrame()
 df['name'] = names
 df['code'] = codes
-df.to_excel('output.xlsx')
+df.to_excel(f'{batch}/cores.xlsx')

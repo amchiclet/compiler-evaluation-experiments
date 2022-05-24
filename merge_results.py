@@ -1,22 +1,18 @@
 import pandas as pd
 
-src_info_root = 'LoopGen'
-runtime_info_root = 'path_to_dir_containing_runtime_info'
-
-m = {
-    'dbl_results.xlsx': 'reduction-unique-arrays-dbl-scalars/src_info.csv',
-    'int_results.xlsx': 'reduction-unique-arrays-int-scalars/src_info.csv',
-}
+output_path = 'path_to_output.xlsx'
+codelet_info = [
+    ('path_to_xlsx', 'path_to_batch_directory'),
+]
 
 merged = None
 
-for runtime, src in m.items():
+for runtime_xlsx_path, batch_path in codelet_info:
     # read xlxs format
-    runtime_info = f'{runtime_info_root}/{runtime}'
-    runtime_xlsx = pd.read_excel(runtime_info, header=[0, 1], engine='openpyxl')
+    runtime_xlsx = pd.read_excel(runtime_xlsx_path, header=[0, 1], engine='openpyxl')
 
     # read csv format
-    src_info = f'{src_info_root}/{src}'
+    src_info = f'{batch_path}/src_info.csv'
     src_csv = pd.read_csv(src_info)
 
     # sometimes the src_info.csv file needs some preprocessing
@@ -24,7 +20,7 @@ for runtime, src in m.items():
 
     # normalize column values to be merged
     src_csv['name'] = 'LoopGen: ' + src_csv['name'] + '_de'
-
+    
     # add additional summarizing info
     # instead of
     #
@@ -55,9 +51,26 @@ for runtime, src in m.items():
     src_csv.columns = pd.MultiIndex.from_product([['Src Info'], src_csv.columns])
 
     # join by index
-    runtime_xlsx.set_index(('Run Info', 'Name'))
-    src_csv.set_index(('Src Info', 'name'))
-    joined = src_csv.join(runtime_xlsx)
+    runtime_xlsx.set_index(('Run Info', 'Name'), inplace=True)
+    src_csv.set_index(('Src Info', 'name'), inplace=True)
+    joined = src_csv.merge(runtime_xlsx, left_index=True, right_index=True, how='left')
+    joined.reset_index(inplace=True)
+
+    # Also pre-process cores.xlsx
+    cores_path = f'{batch_path}/cores.xlsx'
+    cores_xlsx = pd.read_excel(cores_path, engine='openpyxl')
+    cores_xlsx['name'] = 'LoopGen: ' + cores_xlsx['name'] + '_de'
+    cores_xlsx.columns = pd.MultiIndex.from_product([['Code'], cores_xlsx.columns])
+
+    print(joined.columns)
+
+    joined.set_index(('Src Info', 'name'), inplace=True)
+    cores_xlsx.set_index(('Code', 'name'), inplace=True)
+    joined = joined.merge(cores_xlsx, left_index=True, right_index=True, how='left')
+    joined.reset_index(inplace=True)
+    print(joined.columns)
+    joined.drop(('Code', 'Unnamed: 0'), axis=1, inplace=True)
+    print(joined)
 
     # accumulate (union) results
     if merged is None:
@@ -65,4 +78,6 @@ for runtime, src in m.items():
     else:
         merged = pd.concat([merged, joined])
 
-merged.to_excel('output.xlsx')
+merged.reset_index(inplace=True)
+merged.drop(('index', ''), axis=1, inplace=True)
+merged.to_excel(output_path)
