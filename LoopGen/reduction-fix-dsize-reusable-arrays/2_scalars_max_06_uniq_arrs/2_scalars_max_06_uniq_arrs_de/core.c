@@ -13,7 +13,7 @@ extern double scalar1;
 extern double scalar2;
 extern int size;
 
-int core(double (*restrict Arr01)[8388608], double (*restrict Arr02)[8388608], double (*restrict Arr03)[8388608]) {
+int core(double (*restrict Arr01)[1398102], double (*restrict Arr02)[1398102], double (*restrict Arr03)[1398102]) {
 
   for (int i = 0; i <= (size - 1) / n_unique_arrs; i += 1) {
     scalar2 = ((((scalar2 + 0) + (*Arr02)[i]) + (*Arr02)[i]) + (*Arr03)[i]) + (*Arr03)[i];

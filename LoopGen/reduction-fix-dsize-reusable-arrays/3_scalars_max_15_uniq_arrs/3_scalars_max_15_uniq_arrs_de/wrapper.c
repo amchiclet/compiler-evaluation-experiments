@@ -24,15 +24,15 @@ double (*Arr14_ptr);
 double (*Arr15_ptr);
 
 void allocate_arrays() {
-  Arr02_ptr = malloc(sizeof(double) * (8388608));
-  Arr05_ptr = malloc(sizeof(double) * (8388608));
-  Arr06_ptr = malloc(sizeof(double) * (8388608));
-  Arr07_ptr = malloc(sizeof(double) * (8388608));
-  Arr08_ptr = malloc(sizeof(double) * (8388608));
-  Arr09_ptr = malloc(sizeof(double) * (8388608));
-  Arr13_ptr = malloc(sizeof(double) * (8388608));
-  Arr14_ptr = malloc(sizeof(double) * (8388608));
-  Arr15_ptr = malloc(sizeof(double) * (8388608));
+  Arr02_ptr = malloc(sizeof(double) * (559241));
+  Arr05_ptr = malloc(sizeof(double) * (559241));
+  Arr06_ptr = malloc(sizeof(double) * (559241));
+  Arr07_ptr = malloc(sizeof(double) * (559241));
+  Arr08_ptr = malloc(sizeof(double) * (559241));
+  Arr09_ptr = malloc(sizeof(double) * (559241));
+  Arr13_ptr = malloc(sizeof(double) * (559241));
+  Arr14_ptr = malloc(sizeof(double) * (559241));
+  Arr15_ptr = malloc(sizeof(double) * (559241));
 }
 
 float frand(float min, float max) {
@@ -57,7 +57,7 @@ void init_scalars(int inputs[16]) {
   size = inputs[0];
 }
 
-void init_arrays(double (*restrict Arr02)[8388608], double (*restrict Arr05)[8388608], double (*restrict Arr06)[8388608], double (*restrict Arr07)[8388608], double (*restrict Arr08)[8388608], double (*restrict Arr09)[8388608], double (*restrict Arr13)[8388608], double (*restrict Arr14)[8388608], double (*restrict Arr15)[8388608]) {
+void init_arrays(double (*restrict Arr02)[559241], double (*restrict Arr05)[559241], double (*restrict Arr06)[559241], double (*restrict Arr07)[559241], double (*restrict Arr08)[559241], double (*restrict Arr09)[559241], double (*restrict Arr13)[559241], double (*restrict Arr14)[559241], double (*restrict Arr15)[559241]) {
   for (int i0 = 0; i0 <= 559240; i0 += 1) {
     (*Arr02)[i0] = drand(0.0, 1.0);
   }
@@ -88,14 +88,14 @@ void init_arrays(double (*restrict Arr02)[8388608], double (*restrict Arr05)[838
 }
 
 void init_array_ptrs() {
-  init_arrays((double(*)[8388608])(Arr02_ptr), (double(*)[8388608])(Arr05_ptr), (double(*)[8388608])(Arr06_ptr), (double(*)[8388608])(Arr07_ptr), (double(*)[8388608])(Arr08_ptr), (double(*)[8388608])(Arr09_ptr), (double(*)[8388608])(Arr13_ptr), (double(*)[8388608])(Arr14_ptr), (double(*)[8388608])(Arr15_ptr));
+  init_arrays((double(*)[559241])(Arr02_ptr), (double(*)[559241])(Arr05_ptr), (double(*)[559241])(Arr06_ptr), (double(*)[559241])(Arr07_ptr), (double(*)[559241])(Arr08_ptr), (double(*)[559241])(Arr09_ptr), (double(*)[559241])(Arr13_ptr), (double(*)[559241])(Arr14_ptr), (double(*)[559241])(Arr15_ptr));
 }
 
 void measure_init_();
 void measure_start_();
 void measure_stop_();
 
-int core(double (*restrict Arr02)[8388608], double (*restrict Arr05)[8388608], double (*restrict Arr06)[8388608], double (*restrict Arr07)[8388608], double (*restrict Arr08)[8388608], double (*restrict Arr09)[8388608], double (*restrict Arr13)[8388608], double (*restrict Arr14)[8388608], double (*restrict Arr15)[8388608]);
+int core(double (*restrict Arr02)[559241], double (*restrict Arr05)[559241], double (*restrict Arr06)[559241], double (*restrict Arr07)[559241], double (*restrict Arr08)[559241], double (*restrict Arr09)[559241], double (*restrict Arr13)[559241], double (*restrict Arr14)[559241], double (*restrict Arr15)[559241]);
 
 void measure(int n_iterations, int inputs[16]) {
   srand(0);
@@ -106,7 +106,7 @@ void measure(int n_iterations, int inputs[16]) {
   measure_init_();
   measure_start_();
   for (int i = 0; i < n_iterations; ++i) {
-    core((double(*)[8388608])(Arr02_ptr), (double(*)[8388608])(Arr05_ptr), (double(*)[8388608])(Arr06_ptr), (double(*)[8388608])(Arr07_ptr), (double(*)[8388608])(Arr08_ptr), (double(*)[8388608])(Arr09_ptr), (double(*)[8388608])(Arr13_ptr), (double(*)[8388608])(Arr14_ptr), (double(*)[8388608])(Arr15_ptr));
+    core((double(*)[559241])(Arr02_ptr), (double(*)[559241])(Arr05_ptr), (double(*)[559241])(Arr06_ptr), (double(*)[559241])(Arr07_ptr), (double(*)[559241])(Arr08_ptr), (double(*)[559241])(Arr09_ptr), (double(*)[559241])(Arr13_ptr), (double(*)[559241])(Arr14_ptr), (double(*)[559241])(Arr15_ptr));
   }
   measure_stop_();
 }

@@ -16,7 +16,7 @@ extern double scalar4;
 extern double scalar5;
 extern int size;
 
-int core(double (*restrict Arr01)[8388608], double (*restrict Arr03)[8388608], double (*restrict Arr05)[8388608], double (*restrict Arr06)[8388608], double (*restrict Arr07)[8388608], double (*restrict Arr08)[8388608], double (*restrict Arr10)[8388608], double (*restrict Arr11)[8388608], double (*restrict Arr12)[8388608], double (*restrict Arr13)[8388608], double (*restrict Arr14)[8388608], double (*restrict Arr15)[8388608], double (*restrict Arr16)[8388608], double (*restrict Arr17)[8388608], double (*restrict Arr20)[8388608], double (*restrict Arr21)[8388608], double (*restrict Arr23)[8388608]) {
+int core(double (*restrict Arr01)[364723], double (*restrict Arr03)[364723], double (*restrict Arr05)[364723], double (*restrict Arr06)[364723], double (*restrict Arr07)[364723], double (*restrict Arr08)[364723], double (*restrict Arr10)[364723], double (*restrict Arr11)[364723], double (*restrict Arr12)[364723], double (*restrict Arr13)[364723], double (*restrict Arr14)[364723], double (*restrict Arr15)[364723], double (*restrict Arr16)[364723], double (*restrict Arr17)[364723], double (*restrict Arr20)[364723], double (*restrict Arr21)[364723], double (*restrict Arr23)[364723]) {
 
   for (int i = 0; i <= (size - 1) / n_unique_arrs; i += 1) {
     scalar3 = ((((scalar3 + (*Arr13)[i]) + (*Arr06)[i]) + 0) + (*Arr14)[i]) + (*Arr14)[i];
