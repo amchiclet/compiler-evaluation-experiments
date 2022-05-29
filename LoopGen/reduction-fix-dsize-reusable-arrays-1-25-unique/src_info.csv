@@ -1,0 +1,26 @@
+name,# stmts,scalars,arrays,ops,scalar type,# total unique arrays
+5_scalars_01_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,1
+5_scalars_02_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,2
+5_scalars_03_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,3
+5_scalars_04_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,4
+5_scalars_05_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5
+5_scalars_06_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,6
+5_scalars_07_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,7
+5_scalars_08_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,8
+5_scalars_09_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,9
+5_scalars_10_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,10
+5_scalars_11_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,11
+5_scalars_12_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,12
+5_scalars_13_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,13
+5_scalars_14_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,14
+5_scalars_15_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,15
+5_scalars_16_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,16
+5_scalars_17_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,17
+5_scalars_18_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,18
+5_scalars_19_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,19
+5_scalars_20_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,20
+5_scalars_21_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,21
+5_scalars_22_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,22
+5_scalars_23_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,23
+5_scalars_24_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,24
+5_scalars_25_uniq_arrs,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,25
