@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-fix-dsize-reusable-arrays-20-50-reuse
+code name=5_scalars_25_arrs
+codelet name=5_scalars_25_arrs_de
