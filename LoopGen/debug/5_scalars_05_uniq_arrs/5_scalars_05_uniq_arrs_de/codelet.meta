@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=debug
+code name=5_scalars_05_uniq_arrs
+codelet name=5_scalars_05_uniq_arrs_de

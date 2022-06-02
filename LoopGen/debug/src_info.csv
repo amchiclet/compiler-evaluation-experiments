@@ -1,0 +1,2 @@
+name,# stmts,scalars,arrays,ops,scalar type,# total unique arrays
+5_scalars_05_uniq_arrs,5,1+1+1+1+1 = 5,3+3+3+3+3 = 15,3+3+3+3+3 = 15,double,5
