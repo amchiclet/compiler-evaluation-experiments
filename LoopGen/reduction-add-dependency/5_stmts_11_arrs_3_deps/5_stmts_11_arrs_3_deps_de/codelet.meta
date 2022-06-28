@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-add-dependency
+code name=5_stmts_11_arrs_3_deps
+codelet name=5_stmts_11_arrs_3_deps_de
