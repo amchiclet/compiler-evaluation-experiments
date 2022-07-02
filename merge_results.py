@@ -51,7 +51,15 @@ for runtime_xlsx_path, batch_path in codelet_info:
     src_csv.columns = pd.MultiIndex.from_product([['Src Info'], src_csv.columns])
 
     # join by index
-    runtime_xlsx.set_index(('Run Info', 'Name'), inplace=True)
+    name_column = None
+    for col in runtime_xlsx.columns:
+        if col[1] == 'Name':
+            name_column = col
+    if name_column is None:
+        print('Unable to find "Name" column in the runtime info spreadsheet')
+        exit(1)
+
+    runtime_xlsx.set_index(name_column, inplace=True)
     src_csv.set_index(('Src Info', 'name'), inplace=True)
     joined = src_csv.merge(runtime_xlsx, left_index=True, right_index=True, how='left')
     joined.reset_index(inplace=True)
