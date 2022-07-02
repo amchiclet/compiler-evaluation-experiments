@@ -30,12 +30,12 @@ for runtime_xlsx_path, batch_path in codelet_info:
     #
     # make it
     #
-    #   arrays      # arrays
+    #   arrays      # total arrays refs
     #   1           1
     #   3+3 = 6     6
-    src_csv['# arrays'] = src_csv['arrays']
+    src_csv['# total array refs'] = src_csv['arrays']
     src_csv.loc[
-        src_csv['arrays'].str.contains('='), '# arrays'
+        src_csv['arrays'].str.contains('='), '# total array refs'
     ] = src_csv['arrays'].str.split(' ', expand = True)[2]
 
     # make header levels match
