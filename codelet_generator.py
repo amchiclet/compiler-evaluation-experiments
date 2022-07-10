@@ -123,8 +123,8 @@ class SourceInfo:
     def header(extra_headers):
         return ['name',
                 '# stmts',
-                'scalars',
-                'arrays',
+                'scalar refs',
+                'array refs',
                 'ops'] + extra_headers
 
     def columns(self):
