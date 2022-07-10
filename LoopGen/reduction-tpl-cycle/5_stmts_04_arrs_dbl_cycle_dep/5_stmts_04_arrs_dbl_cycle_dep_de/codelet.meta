@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-tpl-cycle
+code name=5_stmts_04_arrs_dbl_cycle_dep
+codelet name=5_stmts_04_arrs_dbl_cycle_dep_de
