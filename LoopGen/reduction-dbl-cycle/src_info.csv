@@ -1,0 +1,21 @@
+name,# stmts,scalar refs,array refs,ops,scalar type,# scalars,# arrays,# additional deps,max dep cycle size
+5_stmts_01_arrs_dbl_cycle_dep,5,1+1+2+1+2 = 7,5+5+4+5+4 = 23,5+5+5+5+5 = 25,double,5,1,2,2
+5_stmts_02_arrs_dbl_cycle_dep,5,2+1+1+2+1 = 7,4+5+5+4+5 = 23,5+5+5+5+5 = 25,double,5,2,2,2
+5_stmts_03_arrs_dbl_cycle_dep,5,2+1+1+1+2 = 7,4+5+5+5+4 = 23,5+5+5+5+5 = 25,double,5,3,2,2
+5_stmts_04_arrs_dbl_cycle_dep,5,1+2+2+1+1 = 7,5+4+4+5+5 = 23,5+5+5+5+5 = 25,double,5,4,2,2
+5_stmts_05_arrs_dbl_cycle_dep,5,2+2+1+1+1 = 7,4+4+5+5+5 = 23,5+5+5+5+5 = 25,double,5,5,2,2
+5_stmts_06_arrs_dbl_cycle_dep,5,1+2+1+1+2 = 7,5+4+5+5+4 = 23,5+5+5+5+5 = 25,double,5,6,2,2
+5_stmts_07_arrs_dbl_cycle_dep,5,1+1+2+2+1 = 7,5+5+4+4+5 = 23,5+5+5+5+5 = 25,double,5,7,2,2
+5_stmts_08_arrs_dbl_cycle_dep,5,1+2+1+1+2 = 7,5+4+5+5+4 = 23,5+5+5+5+5 = 25,double,5,8,2,2
+5_stmts_09_arrs_dbl_cycle_dep,5,2+2+1+1+1 = 7,4+4+5+5+5 = 23,5+5+5+5+5 = 25,double,5,9,2,2
+5_stmts_10_arrs_dbl_cycle_dep,5,1+1+1+2+2 = 7,5+5+5+4+4 = 23,5+5+5+5+5 = 25,double,5,10,2,2
+5_stmts_11_arrs_dbl_cycle_dep,5,2+2+1+1+1 = 7,4+4+5+5+5 = 23,5+5+5+5+5 = 25,double,5,11,2,2
+5_stmts_12_arrs_dbl_cycle_dep,5,1+2+2+1+1 = 7,5+4+4+5+5 = 23,5+5+5+5+5 = 25,double,5,12,2,2
+5_stmts_13_arrs_dbl_cycle_dep,5,2+1+1+1+2 = 7,4+5+5+5+4 = 23,5+5+5+5+5 = 25,double,5,13,2,2
+5_stmts_14_arrs_dbl_cycle_dep,5,2+2+1+1+1 = 7,4+4+5+5+5 = 23,5+5+5+5+5 = 25,double,5,14,2,2
+5_stmts_15_arrs_dbl_cycle_dep,5,2+1+1+2+1 = 7,4+5+5+4+5 = 23,5+5+5+5+5 = 25,double,5,15,2,2
+5_stmts_16_arrs_dbl_cycle_dep,5,1+1+1+2+2 = 7,5+5+5+4+4 = 23,5+5+5+5+5 = 25,double,5,16,2,2
+5_stmts_17_arrs_dbl_cycle_dep,5,2+2+1+1+1 = 7,4+4+5+5+5 = 23,5+5+5+5+5 = 25,double,5,17,2,2
+5_stmts_18_arrs_dbl_cycle_dep,5,2+1+2+1+1 = 7,4+5+4+5+5 = 23,5+5+5+5+5 = 25,double,5,18,2,2
+5_stmts_19_arrs_dbl_cycle_dep,5,1+1+2+1+2 = 7,5+5+4+5+4 = 23,5+5+5+5+5 = 25,double,5,19,2,2
+5_stmts_20_arrs_dbl_cycle_dep,5,1+1+1+2+2 = 7,5+5+5+4+4 = 23,5+5+5+5+5 = 25,double,5,20,2,2
