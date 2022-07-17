@@ -2,16 +2,15 @@ import pandas as pd
 
 output_path = 'path_to_output.xlsx'
 codelet_info = [
-    ('path_to_xlsx', 'path_to_batch_directory'),
+    ('path_to_runtime_csv', 'path_to_batch_directory'),
 ]
 
 merged = None
 
-for runtime_xlsx_path, batch_path in codelet_info:
-    # read xlxs format
-    runtime_xlsx = pd.read_excel(runtime_xlsx_path, header=[0, 1], engine='openpyxl')
+for runtime_csv_path, batch_path in codelet_info:
+    runtime_csv = pd.read_csv(runtime_csv_path)
+    runtime_csv.columns = pd.MultiIndex.from_product([['Run Info'], runtime_csv.columns])
 
-    # read csv format
     src_info = f'{batch_path}/src_info.csv'
     src_csv = pd.read_csv(src_info)
 
@@ -20,7 +19,7 @@ for runtime_xlsx_path, batch_path in codelet_info:
 
     # normalize column values to be merged
     src_csv['name'] = 'LoopGen: ' + src_csv['name'] + '_de'
-    
+
     # add additional summarizing info
     # instead of
     #
@@ -33,10 +32,11 @@ for runtime_xlsx_path, batch_path in codelet_info:
     #   arrays      # total arrays refs
     #   1           1
     #   3+3 = 6     6
-    src_csv['# total array refs'] = src_csv['arrays']
+    src_csv['# total array refs'] = src_csv['array refs']
+
     src_csv.loc[
-        src_csv['arrays'].str.contains('='), '# total array refs'
-    ] = src_csv['arrays'].str.split(' ', expand = True)[2]
+        src_csv['array refs'].str.contains('='), '# total array refs'
+    ] = src_csv['array refs'].str.split(' ', expand = True)[2]
 
     # make header levels match
     # instead of
@@ -52,16 +52,16 @@ for runtime_xlsx_path, batch_path in codelet_info:
 
     # join by index
     name_column = None
-    for col in runtime_xlsx.columns:
+    for col in runtime_csv.columns:
         if col[1] == 'Name':
             name_column = col
     if name_column is None:
         print('Unable to find "Name" column in the runtime info spreadsheet')
         exit(1)
 
-    runtime_xlsx.set_index(name_column, inplace=True)
+    runtime_csv.set_index(name_column, inplace=True)
     src_csv.set_index(('Src Info', 'name'), inplace=True)
-    joined = src_csv.merge(runtime_xlsx, left_index=True, right_index=True, how='left')
+    joined = src_csv.merge(runtime_csv, left_index=True, right_index=True, how='left')
     joined.reset_index(inplace=True)
 
     # Also pre-process cores.xlsx
