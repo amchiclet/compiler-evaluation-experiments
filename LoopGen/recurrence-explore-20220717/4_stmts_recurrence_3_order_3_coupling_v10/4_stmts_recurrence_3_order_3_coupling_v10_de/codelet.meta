@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=recurrence-explore-20220717
+code name=4_stmts_recurrence_3_order_3_coupling_v10
+codelet name=4_stmts_recurrence_3_order_3_coupling_v10_de
