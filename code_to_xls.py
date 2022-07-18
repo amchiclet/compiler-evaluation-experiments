@@ -1,8 +1,9 @@
 import pandas as pd
-
+import sys
 from pathlib import Path
 
-batch = 'LoopGen/reduction-fix-dsize-reusable-arrays'
+assert(len(sys.argv) == 2)
+batch = sys.argv[1]
 
 names = []
 codes = []
