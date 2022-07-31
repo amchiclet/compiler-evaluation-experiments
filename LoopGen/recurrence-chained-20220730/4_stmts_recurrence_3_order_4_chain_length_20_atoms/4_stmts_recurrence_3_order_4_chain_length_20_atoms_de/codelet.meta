@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=recurrence-chained-20220730
+code name=4_stmts_recurrence_3_order_4_chain_length_20_atoms
+codelet name=4_stmts_recurrence_3_order_4_chain_length_20_atoms_de
