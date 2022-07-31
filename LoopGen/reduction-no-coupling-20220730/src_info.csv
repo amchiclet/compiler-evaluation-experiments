@@ -1,0 +1,26 @@
+name,# stmts,scalar refs,array refs,ops,scalar type,# scalars refs,# arrays,coupling
+5_stmts_01_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,1,0
+5_stmts_02_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,2,0
+5_stmts_03_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,3,0
+5_stmts_04_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,4,0
+5_stmts_05_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,5,0
+5_stmts_06_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,6,0
+5_stmts_07_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,7,0
+5_stmts_08_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,8,0
+5_stmts_09_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,9,0
+5_stmts_10_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,10,0
+5_stmts_11_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,11,0
+5_stmts_12_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,12,0
+5_stmts_13_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,13,0
+5_stmts_14_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,14,0
+5_stmts_15_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,15,0
+5_stmts_16_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,16,0
+5_stmts_17_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,17,0
+5_stmts_18_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,18,0
+5_stmts_19_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,19,0
+5_stmts_20_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,20,0
+5_stmts_21_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,21,0
+5_stmts_22_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,22,0
+5_stmts_23_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,23,0
+5_stmts_24_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,24,0
+5_stmts_25_arrs_no_coupling,5,1+1+1+1+1 = 5,5+5+5+5+5 = 25,5+5+5+5+5 = 25,double,5,25,0

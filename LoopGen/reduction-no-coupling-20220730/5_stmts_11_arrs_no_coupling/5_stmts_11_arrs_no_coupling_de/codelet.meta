@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=reduction-no-coupling-20220730
+code name=5_stmts_11_arrs_no_coupling
+codelet name=5_stmts_11_arrs_no_coupling_de
