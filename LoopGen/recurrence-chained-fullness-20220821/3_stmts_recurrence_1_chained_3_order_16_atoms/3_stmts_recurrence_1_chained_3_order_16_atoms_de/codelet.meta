@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=recurrence-chained-fullness-20220821
+code name=3_stmts_recurrence_1_chained_3_order_16_atoms
+codelet name=3_stmts_recurrence_1_chained_3_order_16_atoms_de
