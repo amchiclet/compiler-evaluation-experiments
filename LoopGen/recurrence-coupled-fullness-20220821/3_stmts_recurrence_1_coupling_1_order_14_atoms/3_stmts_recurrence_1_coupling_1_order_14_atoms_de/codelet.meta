@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=recurrence-coupled-fullness-20220821
+code name=3_stmts_recurrence_1_coupling_1_order_14_atoms
+codelet name=3_stmts_recurrence_1_coupling_1_order_14_atoms_de
