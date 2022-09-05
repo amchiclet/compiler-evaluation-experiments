@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=recurrence-coupled-low-fullness-20220905
+code name=3_stmts_recurrence_2_coupling_1_order_05_atoms_p02
+codelet name=3_stmts_recurrence_2_coupling_1_order_05_atoms_p02_de
