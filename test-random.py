@@ -20,6 +20,8 @@ def make_and_run(codelet):
 codelets = [path.parent for path in Path(sys.argv[1]).rglob('core.c')]
 codelet = choice(codelets)
 print(codelet)
+with open(f'{codelet}/core.c') as f:
+    print(f.read())
 make_and_run(codelet)
 c = delegator.run('make clean', cwd=codelet)
 print(c.out)
