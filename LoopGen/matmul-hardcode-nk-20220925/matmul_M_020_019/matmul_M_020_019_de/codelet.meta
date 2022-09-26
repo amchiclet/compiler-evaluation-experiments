@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=matmul-hardcode-nk-20220925
+code name=matmul_M_020_019
+codelet name=matmul_M_020_019_de
