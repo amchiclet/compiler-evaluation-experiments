@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=conv2d-small-inner-20221002
+code name=conv2d_inner_O7x5_K1x2
+codelet name=conv2d_inner_O7x5_K1x2_de
