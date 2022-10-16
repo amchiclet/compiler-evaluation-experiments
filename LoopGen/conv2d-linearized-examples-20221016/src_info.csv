@@ -1,0 +1,5 @@
+name,# stmts,scalar refs,array refs,ops,# arrays,IMG,IFM,OFM,SH,SW,PH,PW,OFH,OFW,IFHP,IFWP,IFH,IFW,KH,KW,VEC_LENGTH
+conv2d_linearized_vec02,1,18,3,2,3,8,48,128,1,1,2,2,7,7,11,11,7,7,5,5,2
+conv2d_linearized_vec04,1,18,3,2,3,8,48,128,1,1,2,2,7,7,11,11,7,7,5,5,4
+conv2d_linearized_vec08,1,18,3,2,3,8,48,128,1,1,2,2,7,7,11,11,7,7,5,5,8
+conv2d_linearized_vec16,1,18,3,2,3,8,48,128,1,1,2,2,7,7,11,11,7,7,5,5,16

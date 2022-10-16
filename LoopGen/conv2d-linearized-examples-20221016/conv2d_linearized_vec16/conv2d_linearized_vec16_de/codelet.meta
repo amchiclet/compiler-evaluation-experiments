@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=conv2d-linearized-examples-20221016
+code name=conv2d_linearized_vec16
+codelet name=conv2d_linearized_vec16_de
