@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=conv2d-examples-20221009
+code name=conv2d_vec16
+codelet name=conv2d_vec16_de
