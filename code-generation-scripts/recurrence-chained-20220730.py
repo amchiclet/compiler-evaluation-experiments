@@ -1,6 +1,6 @@
 from api import Skeleton, Mapping, CodegenConfig
 from random import randint, seed
-from codelet_generator import codelet_dir, generate_codelet_files, generate_batch_summary, SourceInfo
+from codelet_generator import codelet_dir, generate_codelet_files, generate_batch_summary_flex, SourceInfoFlex
 from pattern_ast import get_ordered_assignments, get_accesses, count_ops
 
 skeleton_code = """
@@ -91,6 +91,19 @@ seed(0)
 application = 'LoopGen'
 batch = 'recurrence-chained-20220730'
 
+from pattern_ast import simplify_0s_and_1s
+
+source_info_header = [
+    'name',
+    '# statements',
+    'order',
+    'chain length',
+    '# arrays',
+    '# rhs array refs',
+    '# rhs uniq array refs',
+    '# rhs ops (excluding indices)',
+]
+
 programs = set()
 source_infos = []
 n_arrs = 4
@@ -101,6 +114,8 @@ for order in range(1, 4):
         for zeroes in range(n_possibly_zero_coeffs+1):
             print(n_terms, n_possibly_zero_coeffs, order, chain_length, zeroes)
             skeleton = gen_program(order, chain_length, zeroes)
+            simplify_0s_and_1s(skeleton.program)
+
             n_atoms = n_terms-zeroes
             code = f'4_stmts_recurrence_{order}_order_{chain_length}_chain_length_{n_atoms:02d}_atoms'
             codelet = f'{code}_de'
@@ -124,28 +139,31 @@ for order in range(1, 4):
             config.array_as_ptr = True
             skeleton.generate_code(config)
 
-            # Gather source information
-            si = SourceInfo()
-            si.name = code
-            si.n_stmts = 4
-            uniq_arrays = set()
-            for assignment in get_ordered_assignments(skeleton.program):
-                n_scalars = 0
-                n_arrays = 0
-                for access in get_accesses(assignment, ignore_indices=False):
-                    if access.is_scalar():
-                        n_scalars += 1
-                    else:
-                        n_arrays += 1
-                        uniq_arrays.add(str(access.var))
-                si.scalars.append(n_scalars)
-                si.arrays.append(n_arrays)
-                si.ops.append(count_ops(assignment))
-            si.extra_columns.append(4) # num arrays
-            si.extra_columns.append(order)
-            si.extra_columns.append(0)
-            si.extra_columns.append(chain_length)
-            si.extra_columns.append(n_atoms)
-            source_infos.append(si)
+            print(code)
+            print(skeleton)
+            print('-----------------------')
 
-generate_batch_summary(application, batch, source_infos, ['# arrays', 'order', 'coupling', 'chain_length', '# atoms'])
+            # Gather source information
+            si = SourceInfoFlex(source_info_header)
+            si['name'] = code
+            si['# statements'] = 4
+            si['order'] = order
+            si['# arrays'] = 4
+            si['chain length'] = chain_length
+            si['# rhs array refs'] = n_atoms
+
+            array_refs = []
+            n_ops = 0
+            for assignment in get_ordered_assignments(skeleton.program):
+                n_ops += count_ops(assignment.rhs, ignore_indices=True)
+                for access in get_accesses(assignment.rhs, ignore_indices=True):
+                    if not access.is_scalar():
+                        array_refs.append(str(access))
+            assert(len(array_refs) == n_atoms)
+            si['# rhs uniq array refs'] = len(set(array_refs))
+            si['# rhs ops (excluding indices)'] = n_ops
+            source_infos.append(si)
+            print(si.header())
+            print(si.columns())
+
+generate_batch_summary_flex(application, batch, source_infos, source_info_header)
