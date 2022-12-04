@@ -1,79 +1,79 @@
-name,# stmts,scalar refs,array refs,ops,# arrays,order,coupling,chain_length,# atoms
-4_stmts_recurrence_1_order_1_chain_length_04_atoms,4,2+2+2+2 = 8,2+2+2+2 = 8,1+2+2+2 = 7,4,1,0,1,4
-4_stmts_recurrence_1_order_2_chain_length_05_atoms,4,3+2+2+2 = 9,3+2+2+2 = 9,3+1+2+2 = 8,4,1,0,2,5
-4_stmts_recurrence_1_order_3_chain_length_06_atoms,4,2+3+2+3 = 10,2+3+2+3 = 10,2+3+1+3 = 9,4,1,0,3,6
-4_stmts_recurrence_1_order_4_chain_length_07_atoms,4,3+2+3+3 = 11,3+2+3+3 = 11,3+1+3+3 = 10,4,1,0,4,7
-4_stmts_recurrence_2_order_1_chain_length_08_atoms,4,3+3+3+3 = 12,3+3+3+3 = 12,5+5+5+4 = 19,4,2,0,1,8
-4_stmts_recurrence_2_order_1_chain_length_07_atoms,4,3+3+3+3 = 12,3+3+3+3 = 12,5+5+5+4 = 19,4,2,0,1,7
-4_stmts_recurrence_2_order_1_chain_length_06_atoms,4,3+3+3+3 = 12,3+3+3+3 = 12,5+4+5+5 = 19,4,2,0,1,6
-4_stmts_recurrence_2_order_1_chain_length_05_atoms,4,3+3+3+3 = 12,3+3+3+3 = 12,5+5+4+5 = 19,4,2,0,1,5
-4_stmts_recurrence_2_order_1_chain_length_04_atoms,4,3+3+3+3 = 12,3+3+3+3 = 12,5+4+5+5 = 19,4,2,0,1,4
-4_stmts_recurrence_2_order_2_chain_length_10_atoms,4,3+5+3+3 = 14,3+5+3+3 = 14,5+9+5+4 = 23,4,2,0,2,10
-4_stmts_recurrence_2_order_2_chain_length_09_atoms,4,3+5+3+3 = 14,3+5+3+3 = 14,4+9+5+5 = 23,4,2,0,2,9
-4_stmts_recurrence_2_order_2_chain_length_08_atoms,4,3+3+5+3 = 14,3+3+5+3 = 14,4+5+9+5 = 23,4,2,0,2,8
-4_stmts_recurrence_2_order_2_chain_length_07_atoms,4,3+3+5+3 = 14,3+3+5+3 = 14,4+5+9+5 = 23,4,2,0,2,7
-4_stmts_recurrence_2_order_2_chain_length_06_atoms,4,3+3+5+3 = 14,3+3+5+3 = 14,5+5+9+4 = 23,4,2,0,2,6
-4_stmts_recurrence_2_order_2_chain_length_05_atoms,4,3+3+5+3 = 14,3+3+5+3 = 14,4+5+9+5 = 23,4,2,0,2,5
-4_stmts_recurrence_2_order_3_chain_length_12_atoms,4,5+3+5+3 = 16,5+3+5+3 = 16,9+5+9+4 = 27,4,2,0,3,12
-4_stmts_recurrence_2_order_3_chain_length_11_atoms,4,3+5+5+3 = 16,3+5+5+3 = 16,4+9+9+5 = 27,4,2,0,3,11
-4_stmts_recurrence_2_order_3_chain_length_10_atoms,4,3+5+5+3 = 16,3+5+5+3 = 16,4+9+9+5 = 27,4,2,0,3,10
-4_stmts_recurrence_2_order_3_chain_length_09_atoms,4,3+5+5+3 = 16,3+5+5+3 = 16,4+9+9+5 = 27,4,2,0,3,9
-4_stmts_recurrence_2_order_3_chain_length_08_atoms,4,3+5+5+3 = 16,3+5+5+3 = 16,4+9+9+5 = 27,4,2,0,3,8
-4_stmts_recurrence_2_order_3_chain_length_07_atoms,4,3+5+5+3 = 16,3+5+5+3 = 16,4+9+9+5 = 27,4,2,0,3,7
-4_stmts_recurrence_2_order_3_chain_length_06_atoms,4,5+3+5+3 = 16,5+3+5+3 = 16,9+4+9+5 = 27,4,2,0,3,6
-4_stmts_recurrence_2_order_4_chain_length_14_atoms,4,5+3+5+5 = 18,5+3+5+5 = 18,9+4+9+9 = 31,4,2,0,4,14
-4_stmts_recurrence_2_order_4_chain_length_13_atoms,4,5+5+5+3 = 18,5+5+5+3 = 18,9+9+9+4 = 31,4,2,0,4,13
-4_stmts_recurrence_2_order_4_chain_length_12_atoms,4,5+5+5+3 = 18,5+5+5+3 = 18,9+9+9+4 = 31,4,2,0,4,12
-4_stmts_recurrence_2_order_4_chain_length_11_atoms,4,5+3+5+5 = 18,5+3+5+5 = 18,9+4+9+9 = 31,4,2,0,4,11
-4_stmts_recurrence_2_order_4_chain_length_10_atoms,4,5+5+3+5 = 18,5+5+3+5 = 18,9+9+4+9 = 31,4,2,0,4,10
-4_stmts_recurrence_2_order_4_chain_length_09_atoms,4,5+3+5+5 = 18,5+3+5+5 = 18,9+4+9+9 = 31,4,2,0,4,9
-4_stmts_recurrence_2_order_4_chain_length_08_atoms,4,5+5+3+5 = 18,5+5+3+5 = 18,9+9+4+9 = 31,4,2,0,4,8
-4_stmts_recurrence_2_order_4_chain_length_07_atoms,4,3+5+5+5 = 18,3+5+5+5 = 18,4+9+9+9 = 31,4,2,0,4,7
-4_stmts_recurrence_3_order_1_chain_length_12_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,8+7+8+8 = 31,4,3,0,1,12
-4_stmts_recurrence_3_order_1_chain_length_11_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,8+8+7+8 = 31,4,3,0,1,11
-4_stmts_recurrence_3_order_1_chain_length_10_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,7+8+8+8 = 31,4,3,0,1,10
-4_stmts_recurrence_3_order_1_chain_length_09_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,8+7+8+8 = 31,4,3,0,1,9
-4_stmts_recurrence_3_order_1_chain_length_08_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,8+7+8+8 = 31,4,3,0,1,8
-4_stmts_recurrence_3_order_1_chain_length_07_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,8+8+8+7 = 31,4,3,0,1,7
-4_stmts_recurrence_3_order_1_chain_length_06_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,8+7+8+8 = 31,4,3,0,1,6
-4_stmts_recurrence_3_order_1_chain_length_05_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,8+7+8+8 = 31,4,3,0,1,5
-4_stmts_recurrence_3_order_1_chain_length_04_atoms,4,4+4+4+4 = 16,4+4+4+4 = 16,8+8+8+7 = 31,4,3,0,1,4
-4_stmts_recurrence_3_order_2_chain_length_15_atoms,4,7+4+4+4 = 19,7+4+4+4 = 19,15+8+8+7 = 38,4,3,0,2,15
-4_stmts_recurrence_3_order_2_chain_length_14_atoms,4,4+7+4+4 = 19,4+7+4+4 = 19,7+15+8+8 = 38,4,3,0,2,14
-4_stmts_recurrence_3_order_2_chain_length_13_atoms,4,4+4+4+7 = 19,4+4+4+7 = 19,8+7+8+15 = 38,4,3,0,2,13
-4_stmts_recurrence_3_order_2_chain_length_12_atoms,4,7+4+4+4 = 19,7+4+4+4 = 19,15+8+7+8 = 38,4,3,0,2,12
-4_stmts_recurrence_3_order_2_chain_length_11_atoms,4,4+4+4+7 = 19,4+4+4+7 = 19,8+8+7+15 = 38,4,3,0,2,11
-4_stmts_recurrence_3_order_2_chain_length_10_atoms,4,4+4+7+4 = 19,4+4+7+4 = 19,8+8+15+7 = 38,4,3,0,2,10
-4_stmts_recurrence_3_order_2_chain_length_09_atoms,4,4+4+7+4 = 19,4+4+7+4 = 19,8+7+15+8 = 38,4,3,0,2,9
-4_stmts_recurrence_3_order_2_chain_length_08_atoms,4,4+4+4+7 = 19,4+4+4+7 = 19,8+8+7+15 = 38,4,3,0,2,8
-4_stmts_recurrence_3_order_2_chain_length_07_atoms,4,4+4+7+4 = 19,4+4+7+4 = 19,8+8+15+7 = 38,4,3,0,2,7
-4_stmts_recurrence_3_order_2_chain_length_06_atoms,4,4+4+4+7 = 19,4+4+4+7 = 19,8+8+7+15 = 38,4,3,0,2,6
-4_stmts_recurrence_3_order_2_chain_length_05_atoms,4,4+4+4+7 = 19,4+4+4+7 = 19,7+8+8+15 = 38,4,3,0,2,5
-4_stmts_recurrence_3_order_3_chain_length_18_atoms,4,7+4+4+7 = 22,7+4+4+7 = 22,15+8+7+15 = 45,4,3,0,3,18
-4_stmts_recurrence_3_order_3_chain_length_17_atoms,4,4+7+7+4 = 22,4+7+7+4 = 22,8+15+15+7 = 45,4,3,0,3,17
-4_stmts_recurrence_3_order_3_chain_length_16_atoms,4,7+7+4+4 = 22,7+7+4+4 = 22,15+15+7+8 = 45,4,3,0,3,16
-4_stmts_recurrence_3_order_3_chain_length_15_atoms,4,7+7+4+4 = 22,7+7+4+4 = 22,15+15+7+8 = 45,4,3,0,3,15
-4_stmts_recurrence_3_order_3_chain_length_14_atoms,4,4+4+7+7 = 22,4+4+7+7 = 22,7+8+15+15 = 45,4,3,0,3,14
-4_stmts_recurrence_3_order_3_chain_length_13_atoms,4,4+7+4+7 = 22,4+7+4+7 = 22,8+15+7+15 = 45,4,3,0,3,13
-4_stmts_recurrence_3_order_3_chain_length_12_atoms,4,7+4+7+4 = 22,7+4+7+4 = 22,15+7+15+8 = 45,4,3,0,3,12
-4_stmts_recurrence_3_order_3_chain_length_11_atoms,4,7+4+7+4 = 22,7+4+7+4 = 22,15+7+15+8 = 45,4,3,0,3,11
-4_stmts_recurrence_3_order_3_chain_length_10_atoms,4,4+7+7+4 = 22,4+7+7+4 = 22,7+15+15+8 = 45,4,3,0,3,10
-4_stmts_recurrence_3_order_3_chain_length_09_atoms,4,4+7+7+4 = 22,4+7+7+4 = 22,7+15+15+8 = 45,4,3,0,3,9
-4_stmts_recurrence_3_order_3_chain_length_08_atoms,4,7+7+4+4 = 22,7+7+4+4 = 22,15+15+8+7 = 45,4,3,0,3,8
-4_stmts_recurrence_3_order_3_chain_length_07_atoms,4,4+4+7+7 = 22,4+4+7+7 = 22,8+7+15+15 = 45,4,3,0,3,7
-4_stmts_recurrence_3_order_3_chain_length_06_atoms,4,4+7+7+4 = 22,4+7+7+4 = 22,8+15+15+7 = 45,4,3,0,3,6
-4_stmts_recurrence_3_order_4_chain_length_21_atoms,4,7+7+7+4 = 25,7+7+7+4 = 25,15+15+15+7 = 52,4,3,0,4,21
-4_stmts_recurrence_3_order_4_chain_length_20_atoms,4,7+4+7+7 = 25,7+4+7+7 = 25,15+7+15+15 = 52,4,3,0,4,20
-4_stmts_recurrence_3_order_4_chain_length_19_atoms,4,7+4+7+7 = 25,7+4+7+7 = 25,15+7+15+15 = 52,4,3,0,4,19
-4_stmts_recurrence_3_order_4_chain_length_18_atoms,4,7+7+4+7 = 25,7+7+4+7 = 25,15+15+7+15 = 52,4,3,0,4,18
-4_stmts_recurrence_3_order_4_chain_length_17_atoms,4,7+7+4+7 = 25,7+7+4+7 = 25,15+15+7+15 = 52,4,3,0,4,17
-4_stmts_recurrence_3_order_4_chain_length_16_atoms,4,4+7+7+7 = 25,4+7+7+7 = 25,7+15+15+15 = 52,4,3,0,4,16
-4_stmts_recurrence_3_order_4_chain_length_15_atoms,4,4+7+7+7 = 25,4+7+7+7 = 25,7+15+15+15 = 52,4,3,0,4,15
-4_stmts_recurrence_3_order_4_chain_length_14_atoms,4,4+7+7+7 = 25,4+7+7+7 = 25,7+15+15+15 = 52,4,3,0,4,14
-4_stmts_recurrence_3_order_4_chain_length_13_atoms,4,7+7+7+4 = 25,7+7+7+4 = 25,15+15+15+7 = 52,4,3,0,4,13
-4_stmts_recurrence_3_order_4_chain_length_12_atoms,4,7+7+7+4 = 25,7+7+7+4 = 25,15+15+15+7 = 52,4,3,0,4,12
-4_stmts_recurrence_3_order_4_chain_length_11_atoms,4,7+7+4+7 = 25,7+7+4+7 = 25,15+15+7+15 = 52,4,3,0,4,11
-4_stmts_recurrence_3_order_4_chain_length_10_atoms,4,7+4+7+7 = 25,7+4+7+7 = 25,15+7+15+15 = 52,4,3,0,4,10
-4_stmts_recurrence_3_order_4_chain_length_09_atoms,4,7+4+7+7 = 25,7+4+7+7 = 25,15+7+15+15 = 52,4,3,0,4,9
-4_stmts_recurrence_3_order_4_chain_length_08_atoms,4,7+4+7+7 = 25,7+4+7+7 = 25,15+7+15+15 = 52,4,3,0,4,8
-4_stmts_recurrence_3_order_4_chain_length_07_atoms,4,7+7+7+4 = 25,7+7+7+4 = 25,15+15+15+7 = 52,4,3,0,4,7
+name,# statements,order,chain length,# arrays,# rhs array refs,# rhs uniq array refs,# rhs ops (excluding indices)
+4_stmts_recurrence_1_order_1_chain_length_04_atoms,4,1,1,4,4,4,0
+4_stmts_recurrence_1_order_2_chain_length_05_atoms,4,1,2,4,5,4,1
+4_stmts_recurrence_1_order_3_chain_length_06_atoms,4,1,3,4,6,4,2
+4_stmts_recurrence_1_order_4_chain_length_07_atoms,4,1,4,4,7,4,3
+4_stmts_recurrence_2_order_1_chain_length_08_atoms,4,2,1,4,8,8,6
+4_stmts_recurrence_2_order_1_chain_length_07_atoms,4,2,1,4,7,7,4
+4_stmts_recurrence_2_order_1_chain_length_06_atoms,4,2,1,4,6,6,4
+4_stmts_recurrence_2_order_1_chain_length_05_atoms,4,2,1,4,5,5,1
+4_stmts_recurrence_2_order_1_chain_length_04_atoms,4,2,1,4,4,4,0
+4_stmts_recurrence_2_order_2_chain_length_10_atoms,4,2,2,4,10,8,9
+4_stmts_recurrence_2_order_2_chain_length_09_atoms,4,2,2,4,9,7,5
+4_stmts_recurrence_2_order_2_chain_length_08_atoms,4,2,2,4,8,6,4
+4_stmts_recurrence_2_order_2_chain_length_07_atoms,4,2,2,4,7,6,3
+4_stmts_recurrence_2_order_2_chain_length_06_atoms,4,2,2,4,6,5,3
+4_stmts_recurrence_2_order_2_chain_length_05_atoms,4,2,2,4,5,4,1
+4_stmts_recurrence_2_order_3_chain_length_12_atoms,4,2,3,4,12,8,11
+4_stmts_recurrence_2_order_3_chain_length_11_atoms,4,2,3,4,11,7,10
+4_stmts_recurrence_2_order_3_chain_length_10_atoms,4,2,3,4,10,6,9
+4_stmts_recurrence_2_order_3_chain_length_09_atoms,4,2,3,4,9,7,6
+4_stmts_recurrence_2_order_3_chain_length_08_atoms,4,2,3,4,8,6,4
+4_stmts_recurrence_2_order_3_chain_length_07_atoms,4,2,3,4,7,5,4
+4_stmts_recurrence_2_order_3_chain_length_06_atoms,4,2,3,4,6,4,2
+4_stmts_recurrence_2_order_4_chain_length_14_atoms,4,2,4,4,14,8,11
+4_stmts_recurrence_2_order_4_chain_length_13_atoms,4,2,4,4,13,8,13
+4_stmts_recurrence_2_order_4_chain_length_12_atoms,4,2,4,4,12,8,11
+4_stmts_recurrence_2_order_4_chain_length_11_atoms,4,2,4,4,11,7,8
+4_stmts_recurrence_2_order_4_chain_length_10_atoms,4,2,4,4,10,7,7
+4_stmts_recurrence_2_order_4_chain_length_09_atoms,4,2,4,4,9,6,5
+4_stmts_recurrence_2_order_4_chain_length_08_atoms,4,2,4,4,8,5,5
+4_stmts_recurrence_2_order_4_chain_length_07_atoms,4,2,4,4,7,4,3
+4_stmts_recurrence_3_order_1_chain_length_12_atoms,4,3,1,4,12,12,14
+4_stmts_recurrence_3_order_1_chain_length_11_atoms,4,3,1,4,11,11,9
+4_stmts_recurrence_3_order_1_chain_length_10_atoms,4,3,1,4,10,10,8
+4_stmts_recurrence_3_order_1_chain_length_09_atoms,4,3,1,4,9,9,8
+4_stmts_recurrence_3_order_1_chain_length_08_atoms,4,3,1,4,8,8,5
+4_stmts_recurrence_3_order_1_chain_length_07_atoms,4,3,1,4,7,7,3
+4_stmts_recurrence_3_order_1_chain_length_06_atoms,4,3,1,4,6,6,3
+4_stmts_recurrence_3_order_1_chain_length_05_atoms,4,3,1,4,5,5,2
+4_stmts_recurrence_3_order_1_chain_length_04_atoms,4,3,1,4,4,4,0
+4_stmts_recurrence_3_order_2_chain_length_15_atoms,4,3,2,4,15,12,16
+4_stmts_recurrence_3_order_2_chain_length_14_atoms,4,3,2,4,14,11,11
+4_stmts_recurrence_3_order_2_chain_length_13_atoms,4,3,2,4,13,10,16
+4_stmts_recurrence_3_order_2_chain_length_12_atoms,4,3,2,4,12,10,11
+4_stmts_recurrence_3_order_2_chain_length_11_atoms,4,3,2,4,11,10,9
+4_stmts_recurrence_3_order_2_chain_length_10_atoms,4,3,2,4,10,9,8
+4_stmts_recurrence_3_order_2_chain_length_09_atoms,4,3,2,4,9,8,9
+4_stmts_recurrence_3_order_2_chain_length_08_atoms,4,3,2,4,8,7,5
+4_stmts_recurrence_3_order_2_chain_length_07_atoms,4,3,2,4,7,6,4
+4_stmts_recurrence_3_order_2_chain_length_06_atoms,4,3,2,4,6,5,3
+4_stmts_recurrence_3_order_2_chain_length_05_atoms,4,3,2,4,5,4,1
+4_stmts_recurrence_3_order_3_chain_length_18_atoms,4,3,3,4,18,12,19
+4_stmts_recurrence_3_order_3_chain_length_17_atoms,4,3,3,4,17,12,17
+4_stmts_recurrence_3_order_3_chain_length_16_atoms,4,3,3,4,16,12,13
+4_stmts_recurrence_3_order_3_chain_length_15_atoms,4,3,3,4,15,12,17
+4_stmts_recurrence_3_order_3_chain_length_14_atoms,4,3,3,4,14,10,15
+4_stmts_recurrence_3_order_3_chain_length_13_atoms,4,3,3,4,13,11,13
+4_stmts_recurrence_3_order_3_chain_length_12_atoms,4,3,3,4,12,8,13
+4_stmts_recurrence_3_order_3_chain_length_11_atoms,4,3,3,4,11,7,9
+4_stmts_recurrence_3_order_3_chain_length_10_atoms,4,3,3,4,10,8,10
+4_stmts_recurrence_3_order_3_chain_length_09_atoms,4,3,3,4,9,6,6
+4_stmts_recurrence_3_order_3_chain_length_08_atoms,4,3,3,4,8,6,5
+4_stmts_recurrence_3_order_3_chain_length_07_atoms,4,3,3,4,7,5,3
+4_stmts_recurrence_3_order_3_chain_length_06_atoms,4,3,3,4,6,4,2
+4_stmts_recurrence_3_order_4_chain_length_21_atoms,4,3,4,4,21,12,27
+4_stmts_recurrence_3_order_4_chain_length_20_atoms,4,3,4,4,20,11,25
+4_stmts_recurrence_3_order_4_chain_length_19_atoms,4,3,4,4,19,10,20
+4_stmts_recurrence_3_order_4_chain_length_18_atoms,4,3,4,4,18,12,17
+4_stmts_recurrence_3_order_4_chain_length_17_atoms,4,3,4,4,17,12,17
+4_stmts_recurrence_3_order_4_chain_length_16_atoms,4,3,4,4,16,10,16
+4_stmts_recurrence_3_order_4_chain_length_15_atoms,4,3,4,4,15,10,15
+4_stmts_recurrence_3_order_4_chain_length_14_atoms,4,3,4,4,14,10,14
+4_stmts_recurrence_3_order_4_chain_length_13_atoms,4,3,4,4,13,10,12
+4_stmts_recurrence_3_order_4_chain_length_12_atoms,4,3,4,4,12,9,10
+4_stmts_recurrence_3_order_4_chain_length_11_atoms,4,3,4,4,11,8,8
+4_stmts_recurrence_3_order_4_chain_length_10_atoms,4,3,4,4,10,7,9
+4_stmts_recurrence_3_order_4_chain_length_09_atoms,4,3,4,4,9,6,6
+4_stmts_recurrence_3_order_4_chain_length_08_atoms,4,3,4,4,8,5,5
+4_stmts_recurrence_3_order_4_chain_length_07_atoms,4,3,4,4,7,4,3

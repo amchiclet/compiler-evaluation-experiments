@@ -15,9 +15,9 @@ int core(double (*restrict A)[2097152], double (*restrict B)[2097152], double (*
 
   for (int i = 1; i <= (size - 1) / n_arrs; i += 1) {
     (*D)[i] = (*D)[i - 1];
-    (*B)[i] = (*B)[i - 1] + 0;
-    (*A)[i] = (*A)[i - 1] + 0;
-    (*C)[i] = (*C)[i - 1] + 0;
+    (*B)[i] = (*B)[i - 1];
+    (*A)[i] = (*A)[i - 1];
+    (*C)[i] = (*C)[i - 1];
   }
   return 0;
 }
