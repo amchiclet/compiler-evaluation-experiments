@@ -141,6 +141,31 @@ class SourceInfo:
                 print_sum(self.arrays),
                 print_sum(self.ops)] + self.extra_columns
 
+class SourceInfoFlex():
+    def __init__(self, ordered_header):
+        self.m = {}
+        self.ordered_header = ordered_header
+
+    def __setitem__(self, key, value):
+        if key not in self.ordered_header:
+            raise KeyError(f'{key} is not in allowed keys ({self.ordered_header})')
+        self.m[key] = value
+
+    def __getitem__(self, key):
+        return self.m[key]
+
+    def header(self):
+        return self.ordered_header
+
+    def columns(self):
+        r = []
+        for key in self.ordered_header:
+            if key in self.m:
+                r.append(self.m[key])
+            else:
+                r.append('')
+        return r
+
 def generate_batch_summary(application, batch, source_infos, extra_headers=None):
     dst_dir = batch_dir(application, batch)
     Path(dst_dir).mkdir(parents=True, exist_ok=True)
@@ -149,5 +174,15 @@ def generate_batch_summary(application, batch, source_infos, extra_headers=None)
         w = writer(csvfile, dialect='excel')
         extra_headers = [] if extra_headers is None else extra_headers
         w.writerow(SourceInfo.header(extra_headers))
+        for si in source_infos:
+            w.writerow(si.columns())
+
+def generate_batch_summary_flex(application, batch, source_infos, header):
+    dst_dir = batch_dir(application, batch)
+    Path(dst_dir).mkdir(parents=True, exist_ok=True)
+
+    with open(source_info_file(dst_dir), 'w', newline='') as csvfile:
+        w = writer(csvfile, dialect='excel')
+        w.writerow(header)
         for si in source_infos:
             w.writerow(si.columns())
