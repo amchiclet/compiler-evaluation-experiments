@@ -184,35 +184,4 @@ for order in range(1, 4):
                 print(si.header())
                 print(si.columns())
 
-                # # Gather source information
-                # si = SourceInfo()
-                # si.n_stmts = n_arrs
-                # uniq_atoms = set()
-                # graph = {}
-                # for assignment in get_ordered_assignments(skeleton.program):
-                #     n_arrays = 0
-                #     n_scalars = 0
-
-                #     for access in get_accesses(assignment, ignore_indices=False):
-                #         if access.is_scalar():
-                #             n_scalars += 1
-                #         else:
-                #             n_arrays += 1
-
-                #     # extra RHS counting
-                #     lhs = assignment.lhs.var
-                #     for access in get_accesses(assignment.rhs, ignore_indices=True):
-                #         # count unique aroms
-                #         uniq_atoms.add(str(access))
-
-                # fullness = n_atoms/n_stmts
-                # si.extra_columns.append('recurrence')
-                # si.extra_columns.append(3) # distinct arrays
-                # si.extra_columns.append(order)
-                # si.extra_columns.append(n_atoms) # number of atoms
-                # si.extra_columns.append(len(uniq_atoms)) # number of unique atoms
-                # si.extra_columns.append(coupling)
-                # si.extra_columns.append(f'{fullness:.2f}')
-                # source_infos.append(si)
-
 generate_batch_summary_flex(application, batch, source_infos, source_info_header)
