@@ -1,7 +1,7 @@
 from api import Skeleton, Mapping, CodegenConfig
 from random import randint, seed
-from codelet_generator import codelet_dir, generate_codelet_files, generate_batch_summary, SourceInfo
-from pattern_ast import get_ordered_assignments, get_accesses, count_ops
+from codelet_generator import codelet_dir, generate_codelet_files, generate_batch_summary_flex, SourceInfoFlex
+from pattern_ast import get_ordered_assignments, get_accesses, count_ops, simplify_0s_and_1s
 from itertools import product
 
 skeleton_code = """
@@ -104,6 +104,18 @@ seed(0)
 application = 'LoopGen'
 batch = 'recurrence-coupled-low-fullness-20220905'
 
+source_info_header = [
+    'name',
+    '# statements',
+    'order',
+    'coupling',
+    'fullness',
+    '# arrays',
+    '# rhs array refs',
+    '# rhs uniq array refs',
+    '# rhs ops (excluding indices)',
+]
+
 source_infos = []
 n_stmts = 3
 n_arrs = n_stmts
@@ -111,6 +123,7 @@ n_arrs = n_stmts
 for order in range(1, 4):
     programs = set()
     while len(programs) < 30:
+        print(len(programs))
         coupling = randint(1, 3)
 
         n_zeroes = randint(min_zeroes[coupling-1], max_zeroes[coupling-1])
@@ -123,6 +136,7 @@ for order in range(1, 4):
             print('dupe!')
             continue
         programs.add(skeleton_str)
+        simplify_0s_and_1s(skeleton.program)
         v = len(programs)
 
         code = f'3_stmts_recurrence_{coupling}_coupling_{order}_order_{n_atoms:02d}_atoms_p{v:02d}'
@@ -155,39 +169,28 @@ for order in range(1, 4):
         print(skeleton)
 
         # Gather source information
-        si = SourceInfo()
-        si.name = code
-        si.n_stmts = n_arrs
-        uniq_atoms = set()
-        graph = {}
+        si = SourceInfoFlex(source_info_header)
+        si['name'] = code
+        si['# statements'] = 3
+        si['# arrays'] = 3
+        si['order'] = order
+        si['coupling'] = coupling
+
+        array_refs = []
+        n_ops = 0
         for assignment in get_ordered_assignments(skeleton.program):
-            n_arrays = 0
-            n_scalars = 0
-
-            for access in get_accesses(assignment, ignore_indices=False):
-                if access.is_scalar():
-                    n_scalars += 1
-                else:
-                    n_arrays += 1
-
-            # extra RHS counting
-            lhs = assignment.lhs.var
+            n_ops += count_ops(assignment.rhs, ignore_indices=True)
             for access in get_accesses(assignment.rhs, ignore_indices=True):
-                # count unique aroms
-                uniq_atoms.add(str(access))
-
-            si.scalars.append(n_scalars)
-            si.arrays.append(n_arrays)
-            si.ops.append(count_ops(assignment))
-
+                if not access.is_scalar():
+                    array_refs.append(str(access))
+        assert(len(array_refs) == n_atoms)
+        si['# rhs array refs'] = n_atoms
+        si['# rhs uniq array refs'] = len(set(array_refs))
+        si['# rhs ops (excluding indices)'] = n_ops
         fullness = n_atoms/n_stmts
-        si.extra_columns.append('recurrence')
-        si.extra_columns.append(3) # distinct arrays
-        si.extra_columns.append(order)
-        si.extra_columns.append(n_atoms) # number of atoms
-        si.extra_columns.append(len(uniq_atoms)) # number of unique atoms
-        si.extra_columns.append(coupling)
-        si.extra_columns.append(f'{fullness:.2f}')
+        si['fullness'] = f'{fullness:.2f}'
         source_infos.append(si)
+        print(si.header())
+        print(si.columns())
 
-generate_batch_summary(application, batch, source_infos, ['computation', '# distinct arrays', 'order', '# atoms', '# uniq atoms', 'coupling', 'fullness'])
+generate_batch_summary_flex(application, batch, source_infos, source_info_header)
