@@ -1,91 +1,91 @@
-name,# stmts,scalar refs,array refs,ops,computation,# distinct arrays,order,# atoms,# uniq atoms,coupling,fullness
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p01,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p02,3,4+4+3 = 11,4+4+3 = 11,6+6+4 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_3_coupling_1_order_06_atoms_p03,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,1,6,3,3,2.00
-3_stmts_recurrence_3_coupling_1_order_06_atoms_p04,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,1,6,3,3,2.00
-3_stmts_recurrence_3_coupling_1_order_06_atoms_p05,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,1,6,3,3,2.00
-3_stmts_recurrence_1_coupling_1_order_05_atoms_p06,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,5,3,1,1.67
-3_stmts_recurrence_3_coupling_1_order_06_atoms_p07,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,1,6,3,3,2.00
-3_stmts_recurrence_1_coupling_1_order_04_atoms_p08,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,4,3,1,1.33
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p09,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p10,3,4+4+3 = 11,4+4+3 = 11,6+6+4 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_3_coupling_1_order_06_atoms_p11,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,1,6,3,3,2.00
-3_stmts_recurrence_2_coupling_1_order_06_atoms_p12,3,4+4+3 = 11,4+4+3 = 11,6+6+4 = 16,recurrence,3,1,6,3,2,2.00
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p13,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_1_coupling_1_order_06_atoms_p14,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,6,3,1,2.00
-3_stmts_recurrence_2_coupling_1_order_06_atoms_p15,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,1,6,3,2,2.00
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p16,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_3_coupling_1_order_06_atoms_p17,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,1,6,3,3,2.00
-3_stmts_recurrence_1_coupling_1_order_03_atoms_p18,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,3,3,1,1.00
-3_stmts_recurrence_2_coupling_1_order_06_atoms_p19,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,1,6,3,2,2.00
-3_stmts_recurrence_1_coupling_1_order_06_atoms_p20,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,6,3,1,2.00
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p21,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_1_coupling_1_order_06_atoms_p22,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,6,3,1,2.00
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p23,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_1_coupling_1_order_03_atoms_p24,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,3,3,1,1.00
-3_stmts_recurrence_1_coupling_1_order_04_atoms_p25,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,4,3,1,1.33
-3_stmts_recurrence_1_coupling_1_order_04_atoms_p26,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,4,3,1,1.33
-3_stmts_recurrence_2_coupling_1_order_05_atoms_p27,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,1,5,3,2,1.67
-3_stmts_recurrence_1_coupling_1_order_06_atoms_p28,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,6,3,1,2.00
-3_stmts_recurrence_1_coupling_1_order_06_atoms_p29,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,1,6,3,1,2.00
-3_stmts_recurrence_2_coupling_1_order_06_atoms_p30,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,1,6,3,2,2.00
-3_stmts_recurrence_2_coupling_2_order_06_atoms_p01,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,2,6,4,2,2.00
-3_stmts_recurrence_1_coupling_2_order_06_atoms_p02,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,6,6,1,2.00
-3_stmts_recurrence_1_coupling_2_order_04_atoms_p03,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,4,5,1,1.33
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p04,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,3,3,2.00
-3_stmts_recurrence_2_coupling_2_order_05_atoms_p05,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,2,5,6,2,1.67
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p06,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,4,3,2.00
-3_stmts_recurrence_1_coupling_2_order_03_atoms_p07,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,3,6,1,1.00
-3_stmts_recurrence_1_coupling_2_order_06_atoms_p08,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,6,6,1,2.00
-3_stmts_recurrence_1_coupling_2_order_04_atoms_p09,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,4,5,1,1.33
-3_stmts_recurrence_1_coupling_2_order_05_atoms_p10,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,5,5,1,1.67
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p11,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,4,3,2.00
-3_stmts_recurrence_1_coupling_2_order_05_atoms_p12,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,5,4,1,1.67
-3_stmts_recurrence_2_coupling_2_order_05_atoms_p13,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,2,5,6,2,1.67
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p14,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,5,3,2.00
-3_stmts_recurrence_1_coupling_2_order_03_atoms_p15,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,3,6,1,1.00
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p16,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,4,3,2.00
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p17,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,5,3,2.00
-3_stmts_recurrence_2_coupling_2_order_06_atoms_p18,3,4+4+3 = 11,4+4+3 = 11,6+6+4 = 16,recurrence,3,2,6,4,2,2.00
-3_stmts_recurrence_1_coupling_2_order_05_atoms_p19,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,5,6,1,1.67
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p20,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,5,3,2.00
-3_stmts_recurrence_2_coupling_2_order_05_atoms_p21,3,4+4+3 = 11,4+4+3 = 11,6+6+4 = 16,recurrence,3,2,5,6,2,1.67
-3_stmts_recurrence_2_coupling_2_order_05_atoms_p22,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,2,5,4,2,1.67
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p23,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,6,3,2.00
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p24,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,4,3,2.00
-3_stmts_recurrence_2_coupling_2_order_05_atoms_p25,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,2,5,4,2,1.67
-3_stmts_recurrence_1_coupling_2_order_06_atoms_p26,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,2,6,6,1,2.00
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p27,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,3,3,2.00
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p28,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,5,3,2.00
-3_stmts_recurrence_3_coupling_2_order_06_atoms_p29,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,2,6,6,3,2.00
-3_stmts_recurrence_2_coupling_2_order_06_atoms_p30,3,4+4+3 = 11,4+4+3 = 11,6+6+4 = 16,recurrence,3,2,6,3,2,2.00
-3_stmts_recurrence_2_coupling_3_order_06_atoms_p01,3,4+4+3 = 11,4+4+3 = 11,6+6+4 = 16,recurrence,3,3,6,5,2,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p02,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,5,3,2.00
-3_stmts_recurrence_2_coupling_3_order_06_atoms_p03,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,3,6,7,2,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p04,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,4,3,2.00
-3_stmts_recurrence_2_coupling_3_order_05_atoms_p05,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,3,5,6,2,1.67
-3_stmts_recurrence_1_coupling_3_order_04_atoms_p06,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,3,4,7,1,1.33
-3_stmts_recurrence_1_coupling_3_order_03_atoms_p07,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,3,3,7,1,1.00
-3_stmts_recurrence_2_coupling_3_order_06_atoms_p08,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,3,6,4,2,2.00
-3_stmts_recurrence_1_coupling_3_order_03_atoms_p09,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,3,3,9,1,1.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p10,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,6,3,2.00
-3_stmts_recurrence_1_coupling_3_order_03_atoms_p11,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,3,3,7,1,1.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p12,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,6,3,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p13,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,4,3,2.00
-3_stmts_recurrence_2_coupling_3_order_06_atoms_p14,3,4+3+4 = 11,4+3+4 = 11,6+4+6 = 16,recurrence,3,3,6,7,2,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p15,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,6,3,2.00
-3_stmts_recurrence_2_coupling_3_order_05_atoms_p16,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,3,5,4,2,1.67
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p17,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,5,3,2.00
-3_stmts_recurrence_2_coupling_3_order_06_atoms_p18,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,3,6,4,2,2.00
-3_stmts_recurrence_2_coupling_3_order_05_atoms_p19,3,3+4+4 = 11,3+4+4 = 11,4+6+6 = 16,recurrence,3,3,5,6,2,1.67
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p20,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,4,3,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p21,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,5,3,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p22,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,6,3,2.00
-3_stmts_recurrence_2_coupling_3_order_06_atoms_p23,3,4+4+3 = 11,4+4+3 = 11,6+6+4 = 16,recurrence,3,3,6,7,2,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p24,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,5,3,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p25,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,4,3,2.00
-3_stmts_recurrence_1_coupling_3_order_03_atoms_p26,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,3,3,7,1,1.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p27,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,4,3,2.00
-3_stmts_recurrence_3_coupling_3_order_06_atoms_p28,3,3+3+3 = 9,3+3+3 = 9,3+3+3 = 9,recurrence,3,3,6,5,3,2.00
-3_stmts_recurrence_1_coupling_3_order_03_atoms_p29,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,3,3,8,1,1.00
-3_stmts_recurrence_1_coupling_3_order_06_atoms_p30,3,5+5+5 = 15,5+5+5 = 15,10+10+10 = 30,recurrence,3,3,6,9,1,2.00
+name,# statements,order,coupling,fullness,# arrays,# rhs array refs,# rhs uniq array refs,# rhs ops (excluding indices)
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p01,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p02,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_3_coupling_1_order_06_atoms_p03,3,1,3,2.00,3,6,3,3
+3_stmts_recurrence_3_coupling_1_order_06_atoms_p04,3,1,3,2.00,3,6,3,3
+3_stmts_recurrence_3_coupling_1_order_06_atoms_p05,3,1,3,2.00,3,6,3,3
+3_stmts_recurrence_1_coupling_1_order_05_atoms_p06,3,1,1,1.67,3,5,3,2
+3_stmts_recurrence_3_coupling_1_order_06_atoms_p07,3,1,3,2.00,3,6,3,3
+3_stmts_recurrence_1_coupling_1_order_04_atoms_p08,3,1,1,1.33,3,4,3,1
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p09,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p10,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_3_coupling_1_order_06_atoms_p11,3,1,3,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_1_order_06_atoms_p12,3,1,2,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p13,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_1_coupling_1_order_06_atoms_p14,3,1,1,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_1_order_06_atoms_p15,3,1,2,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p16,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_3_coupling_1_order_06_atoms_p17,3,1,3,2.00,3,6,3,3
+3_stmts_recurrence_1_coupling_1_order_03_atoms_p18,3,1,1,1.00,3,3,3,0
+3_stmts_recurrence_2_coupling_1_order_06_atoms_p19,3,1,2,2.00,3,6,3,3
+3_stmts_recurrence_1_coupling_1_order_06_atoms_p20,3,1,1,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p21,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_1_coupling_1_order_06_atoms_p22,3,1,1,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p23,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_1_coupling_1_order_03_atoms_p24,3,1,1,1.00,3,3,3,0
+3_stmts_recurrence_1_coupling_1_order_04_atoms_p25,3,1,1,1.33,3,4,3,1
+3_stmts_recurrence_1_coupling_1_order_04_atoms_p26,3,1,1,1.33,3,4,3,1
+3_stmts_recurrence_2_coupling_1_order_05_atoms_p27,3,1,2,1.67,3,5,3,2
+3_stmts_recurrence_1_coupling_1_order_06_atoms_p28,3,1,1,2.00,3,6,3,3
+3_stmts_recurrence_1_coupling_1_order_06_atoms_p29,3,1,1,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_1_order_06_atoms_p30,3,1,2,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_2_order_06_atoms_p01,3,2,2,2.00,3,6,3,3
+3_stmts_recurrence_1_coupling_2_order_06_atoms_p02,3,2,1,2.00,3,6,5,3
+3_stmts_recurrence_1_coupling_2_order_04_atoms_p03,3,2,1,1.33,3,4,4,1
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p04,3,2,3,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_2_order_05_atoms_p05,3,2,2,1.67,3,5,5,2
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p06,3,2,3,2.00,3,6,4,3
+3_stmts_recurrence_1_coupling_2_order_03_atoms_p07,3,2,1,1.00,3,3,3,0
+3_stmts_recurrence_1_coupling_2_order_06_atoms_p08,3,2,1,2.00,3,6,4,3
+3_stmts_recurrence_1_coupling_2_order_04_atoms_p09,3,2,1,1.33,3,4,3,1
+3_stmts_recurrence_1_coupling_2_order_05_atoms_p10,3,2,1,1.67,3,5,3,2
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p11,3,2,3,2.00,3,6,4,3
+3_stmts_recurrence_1_coupling_2_order_05_atoms_p12,3,2,1,1.67,3,5,3,2
+3_stmts_recurrence_2_coupling_2_order_05_atoms_p13,3,2,2,1.67,3,5,5,2
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p14,3,2,3,2.00,3,6,5,3
+3_stmts_recurrence_1_coupling_2_order_03_atoms_p15,3,2,1,1.00,3,3,3,0
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p16,3,2,3,2.00,3,6,4,3
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p17,3,2,3,2.00,3,6,5,3
+3_stmts_recurrence_2_coupling_2_order_06_atoms_p18,3,2,2,2.00,3,6,3,3
+3_stmts_recurrence_1_coupling_2_order_05_atoms_p19,3,2,1,1.67,3,5,4,2
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p20,3,2,3,2.00,3,6,5,3
+3_stmts_recurrence_2_coupling_2_order_05_atoms_p21,3,2,2,1.67,3,5,5,2
+3_stmts_recurrence_2_coupling_2_order_05_atoms_p22,3,2,2,1.67,3,5,4,2
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p23,3,2,3,2.00,3,6,6,3
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p24,3,2,3,2.00,3,6,4,3
+3_stmts_recurrence_2_coupling_2_order_05_atoms_p25,3,2,2,1.67,3,5,3,2
+3_stmts_recurrence_1_coupling_2_order_06_atoms_p26,3,2,1,2.00,3,6,5,3
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p27,3,2,3,2.00,3,6,3,3
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p28,3,2,3,2.00,3,6,5,3
+3_stmts_recurrence_3_coupling_2_order_06_atoms_p29,3,2,3,2.00,3,6,6,3
+3_stmts_recurrence_2_coupling_2_order_06_atoms_p30,3,2,2,2.00,3,6,3,3
+3_stmts_recurrence_2_coupling_3_order_06_atoms_p01,3,3,2,2.00,3,6,3,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p02,3,3,3,2.00,3,6,5,3
+3_stmts_recurrence_2_coupling_3_order_06_atoms_p03,3,3,2,2.00,3,6,6,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p04,3,3,3,2.00,3,6,4,3
+3_stmts_recurrence_2_coupling_3_order_05_atoms_p05,3,3,2,1.67,3,5,4,2
+3_stmts_recurrence_1_coupling_3_order_04_atoms_p06,3,3,1,1.33,3,4,4,1
+3_stmts_recurrence_1_coupling_3_order_03_atoms_p07,3,3,1,1.00,3,3,3,0
+3_stmts_recurrence_2_coupling_3_order_06_atoms_p08,3,3,2,2.00,3,6,4,3
+3_stmts_recurrence_1_coupling_3_order_03_atoms_p09,3,3,1,1.00,3,3,3,0
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p10,3,3,3,2.00,3,6,6,3
+3_stmts_recurrence_1_coupling_3_order_03_atoms_p11,3,3,1,1.00,3,3,3,0
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p12,3,3,3,2.00,3,6,6,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p13,3,3,3,2.00,3,6,4,3
+3_stmts_recurrence_2_coupling_3_order_06_atoms_p14,3,3,2,2.00,3,6,5,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p15,3,3,3,2.00,3,6,6,3
+3_stmts_recurrence_2_coupling_3_order_05_atoms_p16,3,3,2,1.67,3,5,4,2
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p17,3,3,3,2.00,3,6,5,3
+3_stmts_recurrence_2_coupling_3_order_06_atoms_p18,3,3,2,2.00,3,6,4,3
+3_stmts_recurrence_2_coupling_3_order_05_atoms_p19,3,3,2,1.67,3,5,5,2
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p20,3,3,3,2.00,3,6,4,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p21,3,3,3,2.00,3,6,5,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p22,3,3,3,2.00,3,6,6,3
+3_stmts_recurrence_2_coupling_3_order_06_atoms_p23,3,3,2,2.00,3,6,6,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p24,3,3,3,2.00,3,6,5,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p25,3,3,3,2.00,3,6,4,3
+3_stmts_recurrence_1_coupling_3_order_03_atoms_p26,3,3,1,1.00,3,3,3,0
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p27,3,3,3,2.00,3,6,4,3
+3_stmts_recurrence_3_coupling_3_order_06_atoms_p28,3,3,3,2.00,3,6,5,3
+3_stmts_recurrence_1_coupling_3_order_03_atoms_p29,3,3,1,1.00,3,3,3,0
+3_stmts_recurrence_1_coupling_3_order_06_atoms_p30,3,3,1,2.00,3,6,6,3
