@@ -1,7 +1,7 @@
 from api import Skeleton, Mapping, CodegenConfig
 from random import randint, seed
 from codelet_generator import codelet_dir, generate_codelet_files, generate_batch_summary_flex, SourceInfoFlex
-from pattern_ast import get_ordered_assignments, get_accesses, count_ops
+from pattern_ast import get_ordered_assignments, get_accesses, count_ops, simplify_0s_and_1s
 
 skeleton_code = """
 declare size;
@@ -91,8 +91,6 @@ seed(0)
 application = 'LoopGen'
 batch = 'recurrence-chained-20220730'
 
-from pattern_ast import simplify_0s_and_1s
-
 source_info_header = [
     'name',
     '# statements',
@@ -102,6 +100,7 @@ source_info_header = [
     '# rhs array refs',
     '# rhs uniq array refs',
     '# rhs ops (excluding indices)',
+    'fullness',
 ]
 
 programs = set()
@@ -162,6 +161,8 @@ for order in range(1, 4):
             assert(len(array_refs) == n_atoms)
             si['# rhs uniq array refs'] = len(set(array_refs))
             si['# rhs ops (excluding indices)'] = n_ops
+            fullness = n_atoms / 4
+            si['fullness'] = f'{fullness:.2f}'
             source_infos.append(si)
             print(si.header())
             print(si.columns())
