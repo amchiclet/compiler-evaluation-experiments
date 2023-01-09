@@ -1,7 +1,7 @@
 from api import Skeleton, Mapping, CodegenConfig
 from random import randint, seed
-from codelet_generator import codelet_dir, generate_codelet_files, generate_batch_summary, SourceInfo
-from pattern_ast import get_ordered_assignments, get_accesses
+from codelet_generator import codelet_dir, generate_codelet_files, generate_batch_summary_flex, SourceInfoFlex
+from pattern_ast import get_ordered_assignments, get_accesses, count_ops, simplify_0s_and_1s
 
 skeleton_code = """
 declare size;
@@ -52,6 +52,16 @@ seed(0)
 application = 'LoopGen'
 batch = 'reduction-no-coupling-20220730'
 
+source_info_header = [
+    'name',
+    '# statements',
+    'fullness',
+    '# arrays',
+    '# rhs array refs',
+    '# rhs uniq array refs',
+    '# rhs ops (excluding indices)',
+]
+
 programs = set()
 source_infos = []
 for n_arrs in range(1, 26):
@@ -77,29 +87,30 @@ for n_arrs in range(1, 26):
     config.template_dir = 'codelet-template-int-inputs'
     config.output_dir = generate_codelet_files(application, batch, code, codelet, 10, [32000, n_arrs])
     config.array_as_ptr = True
+    simplify_0s_and_1s(skeleton.program)
     skeleton.generate_code(config)
 
     # Gather source information
-    si = SourceInfo()
-    si.name = code
-    si.n_stmts = 5
-    uniq_arrays = set()
-    for assignment in get_ordered_assignments(skeleton.program):
-        n_scalars = 0
-        n_arrays = 0
-        for access in get_accesses(assignment, ignore_indices=True):
-            if access.is_scalar():
-                n_scalars += 1
-            else:
-                n_arrays += 1
-                uniq_arrays.add(str(access.var))
-        si.scalars.append(n_scalars - 1)
-        si.arrays.append(n_arrays)
-        si.ops.append(5)
-    si.extra_columns.append('double')
-    si.extra_columns.append(5) # num scalars
-    si.extra_columns.append(n_arrs) # num arrays
-    si.extra_columns.append(0) # max dep cycle size
-    source_infos.append(si)
+    si = SourceInfoFlex(source_info_header)
+    si['name'] = code
+    si['# statements'] = 5
+    si['# arrays'] = n_arrs
 
-generate_batch_summary(application, batch, source_infos, ['scalar type', '# scalars refs', '# arrays', 'coupling'])
+    array_refs = []
+    n_ops = 0
+    for assignment in get_ordered_assignments(skeleton.program):
+        n_ops += count_ops(assignment.rhs, ignore_indices=True)
+        for access in get_accesses(assignment.rhs, ignore_indices=True):
+            if not access.is_scalar():
+                array_refs.append(str(access))
+    n_atoms = len(array_refs)
+    si['# rhs array refs'] = n_atoms
+    si['# rhs uniq array refs'] = len(set(array_refs))
+    si['# rhs ops (excluding indices)'] = n_ops
+    fullness = n_atoms/5
+    si['fullness'] = f'{fullness:.2f}'
+    source_infos.append(si)
+    print(si.header())
+    print(si.columns())
+
+generate_batch_summary_flex(application, batch, source_infos, source_info_header)
