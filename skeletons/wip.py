@@ -23,28 +23,38 @@ for [(i, >=#_:order#, <=(size-1)/n_arrs)] {
 """
 
 max_stmts = 10
-max_exprs = 10
+max_rhs_exprs = 5
+
+def fill_empty_statements(n_empty_stmts, family_name, skeleton):
+    print(n_empty_stmts)
+    empty_stmts = [Mapping(family_name, [';'] * n_empty_stmts, is_finite = True)]
+    skeleton = skeleton.fill_statements(empty_stmts)
+    return skeleton
+
+def stmt_skeleton(n_rhs_exprs, family_name):
+    rhs_exprs = []
+    for i in range(n_rhs_exprs):
+        rhs_exprs.append(f'#_:{family_name}_coef# * #_:{family_name}_rhs_arr#')
+    rhs = ' + '.join(rhs_exprs)
+    lhs = f'#_:{family_name}_lhs_arr#'
+    return f'{lhs} = {rhs};'
+
+def fill_linear_statements(n_stmts, family_prefix, skeleton):
+    stmts = []
+    for i in range(n_stmts):
+        family_name = f'{family_prefix}_{i}'
+        print(family_name)
+        stmts.append(stmt_skeleton(max_rhs_exprs, family_name))
+    stmts = [Mapping('_', stmts, is_finite = True)]
+    return skeleton.fill_statements(stmts)
 
 def gen_program():
     n_stmts = randint(1, max_stmts)
-    n_empty_stmts = max_stmts - n_stmts
 
-    empty_stmts = [
-        Mapping(
-            '_', [';'] * n_empty_stmts, is_finite = True,
-        )
-    ]
-
-    program = Skeleton(skeleton_code)
-    program = program.fill_statements(empty_stmts)
-
-    stmts = [
-        Mapping(
-            '_', ['#_:lhs# = #_:rhs#;'],
-        )
-    ]
-    program = program.fill_statements(stmts)
-    
-    print(program)
+    skeleton = Skeleton(skeleton_code)
+    skeleton = fill_empty_statements(max_stmts - n_stmts, '_', skeleton)
+    print(skeleton)
+    skeleton = fill_linear_statements(n_stmts, 'stmt', skeleton)
+    print(skeleton)
 
 gen_program()
