@@ -59,6 +59,9 @@ def gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro):
     print('---- Skeleton ----')
     skeleton = Skeleton(skeleton_code)
     n_empty_stmts = max_stmts - n_stmts
+    if n_empty_stmts < 0:
+        print("n_empty_stmts < 0")
+        return None
     skeleton = fill_empty_statements(n_empty_stmts, skeleton)
 
     def distribute(iterator):
@@ -87,10 +90,11 @@ def gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro):
     lhs_arrs = arrs[:n_stmts]
     skeleton = fill_lhs(lhs_arrs, skeleton)
     print(skeleton)
-    print()
 
     n_exprs = sum([n_ops+1 for n_ops in n_ops_dist])
-    assert(n_exprs >= n_lc_deps + n_lc_deps + n_ro)
+    if n_exprs < n_lc_deps + n_lc_deps + n_ro:
+        print("n_exprs < n_lc_deps + n_lc_deps + n_ro:")
+        return None
 
     rhs_pool = []
 
@@ -103,7 +107,7 @@ def gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro):
     rhs_pool += [f'{arr}[i]' for arr in candidates]
 
     # Read-only arrays (not part of the dependency)
-    ro_arrs = arrs[:n_stmts]
+    ro_arrs = arrs[n_stmts:]
     candidates = ro_arrs + choices(ro_arrs, k=n_ro-len(ro_arrs))
     rhs_pool += [f'{arr}[i]' for arr in candidates]
 
@@ -135,7 +139,65 @@ def gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro):
           f'read-only accesses    = {n_ro}\n'
     )
 
-    return skeleton
+    config = CodegenConfig()
+    config.possible_values = {
+        **{f'{var}[]': 8388608 for var in arrs},
+        'size': 8388608,
+        'n_arrs': n_arrs,
+    }
+    config.types = {
+        **{ f'{var}': 'double' for var in arrs },
+    }
+    config.initial_values = {
+        **{ f'{var}' : 'drand(0.0, 1.0)' for var in arrs },
+        'size': 'inputs[0]',
+        'n_arrs': 'inputs[1]',
+    }
+    config.array_as_ptr = True
+
+    print(skeleton)
+
+    # Gather source information
+    si = SourceInfoFlex(source_info_header)
+    si['name'] = 'generic'
+    si['# statements'] = n_stmts
+    si['# arrays'] = n_arrs
+
+    array_refs = []
+    n_ops = 0
+    for assignment in get_ordered_assignments(skeleton.program):
+        n_ops += count_ops(assignment.rhs, ignore_indices=True)
+        for access in get_accesses(assignment.rhs, ignore_indices=True):
+            if not access.is_scalar():
+                array_refs.append(str(access))
+    n_atoms = len(array_refs)
+    si['# rhs array refs'] = n_atoms
+    si['# rhs uniq array refs'] = len(set(array_refs))
+    si['# rhs ops (excluding indices)'] = n_ops
+    fullness = n_atoms/n_stmts
+    si['fullness'] = f'{fullness:.2f}'
+    si['# loop-carried deps'] = n_lc_deps
+    si['# loop-independent deps'] = n_li_deps
+    si['# read-only references'] = n_ro
+    print(si.header())
+    print(si.columns())
+    default_inputs = [('size', 32000), ('n_arrs', n_arrs)]
+
+    return skeleton, si, config, default_inputs
+
+source_info_header = [
+    'name',
+    '# statements',
+    '# arrays',
+    '# rhs array refs',
+    '# rhs uniq array refs',
+    '# rhs ops (excluding indices)',
+    'fullness',
+    '# loop-carried deps',
+    '# loop-independent deps',
+    '# read-only references',
+]
+
 
 # Here's an example
 n_stmts = 3
@@ -144,4 +206,8 @@ n_ops = 8
 n_lc_deps = 3
 n_li_deps = 3
 n_ro = 3
-skeleton = gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro)
+skeleton, si, config, default_inputs = gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro)
+print(skeleton)
+print(si)
+print(config)
+print(default_inputs)
