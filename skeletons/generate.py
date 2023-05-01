@@ -56,6 +56,12 @@ def fill_lhs(lhs_arrs, skeleton):
 # 6) cycles: self, cross-statement
 # 7) datasize
 def gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro):
+    print(f'n_stmts({n_stmts}) '
+          f'n_arrs({n_arrs}) '
+          f'n_ops({n_ops}) '
+          f'n_lc_deps({n_lc_deps}) '
+          f'n_li_deps({n_li_deps}) '
+          f'n_ro({n_ro})')
     print('---- Skeleton ----')
     skeleton = Skeleton(skeleton_code)
     n_empty_stmts = max_stmts - n_stmts
@@ -181,7 +187,10 @@ def gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro):
     si['# read-only references'] = n_ro
     print(si.header())
     print(si.columns())
-    default_inputs = [('size', 32000), ('n_arrs', n_arrs)]
+
+    # for this codelet, the default size is 32000
+    # n_arrs will be whatever was given
+    default_inputs = [32000, n_arrs]
 
     return skeleton, si, config, default_inputs
 
@@ -198,16 +207,15 @@ source_info_header = [
     '# read-only references',
 ]
 
-
 # Here's an example
-n_stmts = 3
-n_arrs = 5
-n_ops = 8
-n_lc_deps = 3
-n_li_deps = 3
-n_ro = 3
-skeleton, si, config, default_inputs = gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro)
-print(skeleton)
-print(si)
-print(config)
-print(default_inputs)
+# n_stmts = 3
+# n_arrs = 5
+# n_ops = 8
+# n_lc_deps = 3
+# n_li_deps = 3
+# n_ro = 3
+# skeleton, si, config, default_inputs = gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro)
+# print(skeleton)
+# print(si)
+# print(config)
+# print(default_inputs)
