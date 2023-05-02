@@ -9,6 +9,9 @@ import shutil
 import delegator
 import datetime
 import random
+import pandas as pd
+import os
+import stat
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--output_dir', type=pathlib.Path, default=pathlib.Path('./out'))
@@ -78,16 +81,55 @@ def generate_codelet(batch, index):
         return None
 
     return code, codelet, si
-    # if not args.run_script_path.exists():
-    #     print('Run script does not exist. Exiting without running.')
 
-    # run_command = delegator.run(f'{args.run_script_path.resolve()} {batch} | tee {batch}.log')
-    # if not run_command.ok:
-    #     print(run_command.err)
-    #     exit(1)
+exit()
 
-    # print(run_command.out)
+# Overview
+# 1) generate batch
+# 2) run cape scripts
+# 3) parse csv file to see whether the generated codelets have what we want
 
+# generate batch
 t = datetime.datetime.now()
 batch = f'batch-{t.year}{t.month:02d}{t.day:02d}-{t.hour:02d}{t.minute:02d}'
-generate_batch(batch, 2)
+generate_batch(batch, 1)
+
+# run batch
+
+# save all data in full_df
+# save data that meets constraints in result_df
+full_df = pd.DataFrame()
+result_df=pd.DataFrame()
+
+# run 'build_vrun_script batch' to generate vrun_new.sh
+current_dir = pathlib.Path('.')
+log_path = current_dir / f'{batch}.log'
+vrun_dir = current_dir / '..' / 'cape-experiment-scripts' / 'vrun'
+command = delegator.run(f'./build_vrun_script {batch}', cwd=vrun_dir)
+
+# run the newly generated vrun_new.sh
+vrun_new_sh = vrun_dir / 'vrun_new.sh'
+st = os.stat(vrun_new_sh)
+os.chmod(vrun_new_sh, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+command = delegator.run(f'./vrun_new.sh test', cwd=vrun_dir)
+
+# find the generated SI data csv file
+line_start = command.out.index("Cape SI data")
+si_filename_start = command.out.index(":", line_start) + 2
+si_filename_end = command.out.index(".csv", line_start) + 4
+si_path = command.out[si_filename_start:si_filename_end].strip()
+si_csv = pathlib.Path(si_path)
+
+# get matching rows and store them in the data frames
+
+# this is just an example for testing
+metric_name = 'Rate[L2]_GB/s, Stall[FE]_%'
+tier = 2
+
+si_df = pd.read_csv(si_path)
+full_df = full_df.append(si_df)
+
+SELECTED_NODES = []
+SELECTED_NODES.append(metric_name)
+yield_df = si_df.loc[si_df['Tier'] == tier & si_df['Sat_Node'].isin(SELECTED_NODES)]
+result_df = result_df.append(yield_df)
