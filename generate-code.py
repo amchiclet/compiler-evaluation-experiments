@@ -65,7 +65,12 @@ def generate_codelet(batch, index):
     n_li_deps = random.randint(0, n_stmts)
     n_ro = random.randint(1, 5)
     n_arrs = random.randint(n_stmts+1, n_stmts+n_ro)
-    skeleton, si, config, default_inputs = generate.gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro)
+    gen_result = generate.gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro)
+    if gen_result is None:
+        return None
+
+    skeleton, si, config, default_inputs = gen_result
+    si['name'] = code
     if skeleton is None:
         return None
 
@@ -82,8 +87,6 @@ def generate_codelet(batch, index):
 
     return code, codelet, si
 
-exit()
-
 # Overview
 # 1) generate batch
 # 2) run cape scripts
@@ -92,7 +95,7 @@ exit()
 # generate batch
 t = datetime.datetime.now()
 batch = f'batch-{t.year}{t.month:02d}{t.day:02d}-{t.hour:02d}{t.minute:02d}'
-generate_batch(batch, 1)
+generate_batch(batch, 2)
 
 # run batch
 
@@ -105,12 +108,15 @@ result_df=pd.DataFrame()
 current_dir = pathlib.Path('.')
 log_path = current_dir / f'{batch}.log'
 vrun_dir = current_dir / '..' / 'cape-experiment-scripts' / 'vrun'
-command = delegator.run(f'./build_vrun_script {batch}', cwd=vrun_dir)
+command = delegator.run(f'./build_vrun_script {batch} compiler-evaluation-experiments/{args.output_dir}', cwd=vrun_dir)
+print(command.out)
+print(command.err)
 
 # run the newly generated vrun_new.sh
 vrun_new_sh = vrun_dir / 'vrun_new.sh'
 st = os.stat(vrun_new_sh)
 os.chmod(vrun_new_sh, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
 command = delegator.run(f'./vrun_new.sh test', cwd=vrun_dir)
 
 # find the generated SI data csv file
@@ -123,7 +129,7 @@ si_csv = pathlib.Path(si_path)
 # get matching rows and store them in the data frames
 
 # this is just an example for testing
-metric_name = 'Rate[L2]_GB/s, Stall[FE]_%'
+metric_name = 'Stall[RS]_%'
 tier = 2
 
 si_df = pd.read_csv(si_path)
@@ -133,3 +139,9 @@ SELECTED_NODES = []
 SELECTED_NODES.append(metric_name)
 yield_df = si_df.loc[si_df['Tier'] == tier & si_df['Sat_Node'].isin(SELECTED_NODES)]
 result_df = result_df.append(yield_df)
+
+print('yield')
+print(yield_df)
+
+print('full')
+print(full_df)
