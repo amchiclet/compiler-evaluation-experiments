@@ -17,18 +17,25 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--output_dir', type=pathlib.Path, default=pathlib.Path('./out'))
 parser.add_argument('--temp_dir', type=pathlib.Path, default=pathlib.Path('./tmp'))
 parser.add_argument('--run_script_path', type=pathlib.Path, default=pathlib.Path('./run.sh'))
-parser.add_argument('--how_many', type=int, default=1)
+parser.add_argument('--tiers', type=int, nargs='+', default=[1, 2])
+parser.add_argument('--unit', type=str, default='control')
+parser.add_argument('--batch_size', type=int, default=2)
+parser.add_argument('--max_attempts', type=int, default=3)
+parser.add_argument('--batch_prefix', type=str, default=None)
 parser.add_argument('--random_state', type=pathlib.Path, default=None)
-parser.add_argument('--node', type=str, default=None)
-parser.add_argument('--tier', type=int, default=None)
+parser.add_argument('--experiment_name', type=str, default=None)
+parser.add_argument('--how_many', type=int, default=1)
 args = parser.parse_args()
 
 if args.random_state is not None:
     randomstate.restore(args.random_state)
 
-print(args.output_dir, args.temp_dir)
-
 checksums = checksum.gather_checksums(args.output_dir, '*/*/*/core.c')
+
+experiment_name = args.experiment_name
+if args.experiment_name is None:
+    t = datetime.datetime.now()
+    experiment_name = f'experiment-{t.year}{t.month:02d}{t.day:02d}-{t.hour:02d}{t.minute:02d}'
 
 def generate_batch(batch, n_codelets, max_try_factor=3):
     max_tries = n_codelets * max_try_factor
@@ -92,56 +99,90 @@ def generate_codelet(batch, index):
 # 2) run cape scripts
 # 3) parse csv file to see whether the generated codelets have what we want
 
-# generate batch
-t = datetime.datetime.now()
-batch = f'batch-{t.year}{t.month:02d}{t.day:02d}-{t.hour:02d}{t.minute:02d}'
-generate_batch(batch, 2)
+control_unit_nodes = [
+    'Stall[RS]_%',
+    'Stall[SB]_%',
+    'Stall[LB]_%',
+    'Stall[LM]_%',
+    'Stall[RS]_%',
+    'Stall[ROB]_%',
+]
 
-# run batch
-
-# save all data in full_df
-# save data that meets constraints in result_df
 full_df = pd.DataFrame()
-result_df=pd.DataFrame()
+result_df = pd.DataFrame()
 
-# run 'build_vrun_script batch' to generate vrun_new.sh
-current_dir = pathlib.Path('.')
-log_path = current_dir / f'{batch}.log'
-vrun_dir = current_dir / '..' / 'cape-experiment-scripts' / 'vrun'
-command = delegator.run(f'./build_vrun_script {batch} compiler-evaluation-experiments/{args.output_dir}', cwd=vrun_dir)
-print(command.out)
-print(command.err)
+count = 0
+for attempt in range(1, args.max_attempts+1):
+    # generate batch
+    batch_prefix = experiment_name
+    if args.batch_prefix is not None:
+        batch_prefix = args.batch_prefix
+    batch = f'{batch_prefix}-batch{attempt:02d}'
+    generate_batch(batch, args.batch_size)
 
-# run the newly generated vrun_new.sh
-vrun_new_sh = vrun_dir / 'vrun_new.sh'
-st = os.stat(vrun_new_sh)
-os.chmod(vrun_new_sh, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    # run batch
 
-command = delegator.run(f'./vrun_new.sh test', cwd=vrun_dir)
+    # save all data in full_df
+    # save data that meets constraints in result_df
 
-# find the generated SI data csv file
-line_start = command.out.index("Cape SI data")
-si_filename_start = command.out.index(":", line_start) + 2
-si_filename_end = command.out.index(".csv", line_start) + 4
-si_path = command.out[si_filename_start:si_filename_end].strip()
-si_csv = pathlib.Path(si_path)
+    # run 'build_vrun_script batch' to generate vrun_new.sh
+    current_dir = pathlib.Path('.')
+    log_path = current_dir / f'{batch}.log'
+    vrun_dir = current_dir / '..' / 'cape-experiment-scripts' / 'vrun'
+    vrun_input = f'{current_dir.resolve().name}/{args.output_dir}/{batch}'
+    print(vrun_input)
+    command = delegator.run(f'./build_vrun_script {vrun_input}', cwd=vrun_dir)
+    print(command.out)
+    print(command.err)
 
-# get matching rows and store them in the data frames
+    # run the newly generated vrun_new.sh
+    vrun_new_sh = vrun_dir / 'vrun_new.sh'
+    st = os.stat(vrun_new_sh)
+    os.chmod(vrun_new_sh, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
-# this is just an example for testing
-metric_name = 'Stall[RS]_%'
-tier = 2
+    print(f'Running cape script. To view ')
+    print(f'less +F {log_path.resolve()}')
+    command = delegator.run(f'./vrun_new.sh test | tee {log_path.resolve()}', cwd=vrun_dir)
 
-si_df = pd.read_csv(si_path)
-full_df = full_df.append(si_df)
+    # find the generated SI data csv file
+    line_start = command.out.index("Cape SI data")
+    si_filename_start = command.out.index(":", line_start) + 2
+    si_filename_end = command.out.index(".csv", line_start) + 4
+    si_path = command.out[si_filename_start:si_filename_end].strip()
+    si_csv = pathlib.Path(si_path)
 
-SELECTED_NODES = []
-SELECTED_NODES.append(metric_name)
-yield_df = si_df.loc[si_df['Tier'] == tier & si_df['Sat_Node'].isin(SELECTED_NODES)]
-result_df = result_df.append(yield_df)
+    si_df = pd.read_csv(si_path)
+    full_df = full_df.append(si_df)
 
-print('yield')
-print(yield_df)
+    # yield_df = si_df.loc[si_df['Tier'].isin(args.tiers)]
+    # print(f'--------tier = {args.tiers}-----------')
+    # print(yield_df)
 
-print('full')
-print(full_df)
+    # yield_df = si_df.loc[si_df['Sat_Node'].isin(control_unit_nodes)]
+    # print('control unit')
+    # print(yield_df)
+
+    yield_df = si_df.loc[si_df['Tier'].isin(args.tiers) & si_df['Sat_Node'].isin(control_unit_nodes)]
+    result_df = result_df.append(yield_df)
+    # print('both')
+    # print(yield_df)
+    if not yield_df.empty:
+        print(f'Found codelets saturating the control unit at tier {args.tiers}')
+        print(yield_df[['Name', 'Tier', 'Sat_Node']])
+        count += len(yield_df)
+        if count >= args.how_many:
+            break
+        continue
+
+    print(f'Finished attempt {attempt}/{args.max_attempts}')
+    print(f'Did not find any codelets saturating the control units at tier {args.tiers}')
+    print(full_df[['Name', 'Tier', 'Sat_Node']])
+
+print('*********** All codelets generated **********')
+print(full_df[['Name', 'Tier', 'Sat_Node']])
+
+print(f'************ Codelets saturating the control unit at tiers {args.tiers} ***********')
+print(result_df[['Name', 'Tier', 'Sat_Node']])
+
+full_df.to_csv(f'{args.output_dir}/{experiment_name}_codelet_all.csv', index = True, header = True)
+result_df.to_csv(f'{args.output_dir}/{experiment_name}_codelet_yield.csv', index = True, header = True)
