@@ -165,7 +165,7 @@ def gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro):
 
     # Gather source information
     si = SourceInfoFlex(source_info_header)
-    si['name'] = 'generic'
+    si['name'] = None
     si['# statements'] = n_stmts
     si['# arrays'] = n_arrs
 
@@ -180,7 +180,7 @@ def gen_program(n_stmts, n_arrs, n_ops, n_lc_deps, n_li_deps, n_ro):
     si['# rhs array refs'] = n_atoms
     si['# rhs uniq array refs'] = len(set(array_refs))
     si['# rhs ops (excluding indices)'] = n_ops
-    fullness = n_atoms/n_stmts
+    fullness = n_exprs/n_stmts
     si['fullness'] = f'{fullness:.2f}'
     si['# loop-carried deps'] = n_lc_deps
     si['# loop-independent deps'] = n_li_deps
