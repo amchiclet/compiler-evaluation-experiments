@@ -16,7 +16,6 @@ import stat
 parser = argparse.ArgumentParser()
 parser.add_argument('--output_dir', type=pathlib.Path, default=pathlib.Path('./out'))
 parser.add_argument('--temp_dir', type=pathlib.Path, default=pathlib.Path('./tmp'))
-parser.add_argument('--run_script_path', type=pathlib.Path, default=pathlib.Path('./run.sh'))
 parser.add_argument('--tiers', type=int, nargs='+', default=[1, 2])
 parser.add_argument('--unit', type=str, default='control')
 parser.add_argument('--batch_size', type=int, default=2)
@@ -54,6 +53,7 @@ def generate_batch(batch, n_codelets, max_try_factor=3):
     codelet_generator.generate_batch_summary_flex(
         args.output_dir, batch, sis, generate.source_info_header
     )
+    return sis
 
 def generate_codelet(batch, index):
     t = datetime.datetime.now()
@@ -93,6 +93,36 @@ def generate_codelet(batch, index):
 
     return code, codelet, si
 
+def extract_loop(batch_path):
+    names = []
+    codes = []
+
+    for path in sorted(pathlib.Path(batch_path).glob('*/*/core.c')):
+        codelet = path.parts[-3]
+        names.append(f'LoopGen: {codelet}_de')
+        lines = []
+        with open(path) as f:
+            function_start = False
+            for line in f:
+                if 'core(' in line:
+                    function_start = True
+                    continue
+                if 'return 0' in line:
+                    break
+                if not function_start:
+                    continue
+                lines.append(line)
+        no_empty = []
+        for line in lines:
+            if len(line.strip()) > 0:
+                no_empty.append(line)
+        codes.append(''.join(no_empty))
+
+    df = pd.DataFrame()
+    df['name'] = names
+    df['code'] = codes
+    return df
+
 # Overview
 # 1) generate batch
 # 2) run cape scripts
@@ -119,7 +149,7 @@ for attempt in range(1, args.max_attempts+1):
     if args.batch_prefix is not None:
         batch_prefix = args.batch_prefix
     batch = f'{batch_prefix}-batch{attempt:02d}'
-    generate_batch(batch, args.batch_size)
+    source_infos = generate_batch(batch, args.batch_size)
 
     # run batch
 
@@ -150,6 +180,26 @@ for attempt in range(1, args.max_attempts+1):
     si_csv = pathlib.Path(si_path)
 
     si_df = pd.read_csv(si_path)
+
+    # add source info to the dataframe
+    source_info_dict = {}
+    for source_info in source_infos:
+        for k, v in source_info.m.items():
+            if k not in source_info_dict:
+                source_info_dict[k] = []
+            if k == 'name':
+                source_info_dict[k].append(f'LoopGen: {v}_de')
+            else:
+                source_info_dict[k].append(v)
+    source_info_df = pd.DataFrame.from_dict(source_info_dict)
+    print(source_info_df)
+    si_df = pd.merge(si_df, source_info_df, how="outer", left_on="Name", right_on="name")
+
+    # get the loop code
+    loops_df = extract_loop(args.output_dir / batch)
+    print(loops_df)
+    si_df = pd.merge(si_df, loops_df, how="outer", left_on="Name", right_on="name")
+
     full_df = full_df.append(si_df)
 
     yield_df = si_df.loc[si_df['Tier'].isin(args.tiers) & si_df['Sat_Node'].isin(control_unit_nodes)]
@@ -166,11 +216,15 @@ for attempt in range(1, args.max_attempts+1):
     print(f'Did not find any codelets saturating the control units at tier {args.tiers}')
     print(full_df[['Name', 'Tier', 'Sat_Node']])
 
+columns = ['Name', 'Tier', 'Sat_Node', '# statements', 'code']
+full_df = full_df.reindex()
+result_df = full_df.reindex()
+
 print('*********** All codelets generated **********')
-print(full_df[['Name', 'Tier', 'Sat_Node']])
+print(full_df[columns])
 
 print(f'************ Codelets saturating the control unit at tiers {args.tiers} ***********')
-print(result_df[['Name', 'Tier', 'Sat_Node']])
+print(result_df[columns])
 
 full_df.to_csv(f'{args.output_dir}/{experiment_name}_codelet_all.csv', index = True, header = True)
 result_df.to_csv(f'{args.output_dir}/{experiment_name}_codelet_yield.csv', index = True, header = True)
