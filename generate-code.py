@@ -65,7 +65,6 @@ def generate_codelet(batch, index):
     randomstate_path = codelet_path / 'random.state'
     randomstate.checkpoint(randomstate_path)
 
-    # skeleton, source_info, config, default_inputs = recurrence.generate()
     n_stmts = random.randint(3, 5)
     n_ops = random.randint(n_stmts, n_stmts*5)
     n_lc_deps = random.randint(0, n_stmts)
@@ -108,6 +107,8 @@ control_unit_nodes = [
     'Stall[ROB]_%',
 ]
 
+# save all data in full_df
+# save data that meets constraints in result_df
 full_df = pd.DataFrame()
 result_df = pd.DataFrame()
 
@@ -121,9 +122,6 @@ for attempt in range(1, args.max_attempts+1):
     generate_batch(batch, args.batch_size)
 
     # run batch
-
-    # save all data in full_df
-    # save data that meets constraints in result_df
 
     # run 'build_vrun_script batch' to generate vrun_new.sh
     current_dir = pathlib.Path('.')
@@ -154,18 +152,8 @@ for attempt in range(1, args.max_attempts+1):
     si_df = pd.read_csv(si_path)
     full_df = full_df.append(si_df)
 
-    # yield_df = si_df.loc[si_df['Tier'].isin(args.tiers)]
-    # print(f'--------tier = {args.tiers}-----------')
-    # print(yield_df)
-
-    # yield_df = si_df.loc[si_df['Sat_Node'].isin(control_unit_nodes)]
-    # print('control unit')
-    # print(yield_df)
-
     yield_df = si_df.loc[si_df['Tier'].isin(args.tiers) & si_df['Sat_Node'].isin(control_unit_nodes)]
     result_df = result_df.append(yield_df)
-    # print('both')
-    # print(yield_df)
     if not yield_df.empty:
         print(f'Found codelets saturating the control unit at tier {args.tiers}')
         print(yield_df[['Name', 'Tier', 'Sat_Node']])
