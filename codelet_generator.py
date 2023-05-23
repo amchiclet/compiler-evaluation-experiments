@@ -29,7 +29,6 @@ def batch_dir(application, batch, base='.'):
     return f'{base}/{application}/{batch}'
 
 def codelet_dir(application, batch, code, codelet, base='.'):
-    print(f'batch dir = {batch_dir(application, batch, base)}')
     return f'{batch_dir(application, batch, base)}/{code}/{codelet}'
 
 def source_info_file(codelet_dir):
