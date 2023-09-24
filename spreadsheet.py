@@ -1,4 +1,6 @@
 import pandas as pd
+import openpyxl
+import color_scheme
 
 # Example::
 #
@@ -28,7 +30,7 @@ def read_csv(path, extra_header):
     df.columns = df.MultiIndex.from_product([[extra_header], df.columns])
     return df
 
-def merge_left(dfs, names, columns_to_keep, on_index):
+def merge_left(dfs, names, on_index, filter_columns=None):
     assert(len(dfs) > 1)
 
     def create_renaming_dict(df, name):
@@ -38,19 +40,31 @@ def merge_left(dfs, names, columns_to_keep, on_index):
         }
 
     def prepare_df(i):
-        df = dfs[i][columns_to_keep + [on_index]].copy()
+        if filter_columns is None:
+            df = dfs[i].copy()
+        else:
+            df = dfs[i][filter_columns + [on_index]].copy()
         df.set_index(on_index, inplace=True)
         renaming_dict = create_renaming_dict(df, names[i])
-        print(renaming_dict)
         df.rename(columns=renaming_dict, inplace=True)
         return df
 
     merged = prepare_df(0)
-    print(merged)
     for i in range(1, len(dfs)):
         df = prepare_df(i)
-        print(df)
         merged = merged.merge(df, left_index=True, right_index=True, how='left')
 
     merged.reset_index(inplace=True)
     return merged
+
+def color(path_in, path_out):
+    wb = openpyxl.load_workbook(path_in)
+    ws = wb.active
+
+    for col in ws.iter_cols(min_col=2, min_row=2):
+        name = col[0].value
+        if name not in color_scheme.default:
+            continue
+        color_scheme.default[name](col[1:])
+
+    wb.save(path_out)
