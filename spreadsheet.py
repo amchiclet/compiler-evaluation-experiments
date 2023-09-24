@@ -1,6 +1,7 @@
 import pandas as pd
 import openpyxl
 import color_scheme
+import pathlib
 
 # Example::
 #
@@ -43,7 +44,7 @@ def merge_left(dfs, names, on_index, filter_columns=None):
         if filter_columns is None:
             df = dfs[i].copy()
         else:
-            df = dfs[i][filter_columns + [on_index]].copy()
+            df = dfs[i][filter_columns + on_index].copy()
         df.set_index(on_index, inplace=True)
         renaming_dict = create_renaming_dict(df, names[i])
         df.rename(columns=renaming_dict, inplace=True)
@@ -54,7 +55,6 @@ def merge_left(dfs, names, on_index, filter_columns=None):
         df = prepare_df(i)
         merged = merged.merge(df, left_index=True, right_index=True, how='left')
 
-    merged.reset_index(inplace=True)
     return merged
 
 def color(path_in, path_out):
@@ -68,3 +68,44 @@ def color(path_in, path_out):
         color_scheme.default[name](col[1:])
 
     wb.save(path_out)
+
+def extract_df(batch):
+    names = []
+    codes = []
+
+    for path in sorted(pathlib.Path(batch).glob('*/*/core.c')):
+        codelet = path.parts[-3]
+        names.append(codelet)
+        lines = []
+        with open(path) as f:
+            function_start = False
+            for line in f:
+                if 'core(' in line:
+                    function_start = True
+                    continue
+                if 'return 0' in line:
+                    break
+                if not function_start:
+                    continue
+                lines.append(line)
+        no_empty = []
+        for line in lines:
+            if len(line.strip()) > 0:
+                no_empty.append(line)
+        codes.append(''.join(no_empty))
+
+    df = pd.DataFrame()
+    df['name'] = names
+    df['code'] = codes
+    return df
+
+def get_src_and_code_df(batch):
+    src_df = pd.read_csv(f'{batch}/src_info.csv')
+    code_df = extract_df(batch)
+
+    src_df.set_index('name', inplace=True)
+    code_df.set_index('name', inplace=True)
+    src_and_code = src_df.merge(code_df, left_index=True, right_index=True, how='left')
+    src_and_code.reset_index(inplace=True)
+    src_and_code.columns = pd.MultiIndex.from_product([['Src Info'], src_and_code.columns])
+    return src_and_code
