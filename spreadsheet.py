@@ -2,6 +2,7 @@ import pandas as pd
 import openpyxl
 import color_scheme
 import pathlib
+import matplotlib.pyplot as plt
 
 # Example::
 #
@@ -28,7 +29,7 @@ def read_excel(path):
 
 def read_csv(path, extra_header):
     df = pd.read_csv(path)
-    df.columns = df.MultiIndex.from_product([[extra_header], df.columns])
+    df.columns = pd.MultiIndex.from_product([[extra_header], df.columns])
     return df
 
 def merge_left(dfs, names, on_index, filter_columns=None):
@@ -109,3 +110,24 @@ def get_src_and_code_df(batch):
     src_and_code.reset_index(inplace=True)
     src_and_code.columns = pd.MultiIndex.from_product([['Src Info'], src_and_code.columns])
     return src_and_code
+
+def compare(paths, labels, x_column, y_column, output_path=None):
+    colors = ['blue', 'red', 'green', 'black']
+    assert(len(paths) >= 1)
+    assert(len(paths) <= 4)
+    dfs = [read_excel(p) for p in paths]
+    x = dfs[0][x_column]
+    plt.figure(figsize=(10, 6))
+    for df, label, color in zip(dfs, labels, colors):
+        y = df[y_column]
+        plt.plot(x, y, color=color, linestyle='-', label=label)
+    plt.xlabel(str(x_column))
+    plt.ylabel(str(y_column))
+    plt.yscale('log')
+    x_ticks = x if len(x) < 40 else x[::int(len(x)/40)]
+    plt.xticks(x_ticks, rotation=90)
+    plt.legend()
+    if output_path is None:
+        plt.show()
+    else:
+        plt.savefig(output_path)
