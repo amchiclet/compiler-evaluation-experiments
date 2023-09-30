@@ -111,20 +111,83 @@ def get_src_and_code_df(batch):
     src_and_code.columns = pd.MultiIndex.from_product([['Src Info'], src_and_code.columns])
     return src_and_code
 
-def compare(paths, labels, x_column, y_column, output_path=None):
+def create_series_key(single_cell_key):
+    if single_cell_key is None:
+        return None
+    return lambda series: [single_cell_key(i) for i in series]
+
+def estimate_width(df):
+    return len(df) // 4
+
+# Example:
+# spreadsheet.compare(
+#     [naive, mkl],
+#     ['naive', 'mkl'],
+#     ('Run Info', 'DataSet'),
+#     ('Timing Metrics', 'Loop (s)'),
+#     sorter=lambda x: list(map(int, x.split('-'))),
+#     output_path='/home/username/runtime_comparison.png'
+# )
+def compare(paths, labels, x_column, y_column, sorter=None, output_path=None):
     colors = ['blue', 'red', 'green', 'black']
     assert(len(paths) >= 1)
     assert(len(paths) <= 4)
+
+    key = create_series_key(sorter)
+
     dfs = [read_excel(p) for p in paths]
     x = dfs[0][x_column]
-    plt.figure(figsize=(10, 6))
+    x = x.sort_values(key=key)
+
+    plt.figure(figsize=(estimate_width(x), 10))
     for df, label, color in zip(dfs, labels, colors):
+        df.sort_values(x_column, inplace=True, key=key)
         y = df[y_column]
         plt.plot(x, y, color=color, linestyle='-', label=label)
     plt.xlabel(str(x_column))
     plt.ylabel(str(y_column))
     plt.yscale('log')
-    x_ticks = x if len(x) < 40 else x[::int(len(x)/40)]
+    x_ticks = x if len(x) < 100 else x[::int(len(x)/100)]
+    plt.xticks(x_ticks, rotation=90)
+    plt.legend()
+    if output_path is None:
+        plt.show()
+    else:
+        plt.savefig(output_path)
+
+# Example:
+# spreadsheet.compare_speedup(
+#     [mkl],
+#     naive,
+#     ['mkl'],
+#     'naive',
+#     ('Run Info', 'DataSet'),
+#     ('Timing Metrics', 'Loop (s)'),
+#     sorter=lambda x: list(map(int, x.split('-'))),
+#     output_path='/home/username/speedup.png'
+# )
+def compare_speedup(paths, path_of_base, labels, base_label, x_column, y_column, sorter=None, output_path=None):
+    colors = ['blue', 'red', 'green', 'black']
+    assert(len(paths) >= 1)
+    assert(len(paths) <= 4)
+    dfs = [read_excel(p) for p in paths]
+    base_df = read_excel(path_of_base)
+
+    key = create_series_key(sorter)
+
+    base_df.sort_values(x_column, inplace=True, key=key)
+    x = dfs[0][x_column]
+    x = x.sort_values(key=key)
+
+    plt.figure(figsize=(estimate_width(x), 10))
+    for df, label, color in zip(dfs, labels, colors):
+        df.sort_values(x_column, inplace=True, key=key)
+        y_speedup = base_df[y_column] / df[y_column]
+        plt.plot(x, y_speedup, color=color, linestyle='-', label=label)
+    plt.xlabel(str(x_column))
+    plt.ylabel(f'{y_column} speedup over {base_label}')
+    # plt.yscale('log')
+    x_ticks = x if len(x) < 100 else x[::int(len(x)/100)]
     plt.xticks(x_ticks, rotation=90)
     plt.legend()
     if output_path is None:
