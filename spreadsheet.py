@@ -32,7 +32,7 @@ def read_csv(path, extra_header):
     df.columns = pd.MultiIndex.from_product([[extra_header], df.columns])
     return df
 
-def merge_left(dfs, names, on_index, filter_columns=None):
+def merge(dfs, names, on_index, filter_columns=None, how='left'):
     assert(len(dfs) > 1)
 
     def create_renaming_dict(df, name):
@@ -54,7 +54,7 @@ def merge_left(dfs, names, on_index, filter_columns=None):
     merged = prepare_df(0)
     for i in range(1, len(dfs)):
         df = prepare_df(i)
-        merged = merged.merge(df, left_index=True, right_index=True, how='left')
+        merged = merged.merge(df, left_index=True, right_index=True, how=how)
 
     return merged
 
@@ -146,6 +146,48 @@ def compare(paths, labels, x_column, y_column, sorter=None, output_path=None):
         plt.plot(x, y, color=color, linestyle='-', label=label)
     plt.xlabel(str(x_column))
     plt.ylabel(str(y_column))
+    plt.yscale('log')
+    x_ticks = x if len(x) < 100 else x[::int(len(x)/100)]
+    plt.xticks(x_ticks, rotation=90)
+    plt.legend()
+    if output_path is None:
+        plt.show()
+    else:
+        plt.savefig(output_path)
+
+def compare_merged(paths, labels, x_column, y_column, sorter=None, output_path=None):
+    colors = ['blue', 'red', 'green', 'black']
+    assert(len(paths) >= 1)
+    assert(len(paths) <= 4)
+
+    key = create_series_key(sorter)
+
+    y_columns = [
+        (f'{y_column[0]} ({suffix})', y_column[1])
+        for suffix in labels
+    ]
+
+    dfs = [read_excel(p) for p in paths]
+    merged = merge(
+        dfs,
+        labels,
+        [x_column],
+        [y_column],
+        how='inner'
+    )
+    merged.fillna(0, inplace=True)
+    merged.reset_index(inplace=True)
+    merged.sort_values(x_column, inplace=True, key=key)
+
+    x = merged[x_column]
+    plt.figure(figsize=(estimate_width(x), 10))
+    plt.xlabel(str(x_column))
+    plt.ylabel(str(y_column))
+
+    for y_column, color, label in zip(y_columns, colors, labels):
+        y = merged[y_column]
+        plt.plot(x, y, color=color, linestyle='-', marker='o', label=label)
+
     plt.yscale('log')
     x_ticks = x if len(x) < 100 else x[::int(len(x)/100)]
     plt.xticks(x_ticks, rotation=90)
